@@ -152,7 +152,13 @@ def test_load_baseline_rejects_a_missing_file(tmp_path: Path) -> None:
 
 
 def test_the_shipped_baseline_parses() -> None:
-    assert ctb.load_baseline(ctb.DEFAULT_BASELINE) == {}
+    # The shipped file is no longer empty: entries are added with `--add`. What the test
+    # guards is that every shipped line parses and each reason names an issue path.
+    entries = ctb.load_baseline(ctb.DEFAULT_BASELINE)
+    assert entries
+    for test_id, reason in entries.items():
+        assert test_id.strip()
+        assert ctb.ISSUE_PATH_RE.search(reason)
 
 
 def test_known_failures_only_exit_zero_and_report_the_count(

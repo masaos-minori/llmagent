@@ -1,8 +1,7 @@
 """tests/shared/test_llm_client_characterization.py
 
 Characterization tests for scripts/shared/llm_client.py paths not already covered by
-tests/agent/test_llm_client.py: build_llm_url/build_embed_url edge cases, the
-(the LLMClient.build_payload wrapper and request_with_retry were removed).
+tests/agent/test_llm_client.py: the build_llm_url and build_embed_url edge cases.
 
 These tests exist to lock current behavior before a refactoring pass on
 scripts/shared/llm_client.py (see prompts/04_refactor.md). They assert observed
@@ -11,7 +10,10 @@ behavior, not intended/ideal behavior.
 
 from __future__ import annotations
 
+import pytest
 from shared.llm_client import build_embed_url, build_llm_url
+
+pytestmark = pytest.mark.characterization
 
 # ── build_llm_url / build_embed_url ───────────────────────────────────────────
 

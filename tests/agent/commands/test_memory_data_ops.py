@@ -265,6 +265,74 @@ class TestMemorySearchSummaryPreview:
         mem.retriever.search.assert_not_called()
 
 
+class TestMemoryDisplayMasking:
+    """REQ-005 (AC-1): stored user data is masked before it reaches normal CLI output."""
+
+    def test_list_preview_is_masked_before_the_cap(self) -> None:
+        ops, out = _make_ops()
+        mem = MagicMock()
+        # The leading credential is inside the 60-character window only if masking
+        # happens before the cap.
+        entry = _make_entry(
+            summary="token=SECRETVALUE " + "z" * 100, content="ignored content"
+        )
+        mem.store.search_by_type.side_effect = lambda memory_type, limit: (
+            [entry] if memory_type == "semantic" else []
+        )
+
+        ops.memory_list(mem, [])
+
+        lines = [c.args[0] for c in out.write.call_args_list]
+        assert "SECRETVALUE" not in " ".join(lines)
+        assert any("***MASKED***" in line for line in lines)
+
+    def test_search_preview_is_masked(self) -> None:
+        ops, out = _make_ops()
+        mem = MagicMock()
+        entry = _make_entry(summary="api_key=SECRETVALUE", content="ignored content")
+        hit = MagicMock()
+        hit.entry = entry
+        hit.score = 0.9
+        mem.retriever.search.return_value = [hit]
+
+        ops.memory_search(mem, ["query"])
+
+        lines = [c.args[0] for c in out.write.call_args_list]
+        assert "SECRETVALUE" not in " ".join(lines)
+        assert any("***MASKED***" in line for line in lines)
+
+    def test_show_writes_masked_summary_and_content(self) -> None:
+        ops, out = _make_ops()
+        mem = MagicMock()
+        entry = _make_entry(
+            summary="summary with password=SECRETVALUE",
+            content="body line\nanother password=SECRETVALUE",
+        )
+        mem.store.get_by_id.return_value = entry
+
+        ops.memory_show(mem, ["id1"])
+
+        lines = [c.args[0] for c in out.write.call_args_list]
+        joined = "\n".join(lines)
+        assert "SECRETVALUE" not in joined
+        assert joined.count("***MASKED***") == 2
+        # Non-sensitive text is displayed unchanged.
+        assert "body line" in joined
+        assert "another password=" in joined
+
+    def test_show_path_valued_content_becomes_a_logical_identifier(self) -> None:
+        ops, out = _make_ops()
+        mem = MagicMock()
+        entry = _make_entry(summary="", content="/opt/llm/rag.sqlite")
+        mem.store.get_by_id.return_value = entry
+
+        ops.memory_show(mem, ["id1"])
+
+        joined = "\n".join(c.args[0] for c in out.write.call_args_list)
+        assert "content:\nrag.sqlite" in joined
+        assert "/opt/llm" not in joined
+
+
 class TestResolveId:
     def test_full_id_resolves_directly(self) -> None:
         ops, _ = _make_ops()

@@ -6,14 +6,18 @@ Verifies:
 - Every _cmd_* method has a CommandDef (with intentional exclusions listed)
 - /help output mentions all command names
 - Dispatch correctness
+- The Built-in Command Index table and the tab-completion set list the same command set as
+  _COMMANDS (REQ-007)
 """
 
 from __future__ import annotations
 
+from pathlib import Path
 from unittest.mock import MagicMock
 
 from agent.commands.command_defs_list import _COMMANDS
 from agent.commands.registry import CommandRegistry
+from agent.repl import completion_command_names, reserved_repl_command_names
 
 # Internal sub-dispatch helpers intentionally absent from _COMMANDS
 INTENTIONAL_HANDLER_EXCLUSIONS: frozenset[str] = frozenset(
@@ -268,3 +272,42 @@ def test_usage_lines_render_required_and_optional_arguments() -> None:
         "/x go <id> [n]"
     )
     assert format_usage("/x", "", ()) == "/x"
+
+
+# --- Documentation and completion set equality (REQ-007) ---
+
+_COMMAND_INDEX_DOC = (
+    Path(__file__).resolve().parents[3]
+    / "docs"
+    / "23_agent"
+    / "agent_07_03_cli-and-commands-command-registry.md"
+)
+
+
+def _documented_command_names() -> set[str]:
+    """Command names from the Built-in Command Index table rows."""
+    return {
+        line.split("|")[1].strip().strip("`")
+        for line in _COMMAND_INDEX_DOC.read_text(encoding="utf-8").splitlines()
+        if line.startswith("| `/")
+    }
+
+
+def test_documented_command_set_equals_the_registry() -> None:
+    """REQ-007: the canonical documentation table lists the same command set as _COMMANDS."""
+    documented = _documented_command_names()
+    registered = {cmd.name for cmd in _COMMANDS}
+    assert documented == registered, (
+        f"missing from the table: {sorted(registered - documented)}; "
+        f"extra in the table: {sorted(documented - registered)}"
+    )
+
+
+def test_completion_set_equals_registry_plus_reserved() -> None:
+    """REQ-007: tab completion covers the registered commands plus the REPL-reserved names."""
+    completion = set(completion_command_names())
+    expected = {cmd.name for cmd in _COMMANDS} | set(reserved_repl_command_names())
+    assert completion == expected, (
+        f"missing from completion: {sorted(expected - completion)}; "
+        f"extra in completion: {sorted(completion - expected)}"
+    )

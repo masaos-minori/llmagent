@@ -28,6 +28,8 @@ from agent.repl_input_controller import InterruptAction
 from agent.shutdown_budget import ShutdownBudget, ShutdownPhase
 from agent.signal_handler import SignalHandler
 
+pytestmark = pytest.mark.contract
+
 
 def _raise_unavailable(*_args, **_kwargs) -> None:
     """Raise to simulate a missing ctypes symbol on POSIX."""

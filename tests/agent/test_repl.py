@@ -293,6 +293,19 @@ class TestReplLoop:
         assert "/unknown_cmd" in msg
 
     @pytest.mark.asyncio
+    async def test_unknown_command_does_not_echo_arguments(self) -> None:
+        """REQ-006: only the command token is echoed, never the arguments."""
+        repl = _make_bare_repl()
+        repl._cmds.dispatch = AsyncMock(return_value=False)
+        mock_banner = MagicMock()
+        argument = "/opt/llm/secret.json"
+        with patch("builtins.input", side_effect=[f"/unknown_cmd {argument}", "/exit"]):
+            await repl._input_loop.run(mock_banner)
+        msg = repl._view.write_warning.call_args[0][0]
+        assert msg == "Unknown command: /unknown_cmd  (type /help for commands)"
+        assert argument not in msg
+
+    @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "removed_name", ["/diff", "/system", "/audit", "/workflow"]
     )

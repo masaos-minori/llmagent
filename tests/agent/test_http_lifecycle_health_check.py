@@ -768,6 +768,110 @@ class TestSingleAuthPath:
         assert "s3cret-do-not-log" not in caplog.text
         assert "http://localhost:8080/health" in caplog.text
 
+    @pytest.mark.asyncio
+    async def test_failing_probe_logs_redacted_url(
+        self, mgr: HttpServerLifecycleManager, caplog
+    ) -> None:
+        """REQ-003 (AC-2): the logged URL carries no userinfo, query, or fragment,
+        while the request itself still uses the configured endpoint."""
+        import logging
+
+        caplog.set_level(logging.DEBUG)
+        cfg = _make_cfg(auth_token="s3cret-do-not-log")
+        raw_url = "https://admin:s3cr3tpw@db.example.com:8080/health?token=abc#frag"
+        requested: list[str] = []
+
+        class _FailingClient(_RecordingAsyncClient):
+            async def get(self, url: str, *, timeout: object = None) -> httpx.Response:
+                requested.append(url)
+                raise httpx.ConnectError("connection refused")
+
+        with patch.object(
+            hc_module.httpx, "AsyncClient", lambda *a, **k: _FailingClient(**k)
+        ):
+            assert (
+                await HealthChecker.verify_running_async("srv", cfg, url=raw_url)
+                is False
+            )
+
+        assert requested == [raw_url]
+        assert "s3cr3tpw" not in caplog.text
+        assert "token=abc" not in caplog.text
+        assert "#frag" not in caplog.text
+        assert "https://db.example.com:8080/health" in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_passing_probe_logs_redacted_url(
+        self, mgr: HttpServerLifecycleManager, caplog
+    ) -> None:
+        """REQ-003 (AC-2): the pass and status log lines use the same redacted form."""
+        import logging
+
+        caplog.set_level(logging.DEBUG)
+        cfg = _make_cfg(auth_token="s3cret-do-not-log")
+        raw_url = "https://admin:s3cr3tpw@db.example.com:8080/health?token=abc#frag"
+
+        class _OkClient(_RecordingAsyncClient):
+            async def get(self, url: str, *, timeout: object = None) -> httpx.Response:
+                return httpx.Response(503, request=httpx.Request("GET", url))
+
+        with patch.object(
+            hc_module.httpx, "AsyncClient", lambda *a, **k: _OkClient(**k)
+        ):
+            assert (
+                await HealthChecker.verify_running_async("srv", cfg, url=raw_url)
+                is False
+            )
+
+        assert "s3cr3tpw" not in caplog.text
+        assert "token=abc" not in caplog.text
+        assert (
+            "Health check returned status 503 at https://db.example.com:8080/health"
+            in caplog.text
+        )
+
+
+class TestRedactBeforeTruncate:
+    """REQ-003 (AC-2): the exited-early log masks before truncating, so a secret that
+    crosses the truncation boundary is never cut open."""
+
+    @pytest.mark.asyncio
+    async def test_secret_spanning_truncation_boundary_is_fully_masked(
+        self, mgr: HttpServerLifecycleManager, caplog
+    ) -> None:
+        import logging
+
+        caplog.set_level(logging.DEBUG)
+        cfg = _make_cfg()
+        # "token=" ends at char 496, so the value crosses the 500-char truncation point.
+        stderr_full = "x" * 496 + "token=" + "SECRETVALUE" + "y" * 100
+        proc = Mock(pid=1234, poll=Mock(return_value=1))
+        clock = _FakeClock(0.0)
+
+        with (
+            patch.object(hc_module, "time", SimpleNamespace(monotonic=clock.monotonic)),
+            patch.object(
+                hc_module.httpx,
+                "AsyncClient",
+                lambda *a, **k: _RecordingAsyncClient(**k),
+            ),
+            patch.object(mgr, "_cleanup_server_resources", return_value=stderr_full),
+            patch.object(
+                mgr._process_terminator,
+                "terminate_with_timeout",
+                AsyncMock(return_value=TerminationOutcome.EXITED),
+            ),
+            pytest.raises(HttpStartupError),
+        ):
+            await mgr._health_poll_until_ready(
+                "test-server", cfg, proc, deadline=1.0, shutdown_event=None
+            )
+
+        # Masking runs before truncation, so the 500-char cut lands on the masked
+        # marker, not on the secret value itself.
+        assert "SECRETVALUE" not in caplog.text
+        assert "SECR" not in caplog.text
+
 
 class TestHealthPathTerminationWindow:
     """REQ-010: the readiness poll keeps its own window when no budget is supplied.

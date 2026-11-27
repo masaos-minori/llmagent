@@ -278,6 +278,37 @@ class TestProbeAllTierDerivation:
         assert results[0].tier == McpTier.WRITE_SAFE
 
 
+class TestProbeAllEndpointRedaction:
+    """REQ-005 (AC-1): the probe result stores the redacted endpoint, not the configured URL."""
+
+    @pytest.mark.asyncio
+    async def test_endpoint_has_no_userinfo_query_or_fragment(self) -> None:
+        cfg = McpServerConfig(
+            transport=TransportType.HTTP,
+            url="https://admin:s3cr3tpw@db.example.com:8080/health?token=abc#frag",
+            startup_mode=StartupMode.PERSISTENT,
+            auth_token="test-token",
+        )
+        ctx = MagicMock()
+        ctx.cfg.mcp.mcp_servers = {"srv": cfg}
+        ctx.services_required.runtime_tools = None
+
+        with patch("agent.services.mcp_status.httpx.AsyncClient", _FakeAsyncClient):
+            status = McpStatusService(ctx=ctx)
+            results = await status.probe_all()
+
+        endpoint = results[0].endpoint
+        assert endpoint == "https://db.example.com:8080/health"
+        assert "s3cr3tpw" not in endpoint
+        assert "token=abc" not in endpoint
+        assert "#frag" not in endpoint
+        # The configured URL is not mutated; only the value in the result is redacted.
+        assert (
+            cfg.url
+            == "https://admin:s3cr3tpw@db.example.com:8080/health?token=abc#frag"
+        )
+
+
 class TestPendingRows:
     """REQ-008, AC-4: pending rows are a separate model, built from records only."""
 

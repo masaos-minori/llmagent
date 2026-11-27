@@ -14,6 +14,8 @@ from unittest.mock import patch
 import pytest
 from agent.stdin_reader import StdinReader, get_stdin_reader, reset_stdin_reader
 
+pytestmark = pytest.mark.characterization
+
 _SCRIPTS = Path(__file__).resolve().parents[2] / "scripts"
 
 

@@ -6,7 +6,9 @@ and ConfigReloadService.apply_config_dict (SSE hot-reload).
 
 from __future__ import annotations
 
+import os
 import re
+import tempfile
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -271,6 +273,39 @@ class TestPrintConfigValues:
         out = capsys.readouterr().out
         assert "risk_rules" not in out
 
+    def test_llm_url_prints_without_credentials(self, capsys: Any) -> None:
+        """Display boundary: a credential-bearing URL renders without userinfo, query, or fragment."""
+        ctx = self._make_cfg_ctx()
+        ctx.cfg.llm.llm_url = (
+            "https://admin:s3cr3tpw@llm.example.com:8443/v1?key=abc#frag"
+        )
+        cmd = _FakeCmd(ctx)
+        cmd._print_config_values()
+        out = capsys.readouterr().out
+        assert "https://llm.example.com:8443/v1" in out
+        assert "s3cr3tpw" not in out
+        assert "key=abc" not in out
+        # The config model itself is not modified.
+        assert (
+            ctx.cfg.llm.llm_url
+            == "https://admin:s3cr3tpw@llm.example.com:8443/v1?key=abc#frag"
+        )
+
+    def test_protected_paths_print_as_logical_identifiers(self, capsys: Any) -> None:
+        """Display boundary: configured absolute paths render as logical identifiers, not as paths."""
+        ctx = self._make_cfg_ctx()
+        root = os.path.join(tempfile.gettempdir(), "mcp_server_logs")
+        ctx.cfg.approval.approval_protected_paths = [
+            os.path.join(root, "srv", "srv.stderr.log"),
+            "/etc/hosts",
+        ]
+        cmd = _FakeCmd(ctx)
+        cmd._print_config_values()
+        out = capsys.readouterr().out
+        assert "srv/srv.stderr.log, hosts" in out
+        assert root not in out
+        assert "/etc/hosts" not in out
+
 
 # ── _apply_config_params ──────────────────────────────────────────────────────
 
@@ -379,6 +414,24 @@ class TestPrintRagConfig:
         out = capsys.readouterr().out
         assert "config error" in out
         assert "bad config" in out
+
+    def test_db_paths_print_as_logical_identifiers(self, capsys: Any) -> None:
+        """Display boundary: configured DB paths render as logical identifiers, not absolute paths."""
+        from unittest.mock import patch
+
+        ctx = _make_ctx()
+        cmd = _FakeCmd(ctx)
+        mapping = {
+            "sqlite_vec_so": "/opt/llm/sqlite-vec/vec0.so",
+            "rag_db_path": "/opt/llm/rag.sqlite",
+            "session_db_path": "/opt/llm/session.sqlite",
+        }
+        with patch("shared.config_loader.ConfigLoader.load", return_value=mapping):
+            cmd._print_rag_config()
+        out = capsys.readouterr().out
+        assert "rag.sqlite" in out
+        assert "session.sqlite" in out
+        assert "/opt/llm" not in out
 
 
 # ── _cmd_reload error paths ───────────────────────────────────────────────────
@@ -881,3 +934,17 @@ class TestPrintMemorySettings:
         cmd._print_config_values()
         out = capsys.readouterr().out
         assert "use_memory_layer    : True" in out
+
+    def test_memory_jsonl_dir_prints_as_logical_identifier(self, capsys: Any) -> None:
+        """Display boundary: the configured directory renders as a logical identifier."""
+        ctx = TestPrintConfigValues()._make_cfg_ctx()
+        ctx.cfg.memory.memory_jsonl_dir = "/opt/llm/memory"
+        cmd = _FakeCmd(ctx)
+        cmd._print_config_values()
+        out = capsys.readouterr().out
+        assert "memory_jsonl_dir    : memory" in out
+        assert "/opt/llm/memory" not in out
+        # The empty value still renders the placeholder.
+        ctx.cfg.memory.memory_jsonl_dir = ""
+        cmd._print_config_values()
+        assert "(not set)" in capsys.readouterr().out

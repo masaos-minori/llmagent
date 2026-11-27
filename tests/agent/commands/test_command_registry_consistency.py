@@ -169,8 +169,8 @@ class TestCompletionDriftGuard:
 
 class TestCommandRegistryMixinCount:
     """Regression coverage for requires/20260716_16_require.md: the
-    documented CommandRegistry mixin count (8 direct + 2 nested via
-    _ConfigMixin = 10 total) must stay in sync with the actual MRO.
+    documented CommandRegistry mixin count (7 direct + 2 nested via
+    _ConfigMixin = 9 total) must stay in sync with the actual MRO.
 
     Limitation: this counts classes whose name ends in "Mixin" via
     inspect.getmro() -- if a future mixin is renamed without the "Mixin"
@@ -178,23 +178,61 @@ class TestCommandRegistryMixinCount:
     consistent with the existing agent/commands/cmd_*.py mixins.
     """
 
+    def test_removed_mixin_is_not_wired(self) -> None:
+        """REQ-003: the removed export mixin is no longer a base of the registry, and
+        `/compact` has one owner."""
+        mixin_names = [cls.__name__ for cls in inspect.getmro(CommandRegistry)]
+        assert "_RagExportMixin" not in mixin_names
+        owner = next(
+            (
+                cls
+                for cls in inspect.getmro(CommandRegistry)
+                if "_cmd_compact" in cls.__dict__
+            ),
+            None,
+        )
+        assert owner is not None and owner.__name__ == "_ContextMixin", (
+            f"/compact is not owned by _ContextMixin: {owner}"
+        )
+
     def test_total_mixin_count_matches_documented_total(self) -> None:
         mixin_classes = [
             cls
             for cls in inspect.getmro(CommandRegistry)
             if cls.__name__.endswith("Mixin")
         ]
-        assert len(mixin_classes) == 10, (
-            f"Expected 10 *Mixin classes in CommandRegistry's MRO, found "
+        assert len(mixin_classes) == 9, (
+            f"Expected 9 *Mixin classes in CommandRegistry's MRO, found "
             f"{len(mixin_classes)}: {[c.__name__ for c in mixin_classes]}"
         )
 
-    def test_direct_base_mixin_count_is_9(self) -> None:
+    def test_direct_base_mixin_count_is_7(self) -> None:
         direct_mixins = [
             base
             for base in CommandRegistry.__bases__
             if base.__name__.endswith("Mixin")
         ]
-        assert len(direct_mixins) == 8, (
-            f"Expected 8 direct *Mixin base classes, found {len(direct_mixins)}: {[c.__name__ for c in direct_mixins]}"
+        assert len(direct_mixins) == 7, (
+            f"Expected 7 direct *Mixin base classes, found {len(direct_mixins)}: {[c.__name__ for c in direct_mixins]}"
         )
+
+
+class TestCommandErrorContract:
+    """REQ-004: a dispatch-level usage error renders as [usage] at the command
+    boundary, not as a generic error."""
+
+    def test_unknown_subcommand_renders_as_usage_error(self) -> None:
+        from agent.commands.exceptions import UnknownSubcommandError
+
+        rendered: dict[str, str] = {}
+        out = SimpleNamespace(
+            write=lambda msg: None,
+            write_error=lambda msg: rendered.setdefault("error", msg),
+            write_validation_error=lambda msg: rendered.setdefault("usage", msg),
+        )
+        registry = CommandRegistry(ctx=MagicMock(), out=out)
+        cmd = next(c for c in _COMMANDS if c.name == "/debug")
+        registry._emit_command_error(cmd, UnknownSubcommandError("stats", ("memory",)))
+
+        assert "usage" in rendered, f"rendered as {rendered}"
+        assert "error" not in rendered

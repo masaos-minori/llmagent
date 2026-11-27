@@ -11,6 +11,7 @@ os.environ["PYTHONPATH"] = "."
 import logging
 import signal
 import sys
+import tempfile
 import time
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
@@ -829,7 +830,7 @@ class TestHttpStartupError:
             server_key="svc", reason="exited early", stderr_full=""
         )
         err = HttpStartupError(failure)
-        assert str(err) == "svc: exited early"
+        assert str(err) == "svc: general: exited early"
 
     def test_str_includes_truncated_stderr_tail(self) -> None:
         failure = StartupFailure(
@@ -839,7 +840,7 @@ class TestHttpStartupError:
         )
         err = HttpStartupError(failure)
         s = str(err)
-        assert "svc: crashed" in s
+        assert "svc: general: crashed" in s
         assert "(stderr_tail:" in s
         # Extract the part inside (stderr_tail: ...)
         tail_part = s.split("(stderr_tail:")[1].rstrip(")")
@@ -850,7 +851,7 @@ class TestHttpStartupError:
     def test_str_no_stderr_tail_when_empty(self) -> None:
         failure = StartupFailure(server_key="svc", reason="ok", stderr_full="")
         err = HttpStartupError(failure)
-        assert str(err) == "svc: ok"
+        assert str(err) == "svc: general: ok"
         assert "stderr_tail" not in str(err)
 
     def test_caught_by_runtime_error(self) -> None:
@@ -985,6 +986,21 @@ class TestHttpLifecycleStderrLog:
         assert fh.closed
         assert "srv" not in mgr._stderr_files
         assert "srv" not in mgr._records
+
+    def test_snapshot_field_holds_the_documented_logical_identifier(self) -> None:
+        """ProcessInfoSnapshot.stderr_log contract: identifier, never the tracked path."""
+        mgr = HttpServerLifecycleManager()
+        root = os.path.join(tempfile.gettempdir(), "mcp_server_logs")
+        path = os.path.join(root, "srv", "srv.stderr.log")
+        mgr._stderr_log_manager._log_paths["srv"] = path
+        mgr._records["srv"] = _make_record(_make_mock_proc(exit_code=None))
+
+        snap = mgr.get_process_info("srv")
+
+        assert snap is not None
+        assert snap.stderr_log == "srv/srv.stderr.log"
+        # The manager still owns the real path for the writer and the tail reader.
+        assert mgr._stderr_log_manager.get_log_path("srv") == path
 
 
 # ── H-7: shutdown_all() cleanup ──────────────────────────────────────────────

@@ -5,6 +5,7 @@ Unit tests for commands/utils.py: render_history_md, render_export, write_export
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from unittest.mock import patch
 
@@ -53,6 +54,36 @@ class TestRenderHistoryMd:
         history: list[LLMMessage] = [{"role": "tool", "content": "data"}]
         result = render_history_md(history)
         assert "## Tool ()\n" in result
+
+    def test_tool_content_with_backtick_run_uses_a_longer_fence(self) -> None:
+        """REQ-001 / D1: the fence must be longer than the longest backtick run in the
+        content so the block still closes."""
+        content = "value ``` embedded"
+        history: list[LLMMessage] = [
+            {"role": "tool", "content": content, "tool_call_id": "call_1"}
+        ]
+        result = render_history_md(history)
+
+        longest_run = max(len(run) for run in re.findall(r"`+", content))
+        fences = [line for line in result.splitlines() if set(line) == {"`"}]
+        assert len(fences) == 2, fences
+        assert all(len(fence) > longest_run for fence in fences), fences
+        # the block is closed: the content sits between the opening and closing fence
+        assert fences[0] == fences[1]
+        assert result.index(fences[0]) < result.index(content) < result.rindex(fences[1])
+
+    def test_tool_call_id_heading_marker_is_escaped(self) -> None:
+        """REQ-001 / D1: a tool call id that begins with a heading marker cannot read as
+        a heading of its own."""
+        history: list[LLMMessage] = [
+            {"role": "tool", "content": "data", "tool_call_id": "#injected"}
+        ]
+        result = render_history_md(history)
+        assert "## Tool (\\#injected)" in result
+        heading_lines = [line for line in result.splitlines() if line.startswith("#")]
+        assert heading_lines == ["# Conversation Export", "## Tool (\\#injected)"], (
+            heading_lines
+        )
 
     def test_empty_content(self) -> None:
         history: list[LLMMessage] = [{"role": "user"}]

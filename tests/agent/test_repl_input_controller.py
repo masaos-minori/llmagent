@@ -1,4 +1,7 @@
-"""tests/agent/test_repl_input_controller.py — ReplInputController: sole stdin owner."""
+"""tests/agent/test_repl_input_controller.py — ReplInputController: sole stdin owner.
+
+Requirement source: issues/done/20261119-145259_cliplc001_repl-input-controller.md.
+"""
 
 from __future__ import annotations
 
@@ -19,6 +22,8 @@ from agent.repl_input_controller import (
     reset_input_controller,
 )
 from agent.stdin_reader import StdinReader
+
+pytestmark = pytest.mark.contract
 
 
 class _Script:

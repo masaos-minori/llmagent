@@ -4,6 +4,7 @@ Unit tests for agent.commands.cmd_mcp._McpMixin._cmd_mcp_status() and _cmd_mcp()
 
 from __future__ import annotations
 
+import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -595,6 +596,24 @@ class TestCmdMcp:
         assert "SERVER" in out
 
     @pytest.mark.asyncio
+    async def test_bare_mcp_writes_no_usage_line(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        """REQ-005: bare `/mcp` is the status alias, so the alias itself is the
+        contract and no usage hint is written for it."""
+        ctx = _Ctx({})
+        mcp = _Mcp(ctx)
+
+        with patch(
+            "agent.services.mcp_status.httpx.AsyncClient", return_value=_mock_client()
+        ):
+            await mcp._cmd_mcp("")
+
+        out = capsys.readouterr().out
+        assert "SERVER" in out
+        assert "Usage: /mcp" not in out
+
+    @pytest.mark.asyncio
     async def test_unknown_subcommand_raises_error(self) -> None:
         ctx = _Ctx({})
         mcp = _Mcp(ctx)
@@ -1155,6 +1174,64 @@ class TestCmdMcpStatusHealthInterpretation:
             await mcp._cmd_mcp_status()
         out = capsys.readouterr().out
         assert "Health interpretation:" not in out
+
+    @pytest.mark.asyncio
+    async def test_detail_text_is_masked_before_truncation(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        """REQ-005 (AC-1): the 200-character cut lands on masked text, not on a secret."""
+        ctx = _Ctx({"svc": _http()})
+        mcp = _Mcp(ctx)
+        row = McpProbeResult(
+            key="svc",
+            transport="http",
+            startup_mode="persistent",
+            auth=True,
+            tier=McpTier.READ_ONLY,
+            role="read",
+            availability=McpAvailability.OK,
+            health="ok",
+            endpoint="http://127.0.0.1:8000",
+            reachable=True,
+            body={
+                "status": "degraded",
+                "ready": False,
+                # The first entry pushes the joined text past the 200-character limit, so the
+                # cut falls after the masked marker rather than inside the secret.
+                "details": [
+                    {"component": "cache", "status": "ok", "data": "x" * 150},
+                    {"component": "auth", "status": "ok", "data": "token=SECRETVALUE"},
+                    {"component": "disk", "status": "ok", "data": "y" * 20},
+                ],
+            },
+            # The section is gated on the row fields; the printed text is re-interpreted
+            # from `body` by the display formatter.
+            details_summary=["cache: ok"],
+        )
+        with patch.object(
+            McpStatusService, "probe_all", new=AsyncMock(return_value=[row])
+        ):
+            await mcp._cmd_mcp_status()
+        out = capsys.readouterr().out
+        assert "SECRETVALUE" not in out
+        assert "***MASKED***" in out
+        detail_line = next(line for line in out.splitlines() if "Details:" in line)
+        assert detail_line.endswith("...")
+        # The truncation limit itself is unchanged: 200 characters plus the ellipsis.
+        assert len(detail_line.removeprefix("  Details: ")) == 203
+
+    def test_path_valued_display_entry_becomes_a_logical_identifier(self) -> None:
+        """REQ-005 (AC-1): a display value that is an absolute path is never printed as-is."""
+        import tempfile
+
+        from agent.commands.cmd_mcp import _display_value
+
+        root = os.path.join(tempfile.gettempdir(), "mcp_server_logs")
+        assert (
+            _display_value(os.path.join(root, "svc", "stderr.log")) == "svc/stderr.log"
+        )
+        # A value that only contains a path inside free text is masked, not path-redacted.
+        assert _display_value("db: unreachable") == "db: unreachable"
 
 
 class TestCmdMcpTools:

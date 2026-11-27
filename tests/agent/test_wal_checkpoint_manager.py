@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 import shutil
 import sqlite3
@@ -14,7 +15,11 @@ from typing import BinaryIO
 from unittest.mock import MagicMock, patch
 
 import pytest
-from agent.wal_checkpoint_manager import _MAX_TRUNCATE_ATTEMPTS, WalCheckpointManager
+from agent.wal_checkpoint_manager import (
+    _MAX_TRUNCATE_ATTEMPTS,
+    WalCheckpointManager,
+    format_sqlite_error,
+)
 from db.helper import SQLiteHelper as RealHelper
 from db.models import WalCheckpointCounts
 
@@ -398,3 +403,71 @@ class TestAtomicBackupPublication:
 
         assert path is None
         assert [name for name, _ in errors] == ["wal_backup_interrupted"]
+
+
+class TestSqliteErrorLogText:
+    """REQ-004 (AC-2): a SQLite failure logs the error type name plus a masked message."""
+
+    def test_formatter_reduces_paths_and_masks_credentials(self) -> None:
+        err = sqlite3.OperationalError(
+            "unable to open database file: /opt/llm/rag.sqlite password=SECRETVALUE"
+        )
+        assert format_sqlite_error(err) == (
+            "OperationalError: unable to open database file: rag.sqlite "
+            "password=***MASKED***"
+        )
+
+    @pytest.mark.asyncio
+    async def test_passive_failure_line_carries_type_and_masked_message(
+        self, db: _Db, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        class _Helper(RealHelper):
+            def checkpoint(self, mode: str = "TRUNCATE") -> WalCheckpointCounts:
+                raise sqlite3.OperationalError(
+                    f"unable to open database file: {db.path} password=SECRETVALUE"
+                )
+
+        with caplog.at_level(logging.WARNING):
+            with patch(
+                "agent.wal_checkpoint_manager.SQLiteHelper",
+                lambda *_a, **_k: _Helper(
+                    db_path=str(db.path), sqlite_busy_timeout_ms=100
+                ),
+            ):
+                ok, errors = await _manager(tmp_path).checkpoint_sync()
+
+        assert ok is False
+        # Both the log line and the recorded tuple carry the formatted text: the type name,
+        # the masked credential, and the DB file reduced to its logical identifier.
+        assert (
+            f"OperationalError: unable to open database file: {db.path.name} "
+            "password=***MASKED***" in caplog.text
+        )
+        assert "SECRETVALUE" not in caplog.text
+        assert str(db.path) not in caplog.text
+        assert errors[0][1].startswith("OperationalError:")
+        assert "SECRETVALUE" not in errors[0][1]
+
+    @pytest.mark.asyncio
+    async def test_backup_failure_line_carries_type_and_masked_message(
+        self, db: _Db, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        db.insert(20)
+
+        def _fail_copy(*args: object, **kwargs: object) -> None:
+            raise sqlite3.OperationalError(
+                f"unable to open database file: {db.path} token=SECRETVALUE"
+            )
+
+        with caplog.at_level(logging.WARNING):
+            with (
+                patch("agent.wal_checkpoint_manager.SQLiteHelper", _helper_factory(db)),
+                patch("agent.wal_checkpoint_manager.shutil.copyfileobj", _fail_copy),
+            ):
+                path, errors = await _manager(tmp_path).backup_sync()
+
+        assert path is None
+        assert [name for name, _ in errors] == ["wal_backup"]
+        assert "OperationalError:" in caplog.text
+        assert "SECRETVALUE" not in caplog.text
+        assert str(db.path) not in caplog.text

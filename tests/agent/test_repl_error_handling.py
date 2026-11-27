@@ -72,9 +72,10 @@ async def test_repl_handles_diagnostic_save_error():
     # Run persist_session_diagnostics — error is caught internally, warning is written
     await persister.persist_session_diagnostics()
 
-    # Verify that the warning was written to the view
+    # Verify that the warning was written to the view. The reported failure carries the
+    # error type name plus the masked message, not the bare exception text.
     view.write_warning.assert_called_once_with(
-        "Diagnostics could not be saved: Sensitive information detected"
+        "Diagnostics could not be saved: RuntimeError: Sensitive information detected"
     )
     # Verify that the REPL didn't crash (it reached the end of the loop)
     assert True

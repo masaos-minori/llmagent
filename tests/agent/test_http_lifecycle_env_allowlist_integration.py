@@ -31,6 +31,8 @@ from agent.http_lifecycle_command_validator import _DEFAULT_PROTECTED_ENV_VARS
 from agent.http_lifecycle_launch_spec import build_child_env
 from shared.mcp_config import _ENV_KEY_DENYLIST, McpServerConfig, _build_mcp_servers
 
+pytestmark = pytest.mark.contract
+
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _SCRIPTS_DIR = _REPO_ROOT / "scripts"
 _CONFIG_DIR = _REPO_ROOT / "config"

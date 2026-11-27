@@ -3,10 +3,17 @@
 import os
 import random
 import re
+import tempfile
 import time
+from pathlib import Path
 
 import pytest
-from agent.secrets_masker import SECRET_PATTERNS, _mask_secrets
+from agent.secrets_masker import (
+    SECRET_PATTERNS,
+    _mask_secrets,
+    redact_path,
+    redact_url,
+)
 
 
 class TestMaskSecrets:
@@ -424,3 +431,72 @@ class TestUrlUserinfoScaling:
         # the additive slack keeps millisecond-scale timings from failing the ratio.
         assert t_large <= 3 * t_small + 0.05, (t_small, t_large)
         assert t_large < 2.0, t_large
+
+
+class TestUrlRedaction:
+    """REQ-001: redact_url strips userinfo, query, and fragment while keeping
+    scheme, host, and path; a non-URL value falls back to the userinfo pattern."""
+
+    @pytest.mark.parametrize(
+        ("raw", "expected"),
+        [
+            (
+                "https://admin:s3cr3tpw@db.example.com:5432/x?token=abc#frag",
+                "https://db.example.com:5432/x",
+            ),
+            ("https://user@host/path?secret=1", "https://host/path"),
+            ("postgres://admin:pw@db:5432/x", "postgres://db:5432/x"),
+            ("https://example.com/api/items", "https://example.com/api/items"),
+            ("https://example.com/a?token=xyz", "https://example.com/a"),
+            ("https://example.com/a#frag", "https://example.com/a"),
+        ],
+    )
+    def test_strips_userinfo_query_fragment(self, raw: str, expected: str) -> None:
+        assert redact_url(raw) == expected
+
+    def test_non_url_falls_back_to_userinfo_pattern(self) -> None:
+        """A value that is not a parseable URL keeps the existing masking behavior."""
+        assert redact_url("x=https://LONECRED@h/p") == "x=https://***MASKED***@h/p"
+
+    def test_redaction_leak_cases(self) -> None:
+        for raw in [
+            "https://admin:s3cr3tpw@db.example.com/x?token=abc#frag",
+            "redis://:pw@host:6379/0?db=secret",
+        ]:
+            result = redact_url(raw)
+            for part in ("s3cr3tpw", "pw", "token=abc", "db=secret", "#frag"):
+                assert part not in result, f"{part} leaked in: {result}"
+
+
+class TestPathRedaction:
+    """REQ-001: redact_path returns a logical identifier — basename, or a
+    root-relative id under the known root — never the absolute path."""
+
+    def test_basename_form(self) -> None:
+        assert redact_path("/opt/llm/secrets/token.txt") == "token.txt"
+
+    def test_root_relative_form_under_known_root(self) -> None:
+        root = Path(tempfile.gettempdir()) / "mcp_server_logs"
+        assert redact_path(f"{root}/server_key/stderr.log") == "server_key/stderr.log"
+
+    def test_absolute_path_never_returned(self) -> None:
+        result = redact_path("/opt/llm/conf.d/secret.toml")
+        assert result == "secret.toml"
+        assert not result.startswith("/")
+
+
+class TestRedactBeforeTruncate:
+    """AC-2: helpers do not truncate themselves; consumers truncate after redaction,
+    so a truncated result contains no secret part."""
+
+    def test_redact_then_truncate_leaks_nothing(self) -> None:
+        raw = "https://admin:s3cr3tpw@db.example.com/x?token=abc#frag"
+        truncated = redact_url(raw)[:20]
+        assert truncated == "https://db.example.c"
+        assert "s3cr3tpw" not in truncated
+
+    def test_path_redact_then_truncate(self) -> None:
+        raw = "/opt/llm/secrets/token.txt"
+        truncated = redact_path(raw)[:8]
+        assert truncated == "token.tx"
+        assert "/opt" not in truncated

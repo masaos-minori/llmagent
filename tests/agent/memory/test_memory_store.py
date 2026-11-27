@@ -33,6 +33,8 @@ from shared.config_loader import ConfigLoader
 
 from tests.agent._config_test_defaults import MIN_DB_CONFIG
 
+pytestmark = pytest.mark.contract
+
 # ── Schema ────────────────────────────────────────────────────────────────────
 _SCHEMA_SQL = """
 CREATE TABLE memories (
@@ -600,12 +602,14 @@ class TestSearchByType:
 
 
 class TestListEntries:
+    @pytest.mark.characterization
     def test_no_filter_returns_all(self, store: MemoryStore) -> None:
         add(_make_entry(content="one"), db_config=MIN_DB_CONFIG)
         add(_make_entry(content="two"), db_config=MIN_DB_CONFIG)
         results = store.list_entries()
         assert len(results) == 2
 
+    @pytest.mark.characterization
     def test_filters_by_source_type(self, store: MemoryStore) -> None:
         add(
             dataclasses.replace(_make_entry(content="rule one"), source_type="rule"),
@@ -621,6 +625,7 @@ class TestListEntries:
         assert len(results) == 1
         assert results[0].content == "rule one"
 
+    @pytest.mark.characterization
     def test_filters_by_branch_including_branchless(self, store: MemoryStore) -> None:
         add(
             dataclasses.replace(_make_entry(content="on main"), branch="main"),
@@ -638,12 +643,14 @@ class TestListEntries:
         contents = {r.content for r in results}
         assert contents == {"on main", "no branch"}
 
+    @pytest.mark.characterization
     def test_respects_limit(self, store: MemoryStore) -> None:
         for _ in range(5):
             add(_make_entry(), db_config=MIN_DB_CONFIG)
         results = store.list_entries(limit=2)
         assert len(results) == 2
 
+    @pytest.mark.characterization
     def test_returns_empty_when_none(self, store: MemoryStore) -> None:
         assert store.list_entries() == []
 

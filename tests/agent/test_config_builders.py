@@ -35,6 +35,8 @@ from cryptography.fernet import Fernet
 
 from tests.agent._config_test_defaults import SHIPPED_DB_PATH_KEYS
 
+pytestmark = pytest.mark.contract
+
 # Minimal config satisfying _build_mcp_servers (needs at least one HTTP server with url) and
 # build_agent_config(): the typed DB configuration is built from the mapping, so the shipped
 # path keys come from the shared mirror, and memory_embed_enabled defaults to True, so
@@ -667,6 +669,7 @@ class TestPyYAMLImport:
 class TestDiagnosticsSensitiveFieldsFallback:
     """Characterization: a non-list sensitive_fields becomes an empty frozenset."""
 
+    @pytest.mark.characterization
     def test_list_becomes_a_frozenset(self) -> None:
         cfg = _build_diagnostics_config(
             {"diagnostics": {"sensitive_fields": ["api_key", "token"]}}
@@ -674,6 +677,7 @@ class TestDiagnosticsSensitiveFieldsFallback:
 
         assert cfg.sensitive_fields == frozenset({"api_key", "token"})
 
+    @pytest.mark.characterization
     def test_non_list_becomes_an_empty_frozenset(self) -> None:
         cfg = _build_diagnostics_config(
             {"diagnostics": {"sensitive_fields": "api_key"}}
@@ -681,6 +685,7 @@ class TestDiagnosticsSensitiveFieldsFallback:
 
         assert cfg.sensitive_fields == frozenset()
 
+    @pytest.mark.characterization
     def test_absent_key_becomes_an_empty_frozenset(self) -> None:
         assert _build_diagnostics_config({}).sensitive_fields == frozenset()
 
@@ -688,6 +693,7 @@ class TestDiagnosticsSensitiveFieldsFallback:
 class TestToolRegistryFailureConversion:
     """Characterization: both registry failure modes become ConfigReloadValidationError."""
 
+    @pytest.mark.characterization
     def test_value_error_is_rewrapped_with_the_registry_prefix(self) -> None:
         with patch("agent.config_builders.get_registry") as mock_registry:
             mock_registry.return_value.get_all_tool_names.side_effect = ValueError(
@@ -699,6 +705,7 @@ class TestToolRegistryFailureConversion:
             ):
                 build_agent_config({**_MIN_CFG})
 
+    @pytest.mark.characterization
     def test_import_error_is_rewrapped_with_the_registry_prefix(self) -> None:
         with patch("agent.config_builders.get_registry") as mock_registry:
             mock_registry.return_value.get_all_tool_names.side_effect = ImportError(
@@ -714,6 +721,7 @@ class TestToolRegistryFailureConversion:
 class TestProductionValidationWarningPath:
     """Characterization: warnings are logged and never abort the build."""
 
+    @pytest.mark.characterization
     def test_warnings_are_logged_and_the_build_completes(
         self, caplog: pytest.LogCaptureFixture
     ) -> None:
@@ -736,10 +744,12 @@ class TestProductionValidationWarningPath:
 class TestEmptyStringFallbackIdioms:
     """Characterization: one fallback rule — absent key and explicit "" both fall back."""
 
+    @pytest.mark.characterization
     def test_empty_string_and_absent_key_both_yield_the_default(self) -> None:
         assert _build_llm_config({"llm_url": ""}).llm_url == ""
         assert _build_llm_config({"llm_url": None}).llm_url == ""
 
+    @pytest.mark.characterization
     def test_non_empty_default_replaces_an_explicit_empty_string(self) -> None:
         """A builder default wins over an explicit "" in the config."""
         cfg = build_agent_config(
@@ -755,12 +765,15 @@ class TestEmptyStringFallbackIdioms:
         assert cfg.obs.audit_log_file == "/opt/llm/logs/audit.log"
         assert cfg.memory.memory_jsonl_dir == "/opt/llm/memory"
 
+    @pytest.mark.characterization
     def test_get_str_or_default_treats_empty_string_as_unset(self) -> None:
         assert _get_str_or_default({"k": ""}, "k", "fallback") == "fallback"
 
+    @pytest.mark.characterization
     def test_get_or_default_treats_empty_string_as_unset(self) -> None:
         assert _get_or_default({"k": ""}, "k", _get_str, "fallback") == "fallback"
 
+    @pytest.mark.characterization
     def test_get_or_default_keeps_a_present_value(self) -> None:
         assert _get_or_default({"k": 7}, "k", _get_int, 3) == 7
 

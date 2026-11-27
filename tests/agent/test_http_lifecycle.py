@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+import tempfile
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import agent.http_lifecycle as hl_module
@@ -20,12 +21,16 @@ from agent.http_lifecycle_command_validator import CommandValidator
 from agent.http_lifecycle_errors import (
     HttpStartupError,
     RestartBlockedError,
+    StartupCode,
+    StartupFailure,
     TerminationOutcome,
 )
 from agent.http_lifecycle_process_record import ManagedProcessRecord
 from agent.lifecycle import LifecycleState
 from agent.shutdown_budget import ShutdownBudget
 from shared.mcp_config import McpServerConfig, StartupMode, TransportType
+
+pytestmark = pytest.mark.contract
 
 
 def _make_record(
@@ -224,6 +229,7 @@ class TestStartupFailureCleanupCharacterization:
     """Characterization tests for stderr cleanup on the startup failure paths."""
 
     @pytest.mark.asyncio
+    @pytest.mark.characterization
     async def test_command_validation_failure_closes_stderr_and_raises(
         self, mgr: HttpServerLifecycleManager
     ) -> None:
@@ -248,6 +254,7 @@ class TestStartupFailureCleanupCharacterization:
         mock_popen.assert_not_called()
 
     @pytest.mark.asyncio
+    @pytest.mark.characterization
     async def test_validator_value_error_still_releases_stderr_handle(
         self, mgr: HttpServerLifecycleManager
     ) -> None:
@@ -269,6 +276,7 @@ class TestStartupFailureCleanupCharacterization:
         mock_popen.assert_not_called()
 
     @pytest.mark.asyncio
+    @pytest.mark.characterization
     async def test_popen_failure_closes_stderr_and_reraises(
         self, mgr: HttpServerLifecycleManager
     ) -> None:
@@ -288,6 +296,7 @@ class TestStartupFailureCleanupCharacterization:
         assert "test" not in mgr._stderr_files
 
     @pytest.mark.asyncio
+    @pytest.mark.characterization
     async def test_nonzero_exit_code_is_logged_after_getpgid_failure(
         self, mgr: HttpServerLifecycleManager
     ) -> None:
@@ -324,6 +333,7 @@ class TestSubprocessSpawnCharacterization:
     """Characterization tests for the spawn/validate step of subprocess startup."""
 
     @pytest.mark.asyncio
+    @pytest.mark.characterization
     async def test_empty_command_raises_before_spawn(
         self, mgr: HttpServerLifecycleManager
     ) -> None:
@@ -352,6 +362,7 @@ class TestSubprocessSpawnCharacterization:
         assert "test" not in mgr._records
 
     @pytest.mark.asyncio
+    @pytest.mark.characterization
     async def test_popen_options_cannot_be_overridden(
         self, mgr: HttpServerLifecycleManager, tmp_path
     ) -> None:
@@ -400,6 +411,7 @@ class TestSubprocessSpawnCharacterization:
         assert record.pgid == 4242
 
     @pytest.mark.asyncio
+    @pytest.mark.characterization
     async def test_changed_identity_between_validation_and_spawn_aborts(
         self, mgr: HttpServerLifecycleManager, tmp_path
     ) -> None:
@@ -432,6 +444,7 @@ class TestHealthAndRestartTrackingCharacterization:
     """Characterization tests for health-check timestamps and restart cleanup."""
 
     @pytest.mark.asyncio
+    @pytest.mark.characterization
     async def test_verify_running_async_stamps_time_on_http_error(
         self, mgr: HttpServerLifecycleManager
     ) -> None:
@@ -448,6 +461,7 @@ class TestHealthAndRestartTrackingCharacterization:
         assert "test" in mgr._last_health_check
 
     @pytest.mark.asyncio
+    @pytest.mark.characterization
     async def test_restart_tolerates_stderr_close_error(
         self, mgr: HttpServerLifecycleManager
     ) -> None:
@@ -514,3 +528,77 @@ class TestRestartRefusal:
 
         start.assert_awaited_once_with("test", cfg)
         assert "test" not in mgr._records
+
+
+class TestSnapshotLogicalIdentifier:
+    """REQ-007 (AC-4): the public snapshot carries a logical identifier, not the log path."""
+
+    def _seed(self, mgr: HttpServerLifecycleManager, path: str) -> dict | None:
+        mgr._stderr_log_manager._log_paths["test"] = path
+        mgr._records["test"] = _make_record(
+            Mock(pid=1234, poll=Mock(return_value=None))
+        )
+        return mgr.get_process_snapshot("test")
+
+    def test_snapshot_value_is_the_logical_identifier(self) -> None:
+        mgr = HttpServerLifecycleManager()
+        root = os.path.join(tempfile.gettempdir(), "mcp_server_logs")
+        path = os.path.join(root, "test", "stderr.log")
+        snap = self._seed(mgr, path)
+        assert snap is not None
+        assert snap["stderr_log"] == "test/stderr.log"
+
+    def test_snapshot_value_has_no_absolute_path(self) -> None:
+        mgr = HttpServerLifecycleManager()
+        snap = self._seed(mgr, "/opt/llm/logs/test.stderr.log")
+        assert snap is not None
+        assert not snap["stderr_log"].startswith("/")
+        assert snap["stderr_log"] == "test.stderr.log"
+
+    def test_empty_path_still_yields_empty_string(self) -> None:
+        mgr = HttpServerLifecycleManager()
+        snap = self._seed(mgr, "")
+        assert snap is not None
+        assert snap["stderr_log"] == ""
+
+    def test_writer_and_tail_reader_keep_the_real_path(self) -> None:
+        mgr = HttpServerLifecycleManager()
+        root = os.path.join(tempfile.gettempdir(), "mcp_server_logs")
+        path = os.path.join(root, "test", "stderr.log")
+        self._seed(mgr, path)
+        assert mgr._stderr_log_manager.get_log_path("test") == path
+
+
+class TestErrorRenderingCharacterization:
+    """REQ-002 (AC-1): the rendered error is the code plus a redacted summary."""
+
+    @pytest.mark.characterization
+    def test_reason_with_the_log_directory_renders_without_an_absolute_path(
+        self,
+    ) -> None:
+        root = os.path.join(tempfile.gettempdir(), "mcp_server_logs")
+        failure = StartupFailure(
+            server_key="test",
+            code=StartupCode.GENERAL,
+            reason=f"binary not found while reading {root}/test/stderr.log",
+            stderr_full="",
+        )
+        rendered = str(HttpStartupError(failure))
+        assert (
+            rendered == "test: general: binary not found while reading test/stderr.log"
+        )
+        assert not any(token.startswith("/") for token in rendered.split())
+
+    @pytest.mark.characterization
+    def test_existing_match_assertions_still_hold_under_the_new_rendering(self) -> None:
+        # The match strings at lines 244 and 265 are substrings of the reason, so they
+        # keep matching; the full rendered form is pinned here for the same failures.
+        failure = StartupFailure(
+            server_key="test",
+            code=StartupCode.GENERAL,
+            reason="nonexistent_cmd_xyz_12345 not found in PATH",
+            stderr_full="",
+        )
+        assert str(HttpStartupError(failure)) == (
+            "test: general: nonexistent_cmd_xyz_12345 not found in PATH"
+        )

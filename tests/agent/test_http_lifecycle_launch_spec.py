@@ -21,6 +21,8 @@ from agent.http_lifecycle_launch_spec import (
 )
 from shared.mcp_config import McpServerConfig, StartupMode, TransportType
 
+pytestmark = pytest.mark.contract
+
 # The REQ-006 fixed runtime set (cliplc006 row 2/3): everything build_child_env
 # may inherit from the parent, besides the server's own tokens and declared names.
 _FIXED_RUNTIME_VARS = [

@@ -2,6 +2,8 @@
 
 Covers the acceptance refusal, the budget-derived graceful window, the release of a
 pending approval, and the second-interrupt routing of `scripts/agent/repl_input_loop.py`.
+
+Requirement source: issues/done/20261119-145302_cliplc004_bounded-shutdown-machine.md.
 """
 
 import asyncio
@@ -20,6 +22,8 @@ from agent.orchestrator import Orchestrator
 from agent.repl_input_controller import InputState, reset_input_controller
 from agent.repl_input_loop import ReplInputLoop, _TurnFlow
 from agent.shutdown_budget import ShutdownBudget, ShutdownPhase
+
+pytestmark = pytest.mark.contract
 
 
 @pytest.fixture(autouse=True)

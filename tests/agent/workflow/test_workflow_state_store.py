@@ -29,6 +29,8 @@ from agent.workflow.task_ops import (
 from db.config import DbConfig
 from db.create_schema import create_workflow_schema
 
+pytestmark = pytest.mark.contract
+
 
 def _make_cfg(db_path: str) -> DbConfig:
     return DbConfig(
@@ -328,6 +330,7 @@ class TestDiagnosticQueries:
     extracting the shared count-query pattern.
     """
 
+    @pytest.mark.characterization
     def test_get_task_count(self, store) -> None:
         create_task(store._db, "sess-diag", 1, "1.0.0", "wf-a")
         create_task(store._db, "sess-diag", 2, "1.0.0", "wf-a")
@@ -337,6 +340,7 @@ class TestDiagnosticQueries:
         assert store.get_task_count("sess-other") == 1
         assert store.get_task_count("sess-none") == 0
 
+    @pytest.mark.characterization
     def test_get_workflow_count_counts_distinct(self, store) -> None:
         create_task(store._db, "sess-diag", 1, "1.0.0", "wf-a")
         create_task(store._db, "sess-diag", 2, "1.0.0", "wf-a")
@@ -345,6 +349,7 @@ class TestDiagnosticQueries:
         assert store.get_workflow_count("sess-diag") == 2
         assert store.get_workflow_count("sess-none") == 0
 
+    @pytest.mark.characterization
     def test_get_execute_attempt_count_filters_by_stage(self, store) -> None:
         task = create_task(store._db, "sess-diag", 1, "1.0.0", "wf-a")
         begin_stage_if_new(
@@ -360,6 +365,7 @@ class TestDiagnosticQueries:
         assert store.get_execute_attempt_count("sess-diag") == 2
         assert store.get_execute_attempt_count("sess-none") == 0
 
+    @pytest.mark.characterization
     def test_get_artifact_uris(self, store) -> None:
         task = create_task(store._db, "sess-diag", 1, "1.0.0", "wf-a")
         record_artifact(store._db, task.task_id, "execute", "file:///tmp/a.txt")

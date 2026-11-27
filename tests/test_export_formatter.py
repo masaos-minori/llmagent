@@ -220,6 +220,45 @@ class TestRenderHistoryMd:
         assert "line2" in result
         assert "line3" in result
 
+    def test_tool_content_with_triple_backtick_gets_longer_fence(self) -> None:
+        """REQ-001: content containing a triple-backtick run still produces a closed fence."""
+        content = "```\nnot closed"
+        history = [{"role": "tool", "content": content, "tool_call_id": "call_nested"}]
+        result = render_history_md(history)
+        lines = result.split("\n")
+        open_fence = lines[4]
+        close_fence = lines[-2]
+        assert open_fence == "````"
+        assert close_fence == "````"
+        assert content in result
+
+    def test_fence_length_is_longest_backtick_run_plus_one(self) -> None:
+        content = "a `````` b `` c"
+        history = [{"role": "tool", "content": content, "tool_call_id": "call_len"}]
+        result = render_history_md(history)
+        lines = result.split("\n")
+        assert lines[4] == "```````"
+        assert lines[-2] == "```````"
+
+    def test_tool_call_id_heading_marker_is_escaped(self) -> None:
+        history = [{"role": "tool", "content": "out", "tool_call_id": "#injected"}]
+        result = render_history_md(history)
+        assert "## Tool (\\#injected)" in result
+        assert "## Tool (#injected)" not in result
+
+    def test_backticks_in_tool_call_id_are_escaped(self) -> None:
+        history = [{"role": "tool", "content": "out", "tool_call_id": "call`id"}]
+        result = render_history_md(history)
+        assert "## Tool (call\\`id)" in result
+
+    def test_tool_content_unicode_and_newline_variants(self) -> None:
+        content = "日本語\r\nline2\n\nline3"
+        history = [{"role": "tool", "content": content, "tool_call_id": "call_u"}]
+        result = render_history_md(history)
+        assert "日本語" in result
+        assert "\r\n" in result
+        assert result.split("\n")[4] == "```"
+
 
 class TestRenderExport:
     """Test render_export output formatting."""

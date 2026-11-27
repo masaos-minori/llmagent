@@ -24,6 +24,8 @@ from agent.http_lifecycle_command_validator import (
 )
 from agent.http_lifecycle_errors import HttpStartupError, StartupFailure
 
+pytestmark = pytest.mark.contract
+
 _TEST_SERVER_KEY = "test_server"
 
 # REQ-006 fixed runtime set: the only variables a child inherits from the parent
@@ -140,7 +142,8 @@ class TestStartupFailure:
         error = HttpStartupError(failure)
         assert isinstance(error, RuntimeError)
         assert error.failure is failure  # type: ignore[attr-defined]
-        assert str(error) == "my_server: Test failure"
+        # REQ-002 (AC-1): the rendered form carries the stable code and no absolute path.
+        assert str(error) == "my_server: general: Test failure"
 
 
 class TestCommandValidatorValidatePermissive:
@@ -492,7 +495,9 @@ class TestCommandValidatorStrictConfinement:
             with pytest.raises(HttpStartupError) as exc_info:
                 CommandValidator().validate(_TEST_SERVER_KEY, "node")
         assert _TEST_SERVER_KEY in str(exc_info.value)
-        assert str(target.resolve()) in str(exc_info.value)
+        # The rendered message shows the logical identifier, not the absolute path.
+        assert target.name in str(exc_info.value)
+        assert "/" not in str(exc_info.value).split(": ", 1)[1]
         assert "outside the trusted binary directory" in str(exc_info.value)
 
     def test_accepts_non_allowlisted_name_inside_trusted_dir(
@@ -527,7 +532,9 @@ class TestCommandValidatorStrictConfinement:
         with self._patch_which(target):
             with pytest.raises(HttpStartupError) as exc_info:
                 CommandValidator().validate(_TEST_SERVER_KEY, "node")
-        assert "/opt/llm/bin" in str(exc_info.value)
+        # The default trusted directory is rendered as its logical identifier.
+        assert "bin" in str(exc_info.value)
+        assert "/opt/llm/bin" not in str(exc_info.value)
 
 
 class TestCommandValidatorPermissiveOptIn:
@@ -658,14 +665,14 @@ class TestCommandValidatorOwnershipAndMode:
         with pytest.raises(HttpStartupError) as exc_info:
             self._validate(monkeypatch, d, exe, {str(exe): self._OTHER_UID})
         assert _TEST_SERVER_KEY in str(exc_info.value)
-        assert str(exe.resolve()) in str(exc_info.value)
+        assert exe.name in str(exc_info.value)
 
     def test_directory_owned_by_other_uid_rejected(self, tmp_path, monkeypatch):
         d, exe = self._trusted(tmp_path)
         with pytest.raises(HttpStartupError) as exc_info:
             self._validate(monkeypatch, d, exe, {str(d): self._OTHER_UID})
         assert _TEST_SERVER_KEY in str(exc_info.value)
-        assert str(d.resolve()) in str(exc_info.value)
+        assert d.name in str(exc_info.value)
 
     def test_executable_owned_by_agent_uid_accepted(self, tmp_path, monkeypatch):
         d, exe = self._trusted(tmp_path)
@@ -690,7 +697,7 @@ class TestCommandValidatorOwnershipAndMode:
             with pytest.raises(HttpStartupError) as exc_info:
                 CommandValidator().validate(_TEST_SERVER_KEY, self._BIN_BASENAME)
         assert _TEST_SERVER_KEY in str(exc_info.value)
-        assert str(exe.resolve()) in str(exc_info.value)
+        assert exe.name in str(exc_info.value)
 
     def test_world_writable_executable_rejected(self, tmp_path, monkeypatch):
         d, exe = self._trusted(tmp_path)
@@ -700,7 +707,7 @@ class TestCommandValidatorOwnershipAndMode:
             with pytest.raises(HttpStartupError) as exc_info:
                 CommandValidator().validate(_TEST_SERVER_KEY, self._BIN_BASENAME)
         assert _TEST_SERVER_KEY in str(exc_info.value)
-        assert str(exe.resolve()) in str(exc_info.value)
+        assert exe.name in str(exc_info.value)
 
     def test_group_writable_directory_rejected(self, tmp_path, monkeypatch):
         d, exe = self._trusted(tmp_path)

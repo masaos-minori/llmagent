@@ -18,7 +18,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import orjson
 import pytest
-from agent.commands.cmd_rag_export import _RagExportMixin
+from agent.commands.cmd_context import _ContextMixin
 from agent.context import AgentContext, ConversationState
 from agent.conversation_state_manager import ConversationStateManager
 from agent.history import HistoryManager, is_conversation_summary
@@ -379,7 +379,7 @@ async def test_compact_path_sets_undo_floor_to_snapshot_length(
     session, conn = session_and_conn
     history = _make_history(4)  # 8 messages
     ctx = cast(AgentContext, _compression_ctx(session, history, force=True))
-    mixin = _RagExportMixin()
+    mixin = _ContextMixin()
     mixin._ctx = ctx
     mixin._out = MagicMock()
     await mixin._cmd_compact()

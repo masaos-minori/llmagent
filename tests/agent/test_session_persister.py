@@ -18,6 +18,7 @@ import orjson
 import pytest
 from agent.config_dataclasses import DiagnosticsConfig
 from agent.diagnostic_store import DiagnosticStore
+from agent.output_tags import OutputTag
 from agent.session_persister import SessionPersistenceSnapshot, SessionPersister
 from agent.workflow.state_store import StateStore
 
@@ -170,6 +171,68 @@ class TestPersistSessionDiagnosticsContainment:
 
         view.write_warning.assert_called_once()
         assert "store down" in view.write_warning.call_args[0][0]
+
+
+class TestPersistSessionDiagnosticsErrorText:
+    """REQ-004 (AC-2) and AC-1: the reported failure carries the type name plus a masked message."""
+
+    _FAIL = "unable to open database file: /opt/llm/rag.sqlite password=SECRETVALUE"
+    _MASKED = "unable to open database file: rag.sqlite password=***MASKED***"
+
+    @pytest.mark.asyncio
+    async def test_save_failure_warning_and_log_are_masked(self, db, caplog) -> None:
+        store = DiagnosticStore(DiagnosticsConfig(), db_config=MIN_DB_CONFIG)
+        view = MagicMock()
+        persister = SessionPersister(_ctx(1), store, view)
+
+        with caplog.at_level(logging.DEBUG, logger="agent.session_persister"):
+            with patch.object(
+                store, "save", side_effect=sqlite3.OperationalError(self._FAIL)
+            ):
+                await persister.persist_session_diagnostics()
+
+        assert view.write_warning.call_args[0][0] == (
+            f"Diagnostics could not be saved: OperationalError: {self._MASKED}"
+        )
+        assert f"OperationalError: {self._MASKED}" in caplog.text
+        assert "SECRETVALUE" not in caplog.text
+        assert "/opt/llm" not in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_payload_defect_warning_carries_the_type_name(self, db) -> None:
+        view = MagicMock()
+        persister = SessionPersister(
+            _ctx(1), DiagnosticStore(DiagnosticsConfig(), db_config=MIN_DB_CONFIG), view
+        )
+
+        with patch(
+            "agent.session_persister._latency_summary",
+            side_effect=sqlite3.OperationalError(self._FAIL),
+        ):
+            await persister.persist_session_diagnostics()
+
+        assert view.write_warning.call_args[0][0] == (
+            f"{OutputTag.NON_FATAL} Session persistence failed: "
+            f"OperationalError: {self._MASKED}"
+        )
+
+    @pytest.mark.asyncio
+    async def test_close_failure_log_is_masked(self, db, caplog) -> None:
+        store = _mock_store()
+        store.close.side_effect = sqlite3.OperationalError(self._FAIL)
+        persister = SessionPersister(
+            _ctx(1),
+            DiagnosticStore(DiagnosticsConfig(), db_config=MIN_DB_CONFIG),
+            MagicMock(),
+        )
+
+        with caplog.at_level(logging.WARNING, logger="agent.session_persister"):
+            with patch("agent.workflow.state_store.StateStore", return_value=store):
+                await persister.persist_session_diagnostics()
+
+        assert f"OperationalError: {self._MASKED}" in caplog.text
+        assert "SECRETVALUE" not in caplog.text
+        assert "/opt/llm" not in caplog.text
 
 
 def _mock_store() -> MagicMock:

@@ -3,6 +3,8 @@ tests/test_shell_mcp_service.py
 Unit tests for ShellService guard methods:
   - _filter_env: allowlist / denylist filtering
   - _resolve_cwd: default_cwd fallback
+The empty-allowlist/empty-denylist pass-through is recorded behavior with no requirement
+source, so it is marked characterization rather than a guard contract.
 """
 
 from __future__ import annotations
@@ -29,6 +31,8 @@ from mcp_servers.shell.shell_service_static_helpers import (
 from shared.protocols.shell import ShellPolicy
 
 from tests.mcp_servers._auth_headers import MCP_TEST_AUTH_HEADERS
+
+pytestmark = pytest.mark.contract
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -91,6 +95,7 @@ def _make_service(
 
 
 class TestFilterEnv:
+    @pytest.mark.characterization
     def test_no_filters_returns_env_unchanged(self, tmp_path: Path) -> None:
         svc = _make_service(tmp_path)
         env = {"HOME": "/root", "TERM": "xterm"}
