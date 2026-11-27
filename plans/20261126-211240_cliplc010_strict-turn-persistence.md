@@ -14,12 +14,12 @@ Medium
 Source: consolidated CLI REPL and MCP lifecycle backlog (`memo-issue.md`, Issue 10). Related archived work: `issues/done/20261115-081702_persis001_persistence-compensation-sqlite-only.md`, `plans/done/20261027-070403_turn001_atomic-turn-persistence.md`.
 
 ## Problem
-Verified against current source at `90ec3d2809a53b24b15bfd7d1ae760f7bac595ca`:
+Verified against current source at `90ec3d2809a53b24b15bfd7d1ae760f7bac595ca`; re-verified at `a6822e424e43651994f169c3a678ecaeb2f8c2dc` with line citations updated:
 
 - `scripts/agent/turn_persistence.py` `_fail_from_error` (lines 213-232; the Issue's 218-225 is the log block) logs a compensation failure and raises `ConversationPersistenceError` chaining the original error. The error carries no compensation status, so the caller cannot distinguish a clean rollback from a failed compensation. Confirmed.
 - `ConversationPersistenceError.__init__` formats `f"{message}: {cause}"`, putting raw SQLite error text into the public error string. Confirmed.
-- `scripts/agent/session_message_repo.py` warns and skips invalid roles and a missing session id in non-strict mode (lines 85-96, 118-151) and skips invalid roles in `replace_messages` even in strict mode (line 178). `strict_mode` defaults to `False` and `scripts/agent/session.py` passes it through unchanged (lines 67-69, 281-282), so the turn path runs non-strict today. Confirmed.
-- `save`, `save_many`, and `save_phase_grouped` return `None` — no inserted-row count (lines 80, 114, 381). Confirmed. `TurnPersistence` sets `_write_committed = True` after any successful call, so a zero-row write is treated as committed. Confirmed.
+- `scripts/agent/session_message_repo.py` warns and skips invalid roles and a missing session id in non-strict mode (lines 85-98, 122-154) and skips invalid roles in `replace_messages` even in strict mode (line 178). `strict_mode` defaults to `False` and `scripts/agent/session.py` passes it through unchanged (lines 67-69, 281-282), so the turn path runs non-strict today. Confirmed.
+- `save`, `save_many`, and `save_phase_grouped` return `None` — no inserted-row count (lines 80, 114, 381). Confirmed. `TurnPersistence` sets `_write_committed = True` after any successful call (lines 110, 125, 143, 163 — the `replace_messages` site at 163 was not cited at the original revision), so a zero-row write is treated as committed. Confirmed.
 - `scripts/agent/turn_result.py` `TurnResult` has no compensation status field. Confirmed.
 - No session degraded/paused state exists anywhere in `scripts/agent/`; the only "degraded" concepts are memory services and MCP capabilities, unrelated to turn persistence. Confirmed.
 
@@ -47,8 +47,8 @@ table — no other file may be treated as a modification target.
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| `scripts/agent/turn_persistence.py` | Pre-write phase-group validation; inserted-count comparison; compensation status on the error; safe public error format; degraded-session marking | No status on the error, raw cause in the public string, zero-row write treated committed | REQ-001, REQ-002, REQ-003, REQ-004, REQ-005; AC-1, AC-2, AC-3, AC-4 | `scripts/agent/turn_persistence.py` lines 49-51 (`f"{message}: {cause}"`), 110/125/143 (`_write_committed`), 213-232 (compensation failure logged, original raised) | `tests/agent/test_turn_persistence.py` | Verified |
-| `scripts/agent/session_message_repo.py` | `save`, `save_many`, `save_phase_grouped` return the inserted-row count; `replace_messages` rejects invalid roles in strict mode; non-strict skip-and-warn contract preserved | Counts missing; strict-mode gap in `replace_messages` | REQ-001, REQ-002; AC-1 | `scripts/agent/session_message_repo.py` lines 80, 114, 381 (`-> None`), 85-96 and 118-151 (skip-and-warn), 178 (skip even in strict mode) | `tests/agent/test_session_message_repo.py` | Verified |
+| `scripts/agent/turn_persistence.py` | Pre-write phase-group validation; inserted-count comparison; compensation status on the error; safe public error format; degraded-session marking | No status on the error, raw cause in the public string, zero-row write treated committed | REQ-001, REQ-002, REQ-003, REQ-004, REQ-005; AC-1, AC-2, AC-3, AC-4 | `scripts/agent/turn_persistence.py` lines 49-51 (`f"{message}: {cause}"`), 110/125/143/163 (`_write_committed`), 213-232 (compensation failure logged, original raised) | `tests/agent/test_turn_persistence.py` | Verified |
+| `scripts/agent/session_message_repo.py` | `save`, `save_many`, `save_phase_grouped` return the inserted-row count; `replace_messages` rejects invalid roles in strict mode; non-strict skip-and-warn contract preserved | Counts missing; strict-mode gap in `replace_messages` | REQ-001, REQ-002; AC-1 | `scripts/agent/session_message_repo.py` lines 80, 114, 381 (`-> None`), 85-98 and 122-154 (skip-and-warn), 178 (skip even in strict mode) | `tests/agent/test_session_message_repo.py` | Verified |
 | `scripts/agent/turn_result.py` | Add compensation status field with default `not_needed` | Turn result carries no compensation status | REQ-003; AC-2 | `scripts/agent/turn_result.py` lines 19-30 (frozen dataclass, no status field) | `tests/agent/test_llm_turn_executor.py` | Verified |
 | `scripts/agent/session.py` | Hold the degraded-session state; refuse a turn entry while degraded; integrate with the generation model | No degraded state exists; the boundary needs a place to mark it | REQ-004; AC-3 | `scripts/agent/session.py` lines 44-97 (generation model), 281-282 (repo construction, `strict_mode` passthrough) | `tests/agent/test_repl_error_handling.py` | Verified |
 | `scripts/agent/orchestrator.py` | Record the compensation status from the error in the persistence-error branch | The branch records `error_kind` only | REQ-003; AC-2 | `scripts/agent/orchestrator.py` lines 202-209 | `tests/agent/test_orchestrator.py` | Verified |
@@ -114,7 +114,7 @@ Yes. Compensation statuses and the degraded-session behavior. Target docs via `d
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
 |---|---|---|---|---|
-| UNK-01 | How the degraded state is cleared: which command or health check, and its criteria; no session-level health check exists in `scripts/agent/` today | No existing session health or recovery command found (`rg` over `scripts/agent/` shows only memory and MCP capability "degraded", unrelated) | User decision on the clearing command and criteria; this Plan implements marking and refusal only, and leaves the clearing hook as a defined seam | True |
+| UNK-01 | How the degraded state is cleared: which command or health check, and its criteria; no session-level state health check exists in `scripts/agent/` today | Re-verified at `a6822e424e43651994f169c3a678ecaeb2f8c2dc`: `/session health` exists (`scripts/agent/commands/command_defs_list.py` line 123, `scripts/agent/commands/cmd_session.py` lines 375-378) but is a session-DB maintenance job that does not touch session state; `rg` over `scripts/agent/` shows only memory, MCP capability, and config-reload "degraded", unrelated to turn persistence | User decision on the clearing command and criteria; this Plan implements marking and refusal only, and leaves the clearing hook as a defined seam | True |
 
 ## Affected areas
 `skills/DESIGN.md` Change-impact table, extended with `Churn (30d)` and `Bus Factor`
@@ -141,7 +141,7 @@ Validation quality baseline:
 - diff-cover: no diff against `master` at HEAD, so the baseline is empty; coverage is measured on the change itself.
 - import-linter: 6 contracts KEPT at HEAD; no new cross-layer imports are introduced (the status enum stays inside `agent/`).
 - Historical analysis: churn per file recorded in `Affected areas`; `git-fame` (bus factor) unavailable in this environment.
-- Overlap check disposition: `check_plan_target_overlaps.py` reports `docs/23_agent/agent_13_reference-api-generated.md` targeted by this Plan and `plans/20261126-210258_cliplc009_redaction-stderr-diagnostics.md`. No contradiction: both rows only regenerate the generated reference table via `generate_reference_table.py --check`; regeneration is idempotent and reflects whichever contract change lands first. The other two findings are between external plans and do not involve this Plan.
+- Overlap check disposition: at the original revision `check_plan_target_overlaps.py` reported `docs/23_agent/agent_13_reference-api-generated.md` targeted by this Plan and `plans/20261126-210258_cliplc009_redaction-stderr-diagnostics.md`. No contradiction: both rows only regenerate the generated reference table via `generate_reference_table.py --check`; regeneration is idempotent and reflects whichever contract change lands first. Re-run at `a6822e424e43651994f169c3a678ecaeb2f8c2dc`: cliplc009 has been consumed (`plans/done/20261126-210258_cliplc009_redaction-stderr-diagnostics.md`), so no current overlap names this Plan.
 
 Consumer scan results (`tools/scan_change_consumers.py`):
 - Seed `ConversationPersistenceError` (10 candidates): target rows `scripts/agent/turn_persistence.py`, `scripts/agent/orchestrator.py`, `scripts/agent/repl_input_loop.py`; `scripts/agent/session_message_repo.py` docstring mentions are `not affected: comment only`; ADR test citations are `not affected: no assertion change beyond the target test rows`.
@@ -233,7 +233,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20261126-211240
-- **Evidence revision**: 90ec3d2809a53b24b15bfd7d1ae760f7bac595ca — the 40-hex HEAD at which the evidence was verified; print it with tools/check_evidence_freshness.py record
+- **Evidence revision**: a6822e424e43651994f169c3a678ecaeb2f8c2dc
 - **Related target files**: `scripts/agent/turn_persistence.py`, `scripts/agent/session_message_repo.py`, `scripts/agent/turn_result.py`, `scripts/agent/session.py`, `scripts/agent/orchestrator.py`, `scripts/agent/repl_input_loop.py`, `tests/agent/test_turn_persistence.py`, `tests/agent/test_session_message_repo.py`, `tests/agent/test_llm_turn_executor.py`, `tests/agent/test_orchestrator.py`, `tests/agent/test_repl_error_handling.py`, `docs/23_agent/agent_04_01_state-and-persistence-state-model.md`, `docs/23_agent/agent_09_01_data-layer-session-db.md`, `docs/23_agent/agent_13_reference-api-generated.md`
 
 ### Requirement Traceability
