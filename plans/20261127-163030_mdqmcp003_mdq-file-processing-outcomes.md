@@ -100,7 +100,7 @@ Implementation Target Files Validation (Plan Freeze).
 | `scripts/mcp_servers/mdq/mdq_models.py` domain exceptions section | `MdqServiceError` is the exception class the all-files-failed case raises | REQ-003 |
 | `deploy/deploy.sh` | `config/mdq_mcp_server.toml` is copied by an existing `cp` line, so the key rename changes deployed content without adding a deploy line | REQ-004 |
 | `docs/22_mcp/mcp_02_03_audit-logging-and-errors.md` | The rule that persistent output carries no absolute path, which the warning records must satisfy; owned by the server-boundary plan | REQ-007 |
-| `docs/22_mcp/mcp_05_05_mdq-enforcement-and-lockdown.md` | The statement that `include_globs` and `exclude_globs` apply to all four indexing scans, which the scan-semantics wording must stay consistent with | REQ-005 |
+| `docs/22_mcp/mcp_04_04_mdq.md` | Line 33 states `include_globs` / `exclude_globs` apply to all four indexing scans, which the scan-semantics wording must stay consistent with. Re-verified 20261127: `mcp_05_05_mdq-enforcement-and-lockdown.md` contains no glob statement, so the scan-semantics statement is in this doc, not in the enforcement doc | REQ-005 |
 
 ## Acceptance Criteria
 - `AC-1` (REQ-001, REQ-002): A skipped or failed file never advances successful state, and no counter reports it as committed.
@@ -120,7 +120,7 @@ Implementation Target Files Validation (Plan Freeze).
 - `REQ-007`: `tests/mcp_servers/mdq/test_parser.py` — invalid frontmatter still parses to empty tags and now produces a structured warning and a count with no absolute path.
 - Full-suite validation: `uv run ruff check scripts/`, `uv run mypy --no-namespace-packages scripts/ tests/eventbus tools`, `uv run bandit -r scripts/ -c pyproject.toml -ll`, `PYTHONPATH=scripts uv run lint-imports`, `uv run pytest`, `uv run diff-cover coverage.xml --compare-branch=master` at or above 90% on changed lines, `uv run pre-commit run --all-files`.
 
-Baseline before any change: `uv run pytest tests/mcp_servers/mdq/test_db_grep.py tests/mcp_servers/mdq/test_parser.py tests/mcp_servers/mdq/test_mdq_incremental_refresh.py tests/mcp_servers/mdq/test_mdq_service.py tests/mcp_servers/mdq/test_mdq_config.py -q` → 159 passed; the whole `tests/mcp_servers/mdq/` suite is 460 passed, 1 skipped.
+Baseline before any change: `uv run pytest tests/mcp_servers/mdq/test_db_grep.py tests/mcp_servers/mdq/test_parser.py tests/mcp_servers/mdq/test_mdq_incremental_refresh.py tests/mcp_servers/mdq/test_mdq_service.py tests/mcp_servers/mdq/test_mdq_config.py -q` → 159 passed (re-run 20261127: 159 passed); the whole `tests/mcp_servers/mdq/` suite is 416 passed, 1 skipped (re-run 20261127; the previously recorded 460 was stale).
 
 ## Documentation Impact
 Yes. Per `docs/00_index.md` "Document References by Task" (MCP server spec row):
@@ -135,6 +135,7 @@ Doc content policy applies: the status vocabulary and the reason codes are a clo
 - `index_scan.py` keeps its boundary: discovery only, no database access and no authorization. Re-authorization and re-stat are applied by `scripts/mcp_servers/mdq/indexer.py`, which already imports `authorize_path()`, so no new cross-module dependency is introduced.
 - The all-files-failed tool error is raised from the service layer as `MdqServiceError` and rendered by the audit boundary owned by the server-boundary plan; this Plan does not modify `scripts/mcp_servers/mdq/mdq_server.py`.
 - The grep line number is computed as `start_line + 1 + k` within the stored content. Because `parser.py` strips leading blank lines from `content` before storing it, `k` cannot be traced back to the original file line for a section whose content began with blank lines; the plan records this as UNK-03 rather than guessing an offset.
+- Cross-plan target overlaps recorded by `tools/check_plan_target_overlaps.py` (run 20261127): 12 findings name this Plan. The 7 recorded in the next bullet are compatible; the remaining 5 were not recorded before and are compatible as well — `scripts/mcp_servers/mdq/indexer.py` (mdqmcp004, mdqmcp005, mdqmcp007), `scripts/mcp_servers/mdq/parser.py` (mdqmcp010), `tests/mcp_servers/mdq/test_db_grep.py` (mdqmcp010), `tests/mcp_servers/mdq/test_mdq_incremental_refresh.py` (mdqmcp004, mdqmcp005, mdqmcp010), `tests/mcp_servers/mdq/test_parser.py` (mdqmcp010). mdqmcp010 adds only a `pytestmark` line and a citation to each test module; the source rows are different sections of the same modules.
 - Cross-plan target overlaps are compatible, recorded here per `check_plan_target_overlaps.py`: `scripts/mcp_servers/mdq/mdq_models.py` — the server-boundary plan changes the `MdqConfig` strict types, the query-boundary plan changes `SearchDocsMetadata.query_preview`, this Plan adds the result DTO and renames the size-limit field; different sections of the same module. `docs/22_mcp/mcp_04_04_mdq.md` — the server-boundary plan documents the availability, health, stats, error-code, and audit surfaces, the query-boundary plan documents the query boundary, this Plan documents the outcome, unit, scan, grep, and warning semantics. `config/mdq_mcp_server.toml` — the server-boundary plan changes the strict-value handling of existing keys, this Plan renames one key; the rename must not be read as a strict-type change. `scripts/mcp_servers/mdq/mdq_security_validation.py` — the server-boundary plan changes validation behavior, this Plan changes only the key name in `_MDQ_SCALAR_SETTINGS`. `scripts/mcp_servers/mdq/mdq_service.py` — the server-boundary plan owns the audit and health surfaces, this Plan changes the context resolution, the size-limit attribute, and the outcome text. `tests/mcp_servers/mdq/test_mdq_config.py` — the server-boundary plan adds strict-type cases, this Plan moves the renamed default and field list. `tests/mcp_servers/mdq/test_mdq_service.py` — the server-boundary plan adds the audit and health cases, this Plan rewrites the outcome-text, size-limit, and unit cases.
 
 ## Unknowns
@@ -250,7 +251,7 @@ Doc content policy applies: the status vocabulary and the reason codes are a clo
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 5 | UNK-03 (`Blocking? = True`): the grep line-number offset for a section whose content had leading blank lines stripped at index time is not recoverable from the stored row, so `AC-5` cannot be met exactly until the owner decides between storing the content offset at index time and defining the reported line as the first stored content line. Procedure generation for this plan is blocked on that decision. | No | — |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
@@ -259,7 +260,7 @@ Doc content policy applies: the status vocabulary and the reason codes are a clo
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
-- **Source issue**: `issues/20261119-142125_mdqmcp003_mdq-file-processing-outcomes.md`
+- **Source issue**: `issues/done/20261119-142125_mdqmcp003_mdq-file-processing-outcomes.md`
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase

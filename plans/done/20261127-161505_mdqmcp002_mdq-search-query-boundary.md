@@ -109,7 +109,7 @@ Implementation Target Files Validation (Plan Freeze).
 - `REQ-005`: `tests/mcp_servers/mdq/test_search.py` — no raw query text in the captured log or in the response text; `tests/mcp_servers/test_mdq_audit.py` — the metadata field carries the hashed identifier.
 - Full-suite validation: `uv run ruff check scripts/`, `uv run mypy --no-namespace-packages scripts/ tests/eventbus tools`, `uv run bandit -r scripts/ -c pyproject.toml -ll`, `PYTHONPATH=scripts uv run lint-imports`, `uv run pytest`, `uv run diff-cover coverage.xml --compare-branch=master` at or above 90% on changed lines, `uv run pre-commit run --all-files`.
 
-Baseline before any change: `uv run pytest tests/mcp_servers/mdq/test_search.py tests/mcp_servers/mdq/test_mdq_search_counts.py tests/mcp_servers/mdq/test_mdq_search_limits.py tests/mcp_servers/mdq/test_mdq_search_modes.py tests/mcp_servers/mdq/test_mdq_read_authorization.py tests/mcp_servers/mdq/test_mdq_path_jail.py tests/mcp_servers/test_audit_redaction.py -q` → 69 passed; the whole `tests/mcp_servers/mdq/` suite is 460 passed, 1 skipped.
+Baseline before any change: `uv run pytest tests/mcp_servers/mdq/test_search.py tests/mcp_servers/mdq/test_mdq_search_counts.py tests/mcp_servers/mdq/test_mdq_search_limits.py tests/mcp_servers/mdq/test_mdq_search_modes.py tests/mcp_servers/mdq/test_mdq_read_authorization.py tests/mcp_servers/mdq/test_mdq_path_jail.py tests/mcp_servers/test_audit_redaction.py -q` → 69 passed (re-run 20261127: 69 passed); the whole `tests/mcp_servers/mdq/` suite is 416 passed, 1 skipped (re-run 20261127; the previously recorded 460 was stale).
 
 ## Documentation Impact
 Yes. Per `docs/00_index.md` "Document References by Task" (MCP server spec row):
@@ -125,6 +125,7 @@ Doc content policy applies: the cause-to-code classification table is a closed v
 - The bounded drain interval is a named constant in the search path rather than a configuration key; its value is recorded as UNK-02.
 - The response header and metadata carry the hashed query identifier defined by the server-boundary plan; no test pins the current raw-text header wording, so the change is test-compatible.
 - The overlap with the server-boundary plan is limited to consuming its codes and its hashed-identifier contract; this Plan does not modify `mdq_server.py`, `audit.py`, or `audit_target.py`.
+- Cross-plan target overlaps recorded by `tools/check_plan_target_overlaps.py` (run 20261127): 8 findings name this plan. The 3 with the server-boundary plan are recorded in the next bullet; the 5 test modules shared with `plans/20261127-203046_mdqmcp010_mdq-release-readiness.md` (`test_mdq_path_jail.py`, `test_mdq_search_counts.py`, `test_mdq_search_limits.py`, `test_mdq_search_modes.py`, `test_search.py`) are compatible: that plan adds only a `pytestmark` line and a citation to each, this Plan adds assertions there.
 - The three shared target files with the server-boundary plan are compatible: `mdq_models.py` — that plan changes the `MdqConfig` field types, this Plan changes the `SearchDocsMetadata.query_preview` field, different sections of the same module; `docs/22_mcp/mcp_04_04_mdq.md` — that plan documents the availability, health, stats, error-code, and audit surfaces, this Plan documents the query-boundary contract and removes the two search-specific statements; `tests/mcp_servers/mdq/test_mdq_read_authorization.py` — that plan adds the stats-refusal case, this Plan adds the mixed-root search cases.
 
 ## Unknowns
@@ -209,11 +210,11 @@ Doc content policy applies: the cause-to-code classification table is a closed v
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: characterization tests first | Pending | — | — | Unauthorized-rows-ranked-first and repeated-timeout leak tests written first per the issue's instruction |
-| 2 | Phase 2: query construction | Pending | — | — | Authorized SQL predicate, exact prefix and tag semantics |
-| 3 | Phase 3: error classification | Pending | — | — | Cause-based mapping to the closed code vocabulary |
-| 4 | Phase 4: cancellation and concurrency | Pending | — | — | Dedicated connection, stop event, bounded drain, bounded concurrency |
-| 5 | Phase 5: documentation | Pending | — | — | MDQ contract doc and doc content policy gate |
+| 1 | Phase 1: characterization tests first | In Progress | — | — | Unauthorized-rows-ranked-first and repeated-timeout leak tests written first per the issue's instruction |
+| 2 | Phase 2: query construction | In Progress | — | — | Authorized SQL predicate, exact prefix and tag semantics |
+| 3 | Phase 3: error classification | In Progress | — | — | Cause-based mapping to the closed code vocabulary |
+| 4 | Phase 4: cancellation and concurrency | In Progress | — | — | Dedicated connection, stop event, bounded drain, bounded concurrency |
+| 5 | Phase 5: documentation | In Progress | — | — | MDQ contract doc and doc content policy gate |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -223,11 +224,22 @@ Doc content policy applies: the cause-to-code classification table is a closed v
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261127-220630_01_scripts_mcp_servers_mdq_search.py.md` | 1, 2, 3, 4 | Procedure | Pending | — | — |
+| `implementations/20261127-220630_02_scripts_mcp_servers_mdq_auth.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261127-220630_03_scripts_mcp_servers_mdq_mdq_models.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261127-220630_06_tests_mcp_servers_mdq_test_mdq_search_limits.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261127-220630_07_tests_mcp_servers_mdq_test_mdq_search_modes.py.md` | — (Plan Gap: no Implementation step modifies this path) | Procedure | Pending | — | — |
+| `implementations/20261127-220630_08_tests_mcp_servers_mdq_test_mdq_read_authorization.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261127-220630_10_tests_mcp_servers_mdq_test_mdq_search_cancellation.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261127-220630_11_docs_22_mcp_mcp_04_04_mdq.md.md` | 5 | Procedure | Pending | — | — |
+
+Plan Gap: no `Implementation steps` entry modifies `tests/mcp_servers/mdq/test_mdq_search_modes.py`; the row is covered by the plan's Tests section (REQ-003), not by a step.
+
+Companion rows covered by a code row's document: `tests/mcp_servers/mdq/test_search.py` and `tests/mcp_servers/mdq/test_mdq_search_counts.py` (seq 01), `tests/mcp_servers/mdq/test_mdq_path_jail.py` (seq 02).
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
-- **Source issue**: `issues/20261119-142124_mdqmcp002_mdq-search-query-boundary.md`
+- **Source issue**: `issues/done/20261119-142124_mdqmcp002_mdq-search-query-boundary.md`
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
@@ -257,3 +269,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-005 | Required Changes; no raw SQLite or query text in responses; raw query logged at `logger.info` in `scripts/mcp_servers/mdq/search.py` | `scripts/mcp_servers/mdq/search.py` | Phase 3 | AC-3 | `tests/mcp_servers/mdq/test_search.py` | Confirmed by repository evidence |
 | REQ-006 | Documentation Impact; `matched_count` as authorized count and filter semantics | `docs/22_mcp/mcp_04_04_mdq.md` | Phase 5 | AC-3 | `uv run python tools/check_docs_content_policy.py` | Confirmed by repository evidence |
 | REQ-006 | Documentation Impact; error codes and cancellation behavior | `docs/22_mcp/mcp_04_04_mdq.md` | Phase 5 | AC-4 | `uv run python tools/check_docs_content_policy.py` | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261127-220630 -->

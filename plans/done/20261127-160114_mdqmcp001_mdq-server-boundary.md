@@ -86,8 +86,8 @@ Implementation Target Files Validation (Plan Freeze).
 | `scripts/mcp_servers/mdq/mdq_tools.py` | Modify | Set `config_dependent` to `True` for the tools whose availability depends on configuration | REQ-001, AC-1 | Every entry in `TOOL_LIST` declares `"config_dependent": False` | `tests/mcp_servers/test_tool_schema.py` | Verified |
 | `scripts/mcp_servers/mdq/mdq_error_codes.py` | Create | New file: the closed MDQ domain error-code vocabulary plus the mapping from the MDQ exception classes to codes; policy only, no I/O and no logging | REQ-004, AC-5 | Does not exist; `scripts/mcp_servers/mdq/` holds 18 files and none owns the error vocabulary (checked in Step 3); `CONTROL_ERROR_CODES` in `scripts/shared/mcp_call_state_contract.py` is closed to the control API and cannot carry domain codes | `tests/mcp_servers/mdq/test_mdq_error_taxonomy.py` | Verified |
 | `scripts/mcp_servers/mdq/startup_config.py` | Create | New file: loads and validates the production configuration once and exposes the immutable result shared by service, authentication, health, and posture; startup errors name field paths only, never values, paths, or secrets | REQ-007, AC-6 | Does not exist; today three independent loads read configuration at import (`_load_auth_token()`, `MdqService.__init__()`, `health_check._collect_dependencies()`) (checked in Step 3) | `tests/mcp_servers/mdq/test_mdq_config_error_degradation.py` | Verified |
-| `scripts/mcp_servers/audit.py` | Modify | Add the path-identifier helper MDQ needs (root-relative identifier or hash), because `mcp_servers` cannot import `agent.secrets_masker.redact_path()` under the import-linter contract; existing behavior for other servers stays unchanged | REQ-006, AC-4 | `scripts/mcp_servers/audit.py` exposes `hash_query_value()`, `redact_url()`, and `AuditEmission` but has no path helper; `redact_path()` exists only in `scripts/agent/secrets_masker.py`; `.importlinter` contract `shared-is-leaf` and the documented hierarchy forbid `mcp_servers → agent` | `tests/mcp_servers/test_audit_redaction.py` | Verified |
-| `config/mdq_mcp_server.toml` | Modify | State explicitly the keys that `MdqConfig` currently supplies as defaults (`context_before`, `context_after`, `max_chars_per_match`, `max_outline_depth`, `sqlite_busy_timeout`) so production construction has no implicit default | REQ-007, AC-6 | The file lists 14 `MdqConfig` keys; the five named above are absent and are supplied today by pydantic defaults | `tests/mcp_servers/mdq/test_mdq_config.py` | Verified |
+| `scripts/mcp_servers/audit.py` | Modify | Add the path-identifier helper MDQ needs (root-relative identifier or hash), because `mcp_servers` cannot import `agent.secrets_masker.redact_path()` under the import-linter contract; existing behavior for other servers stays unchanged | REQ-006, AC-4 | `scripts/mcp_servers/audit.py` exposes `hash_query_value()`, `redact_url()`, and `AuditEmission` but has no path helper; `redact_path()` exists only in `scripts/agent/secrets_masker.py`; `.importlinter` contract `mcp_servers-no-agent` forbids `mcp_servers → agent` (re-verified 20261127) | `tests/mcp_servers/test_audit_redaction.py` | Verified |
+| `config/mdq_mcp_server.toml` | Modify | State explicitly the keys that `MdqConfig` currently supplies as defaults (`context_before`, `context_after`, `max_chars_per_match`, `max_outline_depth`, `sqlite_busy_timeout`) so production construction has no implicit default | REQ-007, AC-6 | The file lists 13 `MdqConfig` keys plus `auth_token` and `db_path` (re-verified 20261127); the five named above are absent and are supplied today by pydantic defaults | `tests/mcp_servers/mdq/test_mdq_config.py` | Verified |
 | `tests/mcp_servers/mdq/test_mdq_server.py` | Create | New file: boundary tests for one availability function used by discovery and dispatch, per-tool evaluation, and re-evaluation at call time | REQ-001, AC-1 | Does not exist; `tests/mcp_servers/mdq/` holds 35 test files and none covers the discovery/dispatch availability agreement (checked in Step 3) | itself | Verified |
 | `tests/mcp_servers/mdq/test_mdq_disabled_tools.py` | Create | New file: disabled-tool and stale-discovery tests through HTTP and programmatic dispatch, including `grep_docs` configured off | REQ-001, AC-1 | Does not exist; `grep_docs` is gated only inside `MdqService.grep_docs()` today, so no test can currently show discovery and execution agreeing (checked in Step 3) | itself | Verified |
 | `tests/mcp_servers/mdq/test_mdq_exception_audit.py` | Create | New file: exactly-one-audit tests for success and every error class, including the `ExecutionContextError` path that emits nothing today | REQ-005, AC-3 | Does not exist; `tests/mcp_servers/mdq/test_mdq_exception_handlers.py` asserts `_audit_log` is called from the handler, which is the behavior being replaced (checked in Step 3) | itself | Verified |
@@ -105,7 +105,7 @@ Implementation Target Files Validation (Plan Freeze).
 | `tests/mcp_servers/mdq/test_mdq_error_taxonomy.py` | Modify | Assert the closed code vocabulary and the exception-to-code mapping | REQ-004, AC-5 | The file asserts the exception hierarchy only, not codes | itself | Verified |
 | `docs/22_mcp/mcp_04_04_mdq.md` | Modify | Document the availability and execution contract, public health and authorized stats, the administrator diagnostics surface, the MDQ error-code table, and audit redaction with exactly-one-record behavior | REQ-008, AC-5, AC-6 | The doc states `call_tool` writes one record per call with `target` truncated to 80 characters and describes exception handlers as the audit site | `uv run python tools/check_docs_content_policy.py` | Verified |
 | `docs/22_mcp/mcp_03_06_tool-runtime-availability-metadata.md` | Modify | Remove the statement that `config_dependent` is `false` for the MDQ tools | REQ-008, AC-1 | The doc states `config_dependent` is `false` for the file servers, `mdq`, and `rag_pipeline` tools | `uv run python tools/check_docs_content_policy.py` | Verified |
-| `docs/22_mcp/mcp_02_03_audit-logging-and-errors.md` | Modify | Remove the two-vocabulary note that names MDQ as using exception-class names, and record MDQ under the single lowercase-snake code vocabulary | REQ-008, AC-5 | The doc's Error Type Vocabulary section lists `mdq` as exception-class names and recommends the other style for new code | `uv run python tools/check_docs_content_policy.py` | Verified |
+| `docs/22_mcp/mcp_02_03_audit-logging-and-errors.md` | Modify | Record MDQ under the single lowercase-snake code vocabulary, and remove the statement that audit log functions are implemented within each server's dispatch handler, which contradicts the single-emission boundary | REQ-008, AC-5, AC-7 | Re-verified 20261127: the doc has no Error Type Vocabulary section and does not name MDQ as using exception-class names; that statement is in `docs/22_mcp/mcp_04_04_mdq.md` line 96 (its own row). The contradicting statement here is line 64: "Audit log functions are implemented within each server's dispatch handler." | `uv run python tools/check_docs_content_policy.py` | Verified |
 
 ## Reference Files
 | File Path | Why It Must Be Read | Related Target File or Requirement |
@@ -150,7 +150,7 @@ Implementation Target Files Validation (Plan Freeze).
 Yes. Per `docs/00_index.md` "Document References by Task" (MCP server spec row), the MCP domain docs must be updated:
 - `REQ-008` drives the MDQ server contract doc: availability and execution, public health, authorized stats, the administrator diagnostics surface, the MDQ error-code table, and audit redaction with exactly-one-record behavior.
 - `REQ-001` drives the tool-runtime availability metadata doc, which currently states that MDQ tools are `config_dependent: false`.
-- `REQ-004` and `REQ-005` drive the audit-logging and errors doc, which currently records MDQ as using exception-class names in `error_type`.
+- `REQ-004` and `REQ-005` drive the audit-logging and errors doc: record MDQ under the single lowercase-snake code vocabulary and remove the statement that audit log functions are implemented within each server's dispatch handler. Re-verified 20261127: that doc has no Error Type Vocabulary section; the exception-class-name statement is in the MDQ server contract doc.
 Contradictory statements about disabled tools and exception handling are removed. Doc content policy applies: the error-code table is a closed vocabulary (retain), while per-exception handling tables and implementation-location statements must not be added (`skills/DESIGN.md` Docs content policy). Run `uv run python tools/check_docs_content_policy.py` per `rules/tool-gates.md`.
 
 ## Assumptions
@@ -159,7 +159,17 @@ Contradictory statements about disabled tools and exception handling are removed
 - `mcp_servers` cannot import `agent`, so the path-identifier helper must live in `scripts/mcp_servers/audit.py`; adding it is additive and does not change any other server's audit output.
 - Health body consumers read only the shared contract fields (`liveness`, `ready`, `degraded_reasons`, `capabilities`, `reason`); the removed `details` keys have no production consumer, only test assertions.
 - "Defaults only in explicit development or test mode" is satisfied by removing implicit production defaults and making the test path supply explicit values; no new configuration key or mode flag is introduced.
-- The overlap with the search, file-processing, and schema plans is limited to the error-code contract: those plans consume codes defined here and do not modify the files this plan owns.
+- Cross-plan target overlaps recorded by `tools/check_plan_target_overlaps.py` (run 20261127): 20 findings name this plan. The earlier statement that the other plans "do not modify the files this plan owns" was wrong; they share target rows with it. All 20 are compatible section-level overlaps, not conflicts, and this plan executes first in the work order.
+  - `scripts/mcp_servers/mdq/mdq_models.py` (7 plans): this plan removes the `MdqConfig` field defaults and applies the strict boolean primitive; the others add or rename DTO fields in different sections.
+  - `config/mdq_mcp_server.toml` (mdqmcp003): this plan adds the five keys the defaults supply today; that plan renames `max_file_chars` to its byte unit. Different keys, and that plan states the rename must not be read as a strict-type change.
+  - `scripts/mcp_servers/mdq/mdq_service.py` (5 plans): this plan owns the stats scope and the configuration source; mdqmcp003 owns context resolution and the size-limit attribute, mdqmcp004, mdqmcp007, mdqmcp008 their own behavior.
+  - `scripts/mcp_servers/mdq/health_check.py` (mdqmcp004, mdqmcp006): this plan removes the non-sensitive `details` keys; those plans add stale and schema-scope reporting.
+  - `scripts/mcp_servers/mdq/mdq_server.py` (mdqmcp007, mdqmcp008): this plan owns the availability and audit emission boundary.
+  - `scripts/mcp_servers/mdq/mdq_security_validation.py` (mdqmcp003, mdqmcp006): this plan changes the input source only; mdqmcp003 renames one key in `_MDQ_SCALAR_SETTINGS`.
+  - `scripts/mcp_servers/mdq/mdq_tools.py` (5 plans): this plan changes only the `config_dependent` values.
+  - `docs/22_mcp/mcp_04_04_mdq.md` (9 plans): this plan owns the availability, health, stats, error-code, and audit statements; the others add their own requirement statements.
+  - `docs/22_mcp/mcp_03_06_tool-runtime-availability-metadata.md` (mdqmcp010): this plan corrects the MDQ `config_dependent` sentence; that plan adds the status criteria and the status-change process.
+  - Test modules shared with mdqmcp010 (`test_audit_target.py`, `test_mdq_config.py`, `test_mdq_config_error_degradation.py`, `test_mdq_error_taxonomy.py`, `test_mdq_exception_handlers.py`, `test_mdq_health.py`, `test_mdq_health_endpoint.py`, `test_mdq_health_posture.py`, `test_mdq_read_authorization.py`, `test_mdq_schema_migration.py`, `test_mdq_service.py`): that plan adds only a `pytestmark` line and a citation; this plan adds assertions.
 - The overlap with the CI/CD error and audit-coverage plan on `scripts/mcp_servers/audit.py` and the audit-logging doc is compatible: that plan removes a duplicate `requested_target` assignment and records the CI/CD code vocabulary, while this plan adds a path-identifier helper and replaces the MDQ exception-class-name vocabulary entry. Neither changes the other's observable output.
 
 ## Unknowns
@@ -196,7 +206,7 @@ Contradictory statements about disabled tools and exception handling are removed
 
 **Path redaction.** `scripts/mcp_servers/audit.py` gains a path-identifier helper because `mcp_servers` cannot import `agent.secrets_masker.redact_path()` under the import-linter contract. It returns a root-relative identifier for a path inside an authorized root and a hash otherwise; `audit_target.py` uses it together with `hash_query_value()` for query and regex values.
 
-**Consumer scan (Step 3).** `grimp` over `mcp_servers` reports 18 MDQ modules with no external importers: nothing outside `mcp_servers.mdq` imports `extract_audit_target`, `check_health`, `_mdq_tool_availability`, `stats`, or the tool metadata. The only consumers are the tests named in Implementation Target Files. `mcp_servers.audit` is imported by six servers plus four test modules, so its change is additive. No strong import cycle involves an MDQ module. `PYTHONPATH=scripts uv run lint-imports` passes today (6 contracts kept, 552 files).
+**Consumer scan (Step 3).** `grimp` over `mcp_servers` reports 18 MDQ modules with no external importers: nothing outside `mcp_servers.mdq` imports `extract_audit_target`, `check_health`, `_mdq_tool_availability`, `stats`, or the tool metadata. The only consumers are the tests named in Implementation Target Files. `mcp_servers.audit` is imported by nine servers plus five test modules (re-verified 20261127), so its change is additive. No strong import cycle involves an MDQ module. `PYTHONPATH=scripts uv run lint-imports` passes today (6 contracts kept, 552 files).
 
 **Predictable fallout check (Step 3).**
 - Module size gate (24576 B): `mdq_server.py` 20547 B, `mdq_service.py` 15897 B, `scripts/mcp_servers/audit.py` 10267 B — all below the gate, so the plan's additions must keep them under it; the error-code and configuration vocabularies are placed in new modules to protect `mdq_server.py` headroom.
@@ -254,7 +264,7 @@ Contradictory statements about disabled tools and exception handling are removed
 | Documentation | Content policy | `uv run python tools/check_docs_content_policy.py` | No implementation-detail content introduced |
 
 ## Risks
-- **Risk**: adding a path helper to `scripts/mcp_servers/audit.py` could change the audit output of the other five servers that import it. → **Mitigation**: the change is additive (a new function only); `tests/mcp_servers/test_audit_redaction.py` is run unchanged, and the issue's instruction is to stop and report if another server's output changes.
+- **Risk**: adding a path helper to `scripts/mcp_servers/audit.py` could change the audit output of the other eight servers that import it (re-verified 20261127; the previously recorded five was stale). → **Mitigation**: the change is additive (a new function only); `tests/mcp_servers/test_audit_redaction.py` is run unchanged, and the issue's instruction is to stop and report if another server's output changes.
 - **Risk**: removing health `details` keys and changing stats output shape breaks consumers outside the tests. → **Mitigation**: the consumer scan found no production consumer of those fields; the agent reads only the shared health contract fields. If a consumer is found later, the change is scoped to the tests listed in Implementation Target Files.
 - **Risk**: making `MdqConfig` reject implicit defaults breaks startup for a deployed configuration that relies on them. → **Mitigation**: Phase 6 adds the currently-implicit keys to `config/mdq_mcp_server.toml` with the same values, so production behavior is unchanged while the default path is removed.
 - **Risk**: `mdq_server.py` is already near the module size gate and this plan adds the dispatch, error-rendering, and audit boundary to it. → **Mitigation**: the error-code and configuration vocabularies are placed in new modules; `uv run python tools/check_module_size.py` is run before commit, and `tools/module_nodes.py measure` identifies a split if the gate is crossed.
@@ -266,13 +276,15 @@ Contradictory statements about disabled tools and exception handling are removed
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: characterization tests first | Pending | — | — | Tests written before production changes per the issue's instruction |
-| 2 | Phase 2: shared vocabulary modules | Pending | — | — | Error codes, startup config, audit path helper |
-| 3 | Phase 3: availability and dispatch boundary | Pending | — | — | Depends on Phase 2 codes |
-| 4 | Phase 4: error rendering and single audit boundary | Pending | — | — | Handlers render transport only |
-| 5 | Phase 5: authorized stats and non-sensitive health | Pending | — | — | Root-scoped counts |
-| 6 | Phase 6: configuration startup contract | Pending | — | — | Pre-bind failure |
-| 7 | Phase 7: documentation and deployment verification | Pending | — | — | Docs gates and deploy config check |
+| 1 | Phase 1: characterization tests first | In Progress | — | — | Tests written before production changes per the issue's instruction |
+| 2 | Phase 2: shared vocabulary modules | In Progress | — | — | Error codes, startup config, audit path helper |
+| 3 | Phase 3: availability and dispatch boundary | In Progress | — | — | Depends on Phase 2 codes |
+| 4 | Phase 4: error rendering and single audit boundary | In Progress | — | — | Handlers render transport only |
+| 5 | Phase 5: authorized stats and non-sensitive health | In Progress | — | — | Root-scoped counts |
+| 6 | Phase 6: configuration startup contract | In Progress | — | — | Pre-bind failure |
+| 7 | Phase 7: documentation and deployment verification | In Progress | — | — | Docs gates and deploy config check |
+
+Plan Gap: no `Implementation steps` entry modifies `tests/mcp_servers/mdq/test_mdq_health_posture.py`, `tests/mcp_servers/mdq/test_mdq_config.py`, `tests/mcp_servers/mdq/test_mdq_config_error_degradation.py`, `tests/mcp_servers/mdq/test_mdq_exception_handlers.py`, `tests/mcp_servers/mdq/test_mdq_error_taxonomy.py`. Each is covered by this cycle as a companion of the code row that cites it, except `test_mdq_config.py`, which keeps its own document because two code rows cite it.
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -282,11 +294,29 @@ Contradictory statements about disabled tools and exception handling are removed
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261127-213547_01_scripts_mcp_servers_mdq_mdq_server.py.md` | 3, 4 | Procedure | Pending | — | — |
+| `implementations/20261127-213547_02_scripts_mcp_servers_mdq_mdq_service.py.md` | 5, 6 | Procedure | Pending | — | — |
+| `implementations/20261127-213547_03_scripts_mcp_servers_mdq_audit_target.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261127-213547_04_scripts_mcp_servers_mdq_health_check.py.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261127-213547_05_scripts_mcp_servers_mdq_mdq_security_validation.py.md` | 6 | Procedure | Pending | — | — |
+| `implementations/20261127-213547_06_scripts_mcp_servers_mdq_mdq_models.py.md` | 6 | Procedure | Pending | — | — |
+| `implementations/20261127-213547_07_scripts_mcp_servers_mdq_mdq_tools.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261127-213547_08_scripts_mcp_servers_mdq_mdq_error_codes.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261127-213547_09_scripts_mcp_servers_mdq_startup_config.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261127-213547_10_scripts_mcp_servers_audit.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261127-213547_11_config_mdq_mcp_server.toml.md` | 6 | Procedure | Pending | — | — |
+| `implementations/20261127-213547_12_tests_mcp_servers_mdq_test_mdq_server.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261127-213547_13_tests_mcp_servers_mdq_test_mdq_disabled_tools.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261127-213547_14_tests_mcp_servers_mdq_test_mdq_exception_audit.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261127-213547_15_tests_mcp_servers_test_mdq_audit.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261127-213547_23_tests_mcp_servers_mdq_test_mdq_config.py.md` | — (Plan Gap: no Implementation step modifies this path) | Procedure | Pending | — | — |
+| `implementations/20261127-213547_27_docs_22_mcp_mcp_04_04_mdq.md.md` | 7 | Procedure | Pending | — | — |
+| `implementations/20261127-213547_28_docs_22_mcp_mcp_03_06_tool-runtime-availability-metadata.md.md` | 7 | Procedure | Pending | — | — |
+| `implementations/20261127-213547_29_docs_22_mcp_mcp_02_03_audit-logging-and-errors.md.md` | 7 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
-- **Source issue**: `issues/20261119-142123_mdqmcp001_mdq-server-boundary.md`
+- **Source issue**: `issues/done/20261119-142123_mdqmcp001_mdq-server-boundary.md` (moved from `issues/` by commit `41b423e73`; corrected 20261127 by this pass's Step 3a)
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: N/A: this document is the generated plan
 - **Source implementation procedure**: N/A: not applicable in this phase
@@ -324,3 +354,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-008 | Documentation Impact; availability and execution contract | `docs/22_mcp/mcp_04_04_mdq.md` | Phase 7 | AC-7 | `uv run python tools/check_docs_content_policy.py` | Confirmed by repository evidence |
 | REQ-008 | Documentation Impact; the `config_dependent` statement for MDQ tools | `docs/22_mcp/mcp_03_06_tool-runtime-availability-metadata.md` | Phase 7 | AC-7 | `uv run python tools/check_docs_content_policy.py` | Confirmed by repository evidence |
 | REQ-008 | Documentation Impact; remove the exception-class-name audit vocabulary for MDQ | `docs/22_mcp/mcp_02_03_audit-logging-and-errors.md` | Phase 7 | AC-7 | `uv run python tools/check_docs_content_policy.py` | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261127-213547 -->
