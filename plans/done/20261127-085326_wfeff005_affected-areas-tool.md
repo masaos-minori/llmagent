@@ -179,9 +179,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create the tool, its tests, and the `tools/TOOL_DESCRIPTIONS.md` rows (`tools/fill_affected_areas.py`, `tests/tools/test_fill_affected_areas.py`, `tools/TOOL_DESCRIPTIONS.md`) | In Progress | — | — |  |
-| 2 | Reference the tool in the two skill files (`skills/issue-to-plan/workflow-path-b.md`, `skills/issue-to-plan/workflow.md`) | In Progress | — | — |  |
-| 3 | Verify on three existing Plans; deployment check is N/A (`tools/fill_affected_areas.py`) | Pending | — | — |  |
+| 1 | Create the tool, its tests, and the `tools/TOOL_DESCRIPTIONS.md` rows (`tools/fill_affected_areas.py`, `tests/tools/test_fill_affected_areas.py`, `tools/TOOL_DESCRIPTIONS.md`) | Completed | — | 20261127-092417 |  |
+| 2 | Reference the tool in the two skill files (`skills/issue-to-plan/workflow-path-b.md`, `skills/issue-to-plan/workflow.md`) | Completed | — | 20261127-092417 |  |
+| 3 | Verify on three existing Plans; deployment check is N/A (`tools/fill_affected_areas.py`) | Completed | — | 20261127-092417 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -191,11 +191,11 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261127-090100_01_tools_fill_affected_areas.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261127-090100_02_tests_tools_test_fill_affected_areas.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261127-090100_03_tools_TOOL_DESCRIPTIONS.md.md | 1 | Procedure | Pending | — | — |
-| implementations/20261127-090100_04_skills_issue-to-plan_workflow-path-b.md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261127-090100_05_skills_issue-to-plan_workflow.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261127-090100_01_tools_fill_affected_areas.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261127-090100_02_tests_tools_test_fill_affected_areas.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261127-090100_03_tools_TOOL_DESCRIPTIONS.md.md | 1 | Procedure | Completed | — | — |
+| implementations/20261127-090100_04_skills_issue-to-plan_workflow-path-b.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261127-090100_05_skills_issue-to-plan_workflow.md.md | 2 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

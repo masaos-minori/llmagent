@@ -65,9 +65,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create `tests/tools/test_fill_affected_areas.py` with the helpers and tests of Procedure | Pending | — | — | Needs seq 01 first |
-| 2 | Run the tests and fix failures in the test or report a tool defect | Pending | — | — | |
-| 3 | Run ruff and mypy on the file | Pending | — | — | |
+| 1 | Create `tests/tools/test_fill_affected_areas.py` with the helpers and tests of Procedure | Completed | 20261127-090934 | 20261127-091109 | Needs seq 01 first Changed: tests/tools/test_fill_affected_areas.py (new, 22 tests pass); dates in the churn test must be monotonic |
+| 2 | Run the tests and fix failures in the test or report a tool defect | Completed | 20261127-091109 | 20261127-091109 |  |
+| 3 | Run ruff and mypy on the file | Completed | 20261127-091109 | 20261127-092340 | ruff, mypy pass; End-of-batch full suite: 15915 passed, 3 failed (tests/mcp_servers/git, pre-existing: same 3 fail on a clean HEAD worktree); diff-cover N/A: no scripts/ change |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

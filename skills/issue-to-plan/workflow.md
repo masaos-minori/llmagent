@@ -380,7 +380,7 @@ raising it to the threshold defined in `rules/toolchain.md` Completion checklist
   states a value from `rules/skill-runtime.md` Change-impact table. Path A: judge
   `Blast Radius` qualitatively from Step 3's direct verification and mark `Churn (30d)`
   and `Bus Factor` `N/A`. Path B: take `Blast Radius` from the dependency graphing and
-  `Churn (30d)` and `Bus Factor` from the historical analysis in `workflow-path-b.md`,
+  `Churn (30d)` and `Bus Factor` from `tools/fill_affected_areas.py` (`workflow-path-b.md`),
   and mark a column `N/A` when the tool that would fill it is unavailable.
 - Generate the `Risks` section: extract a potential risk from each Constraint and each
   repository evidence finding mapped to Risks in Step 4, and write each as

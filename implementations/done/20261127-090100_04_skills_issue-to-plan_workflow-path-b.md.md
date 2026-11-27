@@ -51,8 +51,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the `git-fame` sentence per Procedure | Pending | — | — | |
-| 2 | Run `uv run python tools/check_skill_size.py` and the changed-file gates | Pending | — | — | |
+| 1 | Replace the `git-fame` sentence per Procedure | Completed | 20261127-091133 | 20261127-091145 | Changed: skills/issue-to-plan/workflow-path-b.md (git-fame sentence replaced; 4346 B) |
+| 2 | Run `uv run python tools/check_skill_size.py` and the changed-file gates | Completed | 20261127-092340 | 20261127-092340 | check_skill_size.py and changed-file gates pass; docs N/A: no docs/00_index.md row for skills/ |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

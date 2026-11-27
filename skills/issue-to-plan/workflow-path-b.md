@@ -67,8 +67,10 @@ This lists each file with its number of commits in the last 30 days (the `Churn 
 column). Do not use `--oneline` with `awk '{print $NF}'`: that counts the last word of
 each commit subject, not file names. High-churn files are riskier to touch. For a known
 regression the Issue describes, localize it with `git log -S`/`git log -L` (read-only);
-`git bisect` only per the Toolchain table's condition. `git-fame` for bus-factor if installed (>70% single
-author = flag as high bus factor).
+`git bisect` only per the Toolchain table's condition. For the `Affected areas` table run
+`uv run python tools/fill_affected_areas.py plans/{filename}.md`: it prints `Churn (30d)` and
+`Bus Factor` (High when one lowercased author name holds more than 70% of a file's commits;
+`git-fame` is not required) and leaves `Blast Radius` for you.
 
 ## Operational dependency inspection
 

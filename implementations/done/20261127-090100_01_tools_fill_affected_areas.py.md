@@ -15,7 +15,7 @@
 - Plan step 3 (verification on three Plans) is carried out by `code-implementation` from the Plan, not by this document.
 
 ## Design decisions
-- Reuse `Refusal`, `_section`, `_table`, `_first_cell`, `_row` from `tools/amend_plan.py` (`import amend_plan`; `tests/conftest.py` puts `tools/` on `sys.path`, and the CLI runs with its own directory first on `sys.path`). Repository evidence: `_row` at `tools/amend_plan.py:109`, `_first_cell` at 113, `_section` at 125, `_table` at 143, `Refusal` at 76.
+- Reuse `Refusal`, `_section`, `_table`, `_first_cell`, `_row` from `tools/amend_plan.py` using the repository convention of `tools/rename_doc.py:36-39` and `tools/set_execution_status.py:37` (`from tools.amend_plan import ...`, with `sys.path.insert(0, <repo root>)` when `__package__` is empty); corrected in code-implementation Step 3b, the earlier text said `import amend_plan`, which does not match how the other tools import siblings. Repository evidence: `_row` at `tools/amend_plan.py:109`, `_first_cell` at 113, `_section` at 125, `_table` at 143, `Refusal` at 76.
 - Pure helpers are separate from IO so they unit-test without git: `change_kind(responsibility)`, `bus_factor(authors)`, `deploy_impact(path, change, deploy_text)`, `size_note(path, root)`, and `git_log(root, args)`, the only function that runs git.
 - Write path: build the new Plan text in memory (only the `## Affected areas` table lines change), then `atomic_write_text`, or `print_dry_run` for `--dry-run`.
 
@@ -77,10 +77,10 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create `tools/fill_affected_areas.py` per Procedure/Method/Details | Pending | — | — | |
-| 2 | Run `tests/tools/test_fill_affected_areas.py` (written by its own procedure) | Pending | — | — | Needs the procedure for seq 02 |
-| 3 | Run ruff, mypy, bandit, and the tools size gate on the file | Pending | — | — | |
-| 4 | Smoke test on three live Plans and compare with the manual commands (Plan `REQ-007`); stop and report on a disagreement | Pending | — | — | |
+| 1 | Create `tools/fill_affected_areas.py` per Procedure/Method/Details | Completed | 20261127-090809 | 20261127-090903 | Changed: tools/fill_affected_areas.py (new, 9.9 KB); stale detection clean; REQ-007 compared 38 rows on 3 Plans with 0 diffs |
+| 2 | Run `tests/tools/test_fill_affected_areas.py` (written by its own procedure) | Completed | 20261127-091109 | 20261127-091109 | Needs the procedure for seq 02 |
+| 3 | Run ruff, mypy, bandit, and the tools size gate on the file | Completed | 20261127-091109 | 20261127-092340 | ruff, mypy, bandit, tools size gate pass; End-of-batch full suite: 15915 passed, 3 failed (tests/mcp_servers/git, pre-existing: same 3 fail on a clean HEAD worktree); diff-cover N/A: no scripts/ change |
+| 4 | Smoke test on three live Plans and compare with the manual commands (Plan `REQ-007`); stop and report on a disagreement | Completed | 20261127-091109 | 20261127-091109 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -54,8 +54,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Measure, then replace the phrase per Procedure | Pending | — | — | |
-| 2 | Run `uv run python tools/check_skill_size.py` and the changed-file gates | Pending | — | — | |
+| 1 | Measure, then replace the phrase per Procedure | Completed | 20261127-091145 | 20261127-092340 | Changed: skills/issue-to-plan/workflow.md 42533 -> 42539 B (ceiling 42540); baseline unchanged |
+| 2 | Run `uv run python tools/check_skill_size.py` and the changed-file gates | Completed | 20261127-092340 | 20261127-092340 | check_skill_size.py and changed-file gates pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

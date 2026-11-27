@@ -14,6 +14,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from enum import StrEnum
 from http import HTTPStatus
+from typing import Any
 from urllib.parse import urlparse
 
 import httpx
@@ -61,7 +62,7 @@ async def _probe_mcp_health_detail(
     Never raises. On network failure returns reachable=False with status_code=None.
     On JSON parse failure falls back to restart_recommended=False, operator_action_required=False.
     """
-    kwargs: dict[str, object] = {}
+    kwargs: dict[str, Any] = {}
     if timeout_sec is not None:
         kwargs["timeout"] = timeout_sec
     if headers:
