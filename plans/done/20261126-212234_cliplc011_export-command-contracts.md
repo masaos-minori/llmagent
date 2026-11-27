@@ -231,10 +231,10 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Export formatter (tests first) | In Progress | — | — |  |
-| 2 | Phase 2: Export argument parser | In Progress | — | — |  |
-| 3 | Phase 3: Command ownership and error contract | In Progress | — | — |  |
-| 4 | Phase 4: CI check, documentation, regeneration, and full validation | In Progress | — | — | Deploy is the user's decision |
+| 1 | Phase 1: Export formatter (tests first) | Completed | — | 20261127-102945 |  |
+| 2 | Phase 2: Export argument parser | Completed | — | 20261127-102945 |  |
+| 3 | Phase 3: Command ownership and error contract | Completed | — | 20261127-102945 |  |
+| 4 | Phase 4: CI check, documentation, regeneration, and full validation | Completed | — | 20261127-102945 | Deploy is the user's decision |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -244,20 +244,20 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261126-230743_01_scripts_agent_services_export_formatter.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261126-230743_02_scripts_agent_commands_cmd_session.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261126-230743_03_scripts_agent_commands_cmd_context.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261126-230743_04_scripts_agent_commands_cmd_rag_export.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261126-230743_05_scripts_agent_commands_registry.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261126-230743_06_scripts_agent_commands_cmd_debug.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261126-230743_07_scripts_agent_commands_cmd_mcp.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261126-230743_08_scripts_agent_commands_command_defs_list.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261126-230743_09_scripts_agent_repl_input_loop.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261126-230743_11_tests_agent_services_test_commands_utils.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261126-230743_15_tests_agent_commands_test_command_def_sync.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261126-230743_18_docs_23_agent_agent_05_llm-and-streaming.md.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261126-230743_19_docs_23_agent_agent_07_03_cli-and-commands-command-registry.md.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261126-230743_20_docs_23_agent_agent_14_reference-api-subpackages-generated.md.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261126-230743_01_scripts_agent_services_export_formatter.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261126-230743_02_scripts_agent_commands_cmd_session.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261126-230743_03_scripts_agent_commands_cmd_context.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261126-230743_04_scripts_agent_commands_cmd_rag_export.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261126-230743_05_scripts_agent_commands_registry.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261126-230743_06_scripts_agent_commands_cmd_debug.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261126-230743_07_scripts_agent_commands_cmd_mcp.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261126-230743_08_scripts_agent_commands_command_defs_list.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261126-230743_09_scripts_agent_repl_input_loop.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261126-230743_11_tests_agent_services_test_commands_utils.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261126-230743_15_tests_agent_commands_test_command_def_sync.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261126-230743_18_docs_23_agent_agent_05_llm-and-streaming.md.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261126-230743_19_docs_23_agent_agent_07_03_cli-and-commands-command-registry.md.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261126-230743_20_docs_23_agent_agent_14_reference-api-subpackages-generated.md.md` | 4 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

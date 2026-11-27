@@ -158,10 +158,10 @@ N/A: no release unit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Remove confirmed unused public properties (`scripts/shared/mcp_config.py`) | In Progress | — | — |  |
-| 2 | Phase 2: Correct stale docstrings (`scripts/agent/http_lifecycle.py`) | In Progress | — | — |  |
-| 3 | Phase 3: Keep the stderr rotation fields, confirm AC-3 after the open plan lands (`scripts/shared/mcp_config.py`) | In Progress | — | — | Decision resolved to keep; confirmation waits for the open plan's enforcement |
-| 4 | Phase 4: Validation and deployment hand-off | In Progress | — | — | Deploy is the user's decision |
+| 1 | Phase 1: Remove confirmed unused public properties (`scripts/shared/mcp_config.py`) | Completed | — | 20261127-115842 |  |
+| 2 | Phase 2: Correct stale docstrings (`scripts/agent/http_lifecycle.py`) | Completed | — | 20261127-115842 |  |
+| 3 | Phase 3: Keep the stderr rotation fields, confirm AC-3 after the open plan lands (`scripts/shared/mcp_config.py`) | Completed | — | — | Decision resolved to keep; confirmation waits for the open plan's enforcement AC-3 confirmed: the cliplc009 enforcement landed - the retained fields are the documented defaults in scripts/agent/http_lifecycle_stderr_log_manager.py |
+| 4 | Phase 4: Validation and deployment hand-off | Completed | — | — | Deploy is the user's decision validation sequence run - gates pass, full suite 6 failures all matching the baseline, diff-cover 92 percent; deploy remains the user's decision |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -172,8 +172,8 @@ N/A: no release unit
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261126-235847_01_scripts_shared_mcp_config.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261126-235847_02_scripts_agent_http_lifecycle.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261126-235847_01_scripts_shared_mcp_config.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261126-235847_02_scripts_agent_http_lifecycle.py.md` | 2 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

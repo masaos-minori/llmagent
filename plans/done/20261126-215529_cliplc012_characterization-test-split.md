@@ -17,6 +17,18 @@ The Issue is Issue 12 of the consolidated CLI REPL and MCP lifecycle backlog. It
 ## Problem
 The suite has no machine-readable distinction between a test that asserts a required behavior and a test that records observed behavior. Classification is currently inferable only from prose: 253 test modules in `tests/agent` and `tests/shared` hold 4,377 test functions, of which 128 cite a requirement number, 24 mix requirement-cited assertions with characterization-worded sections, 11 are characterization-only, and 90 carry neither signal. A characterization test can therefore read as a normative contract, and a correction to the contract it records conflicts with what looks like a requirement. One verified instance exists: `tests/mcp_servers/shell/test_shell_mcp_service.py:93-96` locks the empty-allowlist/empty-denylist pass-through in `scripts/mcp_servers/shell/shell_service.py:342-350`, which contradicts the documented default-deny filter (`docs/22_mcp/mcp_04_02_file-write-file-delete-shell.md:67`), while the module header presents it as a guard contract. No checker reads pytest markers or validates test structure, so nothing prevents this from recurring.
 
+Corrected findings (REQ-008 / AC-7): the seven legacy claims disconfirmed in Step 2 are recorded as findings, not as tests to change. Each is already implemented and asserted by the module named in the `Implementation Target Files` table.
+
+- Delayed-input handoff: a line is delivered only to the request that started its read, and a line that arrives after that request was cancelled or timed out is discarded (`scripts/agent/stdin_reader.py`, `tests/agent/test_stdin_reader.py`).
+- Process-record deletion before confirmed exit: the record is kept until the exit is confirmed (`tests/agent/test_http_lifecycle.py`).
+- Restart after unconfirmed termination: refused (`tests/agent/test_http_lifecycle.py`, `TestRestartRefusal`).
+- Permissive command confinement: strict confinement is the default and permissive is an explicit `LLMAGENT_COMMAND_MODE=permissive` opt-in (`tests/agent/test_http_lifecycle_command_validator.py`).
+- Shared credential inheritance: a command receives a fixed inheritable set with secret-shaped keys removed, never the server process environment (`scripts/mcp_servers/shell/shell_service_static_helpers.py`, `tests/agent/test_http_lifecycle_launch_spec.py`).
+- Rename-only log rotation: copy-and-truncate, so the writer fd and `read_tail()` keep pointing at the same active path (`scripts/agent/http_lifecycle_stderr_log_manager.py`, `tests/agent/test_http_lifecycle_stderr_log_manager.py`).
+- SIGINT absorption: SIGINT acts through the REPL input state, not by absorbing the signal (`tests/agent/test_signal_handler.py`).
+
+The environment-filter pass-through is the only claim still live as a test-versus-documentation contradiction; it stays a Known Issue for the shell service or the documentation owner, and the implementation phase marks that test `characterization` rather than changing its assertion.
+
 ## Reason for Change
 Each implementation issue must be able to reverse a legacy expectation in the same commit as its fix, without a test that records history being read as a requirement. The taxonomy also has to be machine-checkable, because the classification is currently carried only in docstrings that drift: `tests/shared/test_llm_client_characterization.py:1-8` already cites wrappers that were removed.
 
@@ -210,11 +222,11 @@ Validation quality baseline (Step 5): `vulture scripts/ --min-confidence 80` rep
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: markers, checker, baseline, tool inventory, gate | In Progress | — | — | Release unit with Phase 3 |
-| 2 | Phase 2: first tranche classification and docstring corrections | In Progress | — | — | No assertion changes |
-| 3 | Phase 3: CI reporting and failure policy | In Progress | — | — | Needs governance approval (UNK-02) |
-| 4 | Phase 4: documentation and convention updates | In Progress | — | — | Docs checkers required |
-| 5 | Phase 5: validation and hand-off | In Progress | — | — | No deploy step; no `scripts/` target |
+| 1 | Phase 1: markers, checker, baseline, tool inventory, gate | Completed | — | 20261127-114935 | Release unit with Phase 3 |
+| 2 | Phase 2: first tranche classification and docstring corrections | Completed | — | 20261127-114935 | No assertion changes |
+| 3 | Phase 3: CI reporting and failure policy | Completed | — | 20261127-114935 | Needs governance approval (UNK-02) |
+| 4 | Phase 4: documentation and convention updates | Completed | — | 20261127-114935 | Docs checkers required |
+| 5 | Phase 5: validation and hand-off | Completed | — | 20261127-114935 | No deploy step; no `scripts/` target |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -224,31 +236,31 @@ Validation quality baseline (Step 5): `vulture scripts/ --min-confidence 80` rep
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261126-232726_01_pyproject.toml.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261126-232726_02_tools_check_test_taxonomy.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261126-232726_03_tools_test_taxonomy_baseline.txt.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261126-232726_04_tools_TOOL_DESCRIPTIONS.md.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261126-232726_05_tools__validation_gate_defs.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261126-232726_06_rules_toolchain.md.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261126-232726_07_.github_workflows_ci.yml.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261126-232726_08_tests_tools_test_check_test_taxonomy.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261126-232726_09_docs_00_governance_governance_01_documentation-policy.md.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261126-232726_10_docs_00_index.md.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261126-232726_11_skills_python-test-and-fix_workflow.md.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261126-232726_12_tests_agent_test_stdin_reader.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261126-232726_13_tests_agent_test_repl_input_controller.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261126-232726_14_tests_agent_test_repl_shutdown_machine.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261126-232726_15_tests_agent_test_http_lifecycle.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261126-232726_16_tests_agent_test_http_lifecycle_command_validator.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261126-232726_17_tests_agent_test_http_lifecycle_launch_spec.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261126-232726_18_tests_agent_test_http_lifecycle_env_allowlist_integration.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261126-232726_19_tests_agent_test_http_lifecycle_stderr_log_manager.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261126-232726_20_tests_agent_test_signal_handler.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261126-232726_21_tests_agent_test_config_builders.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261126-232726_22_tests_agent_memory_test_memory_store.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261126-232726_23_tests_agent_workflow_test_workflow_state_store.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261126-232726_24_tests_shared_test_llm_client_characterization.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261126-232726_25_tests_mcp_servers_shell_test_shell_mcp_service.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261126-232726_01_pyproject.toml.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261126-232726_02_tools_check_test_taxonomy.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261126-232726_03_tools_test_taxonomy_baseline.txt.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261126-232726_04_tools_TOOL_DESCRIPTIONS.md.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261126-232726_05_tools__validation_gate_defs.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261126-232726_06_rules_toolchain.md.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261126-232726_07_.github_workflows_ci.yml.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261126-232726_08_tests_tools_test_check_test_taxonomy.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261126-232726_09_docs_00_governance_governance_01_documentation-policy.md.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261126-232726_10_docs_00_index.md.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261126-232726_11_skills_python-test-and-fix_workflow.md.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261126-232726_12_tests_agent_test_stdin_reader.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261126-232726_13_tests_agent_test_repl_input_controller.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261126-232726_14_tests_agent_test_repl_shutdown_machine.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261126-232726_15_tests_agent_test_http_lifecycle.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261126-232726_16_tests_agent_test_http_lifecycle_command_validator.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261126-232726_17_tests_agent_test_http_lifecycle_launch_spec.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261126-232726_18_tests_agent_test_http_lifecycle_env_allowlist_integration.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261126-232726_19_tests_agent_test_http_lifecycle_stderr_log_manager.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261126-232726_20_tests_agent_test_signal_handler.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261126-232726_21_tests_agent_test_config_builders.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261126-232726_22_tests_agent_memory_test_memory_store.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261126-232726_23_tests_agent_workflow_test_workflow_state_store.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261126-232726_24_tests_shared_test_llm_client_characterization.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261126-232726_25_tests_mcp_servers_shell_test_shell_mcp_service.py.md` | 2 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

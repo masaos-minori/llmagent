@@ -252,10 +252,10 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Common redaction helper | In Progress | — | — |  |
-| 2 | Phase 2: Error and internal-log redaction | In Progress | — | — |  |
-| 3 | Phase 3: Stderr log management | In Progress | — | — |  |
-| 4 | Phase 4: Display surfaces and snapshot policy | In Progress | — | — |  |
+| 1 | Phase 1: Common redaction helper | Completed | — | 20261127-095232 |  |
+| 2 | Phase 2: Error and internal-log redaction | Completed | — | 20261127-095232 |  |
+| 3 | Phase 3: Stderr log management | Completed | — | 20261127-095232 |  |
+| 4 | Phase 4: Display surfaces and snapshot policy | Completed | — | 20261127-095232 |  |
 | 5 | Phase 5: Documentation, deployment check, and full validation | In Progress | — | — | Deploy is the user's decision |
 
 ### Blocker Log
@@ -266,22 +266,22 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261126-225455_01_scripts_agent_secrets_masker.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261126-225455_02_scripts_agent_http_lifecycle_errors.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261126-225455_03_scripts_agent_http_lifecycle_health_checker.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261126-225455_04_scripts_agent_http_lifecycle_stderr_log_manager.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261126-225455_05_scripts_agent_http_lifecycle.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261126-225455_06_scripts_agent_services_models.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261126-225455_07_scripts_agent_services_mcp_status.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261126-225455_08_scripts_agent_commands_cmd_mcp.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261126-225455_09_scripts_agent_commands_cmd_config_display.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261126-225455_10_scripts_agent_commands_memory_data_ops.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261126-225455_11_scripts_agent_wal_checkpoint_manager.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261126-225455_12_scripts_agent_session_persister.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261126-225455_14_tests_agent_test_http_lifecycle.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261126-225455_24_docs_22_mcp_mcp_03_04_tool-call-tracing-and-lifecycle.md.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261126-225455_25_docs_23_agent_agent_02_runtime-architecture.md.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261126-225455_26_docs_23_agent_agent_13_reference-api-generated.md.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261126-225455_01_scripts_agent_secrets_masker.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261126-225455_02_scripts_agent_http_lifecycle_errors.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261126-225455_03_scripts_agent_http_lifecycle_health_checker.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261126-225455_04_scripts_agent_http_lifecycle_stderr_log_manager.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261126-225455_05_scripts_agent_http_lifecycle.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261126-225455_06_scripts_agent_services_models.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261126-225455_07_scripts_agent_services_mcp_status.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261126-225455_08_scripts_agent_commands_cmd_mcp.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261126-225455_09_scripts_agent_commands_cmd_config_display.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261126-225455_10_scripts_agent_commands_memory_data_ops.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261126-225455_11_scripts_agent_wal_checkpoint_manager.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261126-225455_12_scripts_agent_session_persister.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261126-225455_14_tests_agent_test_http_lifecycle.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261126-225455_24_docs_22_mcp_mcp_03_04_tool-call-tracing-and-lifecycle.md.md` | 5 | Procedure | Completed | — | — |
+| `implementations/20261126-225455_25_docs_23_agent_agent_02_runtime-architecture.md.md` | 5 | Procedure | Completed | — | — |
+| `implementations/20261126-225455_26_docs_23_agent_agent_13_reference-api-generated.md.md` | 5 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

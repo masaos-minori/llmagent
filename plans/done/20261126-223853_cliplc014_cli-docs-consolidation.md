@@ -219,13 +219,13 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Command-surface correction in `docs/23_agent/agent_07_06_cli-and-commands-hot-reload.md` | In Progress | — | — |  |
-| 2 | Interrupt contract consistency in `docs/23_agent/agent_07_05_cli-and-commands-repl-io.md` | In Progress | — | — |  |
-| 3 | MCP lifecycle record ownership in `docs/22_mcp/mcp_03_05_lifecycle-and-new-server.md` | In Progress | — | — |  |
-| 4 | Unprovable `RAG hits` enumeration in the `/stats` row of `docs/23_agent/agent_07_07_cli-and-commands-slash-commands-session-mcp.md` | In Progress | — | — | Parenthetical kept (Step 3a) |
-| 5 | Section completeness in `docs/23_agent/agent_07_09_cli-and-commands-slash-commands-workflow-debug.md` | In Progress | — | — |  |
-| 6 | Navigation normalization in `docs/23_agent/agent_07_01_cli-and-commands-cli-reference.md` | In Progress | — | — | UNK-02 resolved (convention confirmed 2026-11-26) |
-| 7 | Validation and reporting across the six target files | In Progress | — | — |  |
+| 1 | Command-surface correction in `docs/23_agent/agent_07_06_cli-and-commands-hot-reload.md` | Completed | — | 20261127-120624 |  |
+| 2 | Interrupt contract consistency in `docs/23_agent/agent_07_05_cli-and-commands-repl-io.md` | Completed | — | 20261127-120624 |  |
+| 3 | MCP lifecycle record ownership in `docs/22_mcp/mcp_03_05_lifecycle-and-new-server.md` | Completed | — | 20261127-120624 |  |
+| 4 | Unprovable `RAG hits` enumeration in the `/stats` row of `docs/23_agent/agent_07_07_cli-and-commands-slash-commands-session-mcp.md` | Completed | — | 20261127-120624 | Parenthetical kept (Step 3a) |
+| 5 | Section completeness in `docs/23_agent/agent_07_09_cli-and-commands-slash-commands-workflow-debug.md` | Completed | — | 20261127-120624 |  |
+| 6 | Navigation normalization in `docs/23_agent/agent_07_01_cli-and-commands-cli-reference.md` | Completed | — | 20261127-120624 | UNK-02 resolved (convention confirmed 2026-11-26) |
+| 7 | Validation and reporting across the six target files | Completed | — | — | docs gates pass on the changed files; reported instead of written: the /debug verbose diagnostic scope has no asserting test, and scripts/agent/commands/command_defs_list.py:51 help text still carries the unprovable RAG hits claim - reported to the maintainer with UNK-01 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -235,12 +235,12 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261127-001124_01_docs_23_agent_agent_07_06_cli-and-commands-hot-reload.md.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261127-001124_02_docs_23_agent_agent_07_05_cli-and-commands-repl-io.md.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261127-001124_03_docs_22_mcp_mcp_03_05_lifecycle-and-new-server.md.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261127-001124_04_docs_23_agent_agent_07_07_cli-and-commands-slash-commands-session-mcp.md.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261127-001124_05_docs_23_agent_agent_07_09_cli-and-commands-slash-commands-workflow-debug.md.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261127-001124_06_docs_23_agent_agent_07_01_cli-and-commands-cli-reference.md.md` | 6 | Procedure | Pending | — | — |
+| `implementations/20261127-001124_01_docs_23_agent_agent_07_06_cli-and-commands-hot-reload.md.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261127-001124_02_docs_23_agent_agent_07_05_cli-and-commands-repl-io.md.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261127-001124_03_docs_22_mcp_mcp_03_05_lifecycle-and-new-server.md.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261127-001124_04_docs_23_agent_agent_07_07_cli-and-commands-slash-commands-session-mcp.md.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261127-001124_05_docs_23_agent_agent_07_09_cli-and-commands-slash-commands-workflow-debug.md.md` | 5 | Procedure | Completed | — | — |
+| `implementations/20261127-001124_06_docs_23_agent_agent_07_01_cli-and-commands-cli-reference.md.md` | 6 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
