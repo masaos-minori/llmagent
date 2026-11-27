@@ -174,5 +174,102 @@ def test_main_top_prints_the_largest_files(tmp_path: Path, capsys) -> None:
 
 
 @pytest.mark.repo_scan
+def _headroom(
+    root: Path, baseline: Path, *paths: str, extra: tuple[str, ...] = ()
+) -> int:
+    return cs.main(
+        [
+            "--root",
+            str(root),
+            "--baseline",
+            str(baseline),
+            "--limit",
+            "100",
+            *extra,
+            "--headroom",
+            *paths,
+        ]
+    )
+
+
+def test_headroom_prints_baseline_limit_and_negative_headroom(
+    tmp_path: Path, capsys
+) -> None:
+    _tree(tmp_path)
+    baseline = tmp_path / "baseline.txt"
+    baseline.write_text("skills/a/workflow.md\t160\n", encoding="utf-8")
+    assert _headroom(tmp_path, baseline, "skills/a/workflow.md", "rules/r.md") == 0
+    out = capsys.readouterr().out.splitlines()
+    assert out == [
+        "skills/a/workflow.md: 150 B, ceiling 160 B (baseline), headroom 10 B",
+        "rules/r.md: 60 B, ceiling 100 B (limit), headroom 40 B",
+    ]
+    _write(tmp_path, "skills/a/workflow.md", 170)
+    assert _headroom(tmp_path, baseline, "skills/a/workflow.md") == 0
+    assert "headroom -10 B" in capsys.readouterr().out
+
+
+def test_headroom_uncovered_path_and_absolute_path(tmp_path: Path, capsys) -> None:
+    _tree(tmp_path)
+    baseline = tmp_path / "baseline.txt"
+    absolute = str(tmp_path / "rules" / "r.md")
+    assert _headroom(tmp_path, baseline, "docs/ignored.md", absolute, "rules/r.md") == 0
+    lines = capsys.readouterr().out.splitlines()
+    assert lines[0] == "docs/ignored.md: not covered by the size gate"
+    assert lines[1] == lines[2]
+
+
+def test_headroom_missing_path_exits_two_without_output(tmp_path: Path, capsys) -> None:
+    _tree(tmp_path)
+    assert _headroom(tmp_path, tmp_path / "baseline.txt", "rules/r.md", "nope.md") == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "path not found: nope.md" in captured.err
+
+
+def test_headroom_is_report_only_and_does_not_run_the_gate(
+    tmp_path: Path, capsys
+) -> None:
+    _tree(tmp_path)  # skills/a/workflow.md is over the limit and not baselined
+    baseline = tmp_path / "baseline.txt"
+    before = {p: p.read_bytes() for p in tmp_path.rglob("*.md")}
+    assert _headroom(tmp_path, baseline, "rules/r.md") == 0
+    capsys.readouterr()
+    assert not baseline.exists()
+    assert {p: p.read_bytes() for p in tmp_path.rglob("*.md")} == before
+    assert _run(tmp_path, baseline) == 1  # the gate itself still fails
+
+
+def test_headroom_honors_no_baseline(tmp_path: Path, capsys) -> None:
+    _tree(tmp_path)
+    baseline = tmp_path / "baseline.txt"
+    baseline.write_text("skills/a/workflow.md\t160\n", encoding="utf-8")
+    assert (
+        _headroom(tmp_path, baseline, "skills/a/workflow.md", extra=("--no-baseline",))
+        == 0
+    )
+    assert "ceiling 100 B (limit), headroom -50 B" in capsys.readouterr().out
+
+
+def test_headroom_with_update_baseline_is_a_usage_error(tmp_path: Path) -> None:
+    _tree(tmp_path)
+    with pytest.raises(SystemExit) as excinfo:
+        _headroom(
+            tmp_path,
+            tmp_path / "baseline.txt",
+            "rules/r.md",
+            extra=("--update-baseline",),
+        )
+    assert excinfo.value.code == 2
+
+
+def test_clean_tree_default_output_is_pinned(tmp_path: Path, capsys) -> None:
+    _write(tmp_path, "rules/r.md", 50)
+    assert _run(tmp_path, tmp_path / "baseline.txt") == 0
+    assert capsys.readouterr().out == (
+        "OK - no new violations (0 baselined file(s) at or below their recorded size)\n"
+    )
+
+
 def test_live_repository_passes_with_the_recorded_baseline() -> None:
     assert cs.main([]) == 0

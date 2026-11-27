@@ -67,9 +67,9 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Save the default output, then add the option, report functions, and parser change per Procedure | Pending | — | — | |
-| 2 | Add the tests listed under Companion test files | Pending | — | — | |
-| 3 | Run ruff, mypy, bandit, the tools size gate, and the default-output comparison | Pending | — | — | |
+| 1 | Save the default output, then add the option, report functions, and parser change per Procedure | Completed | 20261127-152453 | 20261127-152510 | Changed: tools/check_skill_size.py (--headroom, headroom_line, report_headroom); 7903 -> 10242 B; default output and --top output byte-identical to the saved pre-change output |
+| 2 | Add the tests listed under Companion test files | Completed | 20261127-152510 | 20261127-152529 | Changed: tests/tools/test_check_skill_size.py (companion; 7 tests added, 26 pass) |
+| 3 | Run ruff, mypy, bandit, the tools size gate, and the default-output comparison | Completed | 20261127-152529 | 20261127-152955 | ruff, mypy, bandit pass; tools size gate pass (10242 B); radon recorded; default and --top output byte-identical End-of-batch full suite: 16143 passed; the 3 failures are the known ones in tools/known_test_failures_baseline.txt (tests/mcp_servers/git); no new failure; diff-cover N/A: no scripts/ change |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

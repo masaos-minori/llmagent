@@ -233,7 +233,7 @@ Step 2's same-cycle dedup rule and depth ceiling apply to this step.
 
 - **Consumer scan** (a change to a persisted schema, a public API, or a shared constant, or the removal or rename of a symbol that other modules call or read): load `skills/issue-to-plan/workflow-edge.md` and follow its "Step 3: consumer scan" section.
 
-- **Predictable fallout check** (any Plan that adds code to a file, changes a list or inventory, or adds or removes a tool): load `skills/issue-to-plan/workflow-edge.md` and follow its "Step 3: predictable fallout check" section.
+- **Predictable fallout check** (any Plan that adds code to a file, changes a list or inventory, adds or removes a tool, or adds text to a covered instruction file): load `skills/issue-to-plan/workflow-edge.md` and follow its "Step 3: predictable fallout check" section.
 
 Read only the section(s) located via `rg`/grep for the target symbol or claim, unless
 that section alone omits context the claim depends on (e.g. a decorator, base class, or

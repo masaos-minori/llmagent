@@ -53,8 +53,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit the trigger and insert the item per Procedure | Pending | — | — | |
-| 2 | Run the skill size, reference, and heading-cycle checks | Pending | — | — | |
+| 1 | Edit the trigger and insert the item per Procedure | Completed | 20261127-152535 | 20261127-152546 | Changed: skills/issue-to-plan/workflow-edge.md 5833 -> 6315 B (trigger extended, Skill size item added after Module size) |
+| 2 | Run the skill size, reference, and heading-cycle checks | Completed | 20261127-152546 | 20261127-152546 | skill size, references, heading cycles pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

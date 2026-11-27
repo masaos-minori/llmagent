@@ -19,13 +19,19 @@ name still resolves there.
 ### Step 3: predictable fallout check
 
 - **Predictable fallout check** (any Plan that adds code to a file, changes a list or
-  inventory, or adds or removes a tool): before Step 5, check each item below and record
-  the result in the Plan's `Design` section as a target row, a reference row, or
+  inventory, adds or removes a tool, or adds text to a covered instruction file): before
+  Step 5, check each item below and record the result in the Plan's `Design` section as a
+  target row, a reference row, or
   `not affected: {reason}`. A hit found here becomes a row at freeze instead of a
   fallout amendment during implementation.
   - Module size: for a `scripts/` or `tools/` file that gains code, compare `wc -c
     <file>` with the 24576 B gate (`rules/tool-gates.md` `check_module_size.py` rows). A file
     that would pass the gate gets a split row for the extracted module.
+  - Skill size: for a covered instruction file (`skills/`, `rules/`, `prompts/`, `templates/`,
+    `routing.md`, `AGENTS.md`, `CLAUDE.md`) that gains text, run `uv run python
+    tools/check_skill_size.py --headroom <file> [<file> ...]` and record size, ceiling, and
+    headroom. When the planned growth exceeds the headroom, the Plan has a target row for the
+    edge file that receives the text, or states the text the change replaces.
   - Pinned counts: search `tests/` for the changed list, table, or inventory and read the
     assertions on its length or count (for example a cited-node total). A test that pins
     the old count is a target row.

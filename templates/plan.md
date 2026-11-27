@@ -190,8 +190,8 @@ from `tools/scan_change_consumers.py` in the `Design` section as a target row (a
 `Implementation Target Files`), a reference row (added to `Reference Files`), or
 `not affected: {reason}`. The scan lists candidates only; the procedure is in
 `skills/issue-to-plan/workflow.md` Step 3. Record the results of that step's predictable
-fallout check (module size gate, pinned counts, tool inventory, generated blocks) the
-same way.
+fallout check (module size gate, skill size ceilings, pinned counts, tool inventory,
+generated blocks) the same way.
 
 ## Notes on filling "Affected areas"
 

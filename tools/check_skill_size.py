@@ -20,13 +20,17 @@ Usage:
     python tools/check_skill_size.py --no-baseline
     python tools/check_skill_size.py --update-baseline
     python tools/check_skill_size.py --top N
+    python tools/check_skill_size.py --headroom PATH [PATH ...]
 
-Exit codes: 0 clean, 1 a violation or a stale entry, 2 a usage error (missing root).
+Exit codes: 0 clean, 1 a violation or a stale entry, 2 a usage error (missing root or
+a missing `--headroom` path).
 
 Notes:
     - Only file size is measured. Moving a rarely used branch to an edge-case file is an
       editing decision and is never performed by this script.
     - `--top N` prints the N largest covered files as advisory output.
+    - `--headroom PATH ...` is report-only: it prints the size, ceiling, and headroom of
+      each path and does not run the gate (`--top` is not printed with it).
 """
 
 from __future__ import annotations
@@ -144,6 +148,14 @@ def _build_parser() -> argparse.ArgumentParser:
         metavar="N",
         help="Print the N largest covered files as advisory output",
     )
+    parser.add_argument(
+        "--headroom",
+        nargs="+",
+        default=None,
+        metavar="PATH",
+        help="Print size, ceiling, and headroom of these files (report only; the gate"
+        " is not run)",
+    )
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
         "--no-baseline", action="store_true", help="Report every over-limit file"
@@ -191,14 +203,66 @@ def _write_baseline_from(path: Path, sizes: list[tuple[str, int]], limit: int) -
     print(f"Baseline written: {len(entries)} entries -> {path}")
 
 
+def headroom_line(relpath: str, size: int, baseline: dict[str, int], limit: int) -> str:
+    """Return the headroom report line of one covered file."""
+    recorded = baseline.get(relpath)
+    ceiling = limit if recorded is None else recorded
+    source = "limit" if recorded is None else "baseline"
+    return (
+        f"{relpath}: {size} B, ceiling {ceiling} B ({source}),"
+        f" headroom {ceiling - size} B"
+    )
+
+
+def report_headroom(
+    root: Path,
+    paths: list[str],
+    sizes: list[tuple[str, int]],
+    baseline: dict[str, int],
+    limit: int,
+) -> int:
+    """Print the headroom of each path in order; return 0, or 2 for a missing path."""
+    resolved = root.resolve()
+    targets = [
+        (value, Path(value) if Path(value).is_absolute() else root / value)
+        for value in paths
+    ]
+    for value, target in targets:
+        if not target.is_file():
+            print(f"ERROR: path not found: {value}", file=sys.stderr)
+            return 2
+    size_by_relpath = dict(sizes)
+    for value, target in targets:
+        try:
+            relpath = target.resolve().relative_to(resolved).as_posix()
+        except ValueError:
+            print(f"{value}: not covered by the size gate")
+            continue
+        if relpath not in size_by_relpath:
+            print(f"{relpath}: not covered by the size gate")
+            continue
+        print(headroom_line(relpath, size_by_relpath[relpath], baseline, limit))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     """Run the check; return the process exit code."""
-    args = _build_parser().parse_args(argv)
+    parser = _build_parser()
+    args = parser.parse_args(argv)
+    if args.headroom and args.update_baseline:
+        parser.error("--headroom cannot be combined with --update-baseline")
     root = Path(args.root) if args.root else Path(__file__).resolve().parent.parent
     if not root.is_dir():
         print(f"ERROR: root directory not found: {root}", file=sys.stderr)
         return 2
     sizes = collect_covered(root)
+    if args.headroom:
+        headroom_baseline = (
+            {} if args.no_baseline else load_baseline(Path(args.baseline))
+        )
+        return report_headroom(
+            root, args.headroom, sizes, headroom_baseline, args.limit
+        )
     if args.top > 0:
         _print_top(sizes, args.top)
     baseline_path = Path(args.baseline)

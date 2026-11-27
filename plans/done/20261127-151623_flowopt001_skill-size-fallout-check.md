@@ -170,12 +170,12 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `--headroom` and its tests (`tools/check_skill_size.py`, `tests/tools/test_check_skill_size.py`) | In Progress | — | — |  |
-| 2 | Document the option (`tools/TOOL_DESCRIPTIONS.md`) | In Progress | — | — |  |
-| 3 | Add the Skill size item and the trigger (`skills/issue-to-plan/workflow-edge.md`) | In Progress | — | — |  |
-| 4 | Extend the trigger in the workflow (`skills/issue-to-plan/workflow.md`) | In Progress | — | — |  |
-| 5 | Add skill size to the template list (`templates/plan.md`) | In Progress | — | — |  |
-| 6 | Print the headroom of the pipeline workflows; deployment check is N/A (`tools/check_skill_size.py`) | Pending | — | — |  |
+| 1 | Add `--headroom` and its tests (`tools/check_skill_size.py`, `tests/tools/test_check_skill_size.py`) | Completed | — | 20261127-152955 |  |
+| 2 | Document the option (`tools/TOOL_DESCRIPTIONS.md`) | Completed | — | 20261127-152955 |  |
+| 3 | Add the Skill size item and the trigger (`skills/issue-to-plan/workflow-edge.md`) | Completed | — | 20261127-152955 |  |
+| 4 | Extend the trigger in the workflow (`skills/issue-to-plan/workflow.md`) | Completed | — | 20261127-152955 |  |
+| 5 | Add skill size to the template list (`templates/plan.md`) | Completed | — | 20261127-152955 |  |
+| 6 | Print the headroom of the pipeline workflows; deployment check is N/A (`tools/check_skill_size.py`) | Completed | — | — | Headroom printed with the new option for the pipeline workflows (issue-to-plan workflow.md 381 B after this change, equal to ceiling minus size); deployment N/A (no scripts/ or config/ change) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -185,11 +185,11 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261127-152121_01_tools_check_skill_size.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261127-152121_03_tools_TOOL_DESCRIPTIONS.md.md | 2 | Procedure | Pending | — | — |
-| implementations/20261127-152121_04_skills_issue-to-plan_workflow-edge.md.md | 3 | Procedure | Pending | — | — |
-| implementations/20261127-152121_05_skills_issue-to-plan_workflow.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261127-152121_06_templates_plan.md.md | 5 | Procedure | Pending | — | — |
+| implementations/20261127-152121_01_tools_check_skill_size.py.md | 1 | Procedure | Completed | — | — |
+| implementations/20261127-152121_03_tools_TOOL_DESCRIPTIONS.md.md | 2 | Procedure | Completed | — | — |
+| implementations/20261127-152121_04_skills_issue-to-plan_workflow-edge.md.md | 3 | Procedure | Completed | — | — |
+| implementations/20261127-152121_05_skills_issue-to-plan_workflow.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261127-152121_06_templates_plan.md.md | 5 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
