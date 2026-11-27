@@ -40,7 +40,7 @@ table — no other file may be treated as a modification target.
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| `tools/fill_affected_areas.py` | Create the tool: parse target rows, compute Change, Churn, Bus Factor, deploy impact and size note, print or `--insert` rows | New file; the directory `tools/` exists | `REQ-001`..`REQ-005`, `REQ-007`; AC-1..AC-6 | `tools/amend_plan.py` `_section`, `_table`, `_first_cell`, `_row` (lines 118-160) are the parsing to reuse; `tools/_atomic_write.py` `atomic_write_text`, `print_dry_run`, `add_dry_run_argument`; `tools/check_module_size.py:DEFAULT_LIMIT = 24576`; `deploy/deploy.sh` lines 73, 199, 207 rsync `scripts/`, `tests/`, `docs/`; line 82 `registry/`; `config/*.toml` are individual `cp` lines (checked in Step 3) | `tests/tools/test_fill_affected_areas.py` | Verified |
+| `tools/fill_affected_areas.py` | Create the tool: parse target rows, compute Change, Churn, Bus Factor, deploy impact and size note, print or `--insert` rows | New file; the directory `tools/` exists | `REQ-001`..`REQ-005`, `REQ-007`; AC-1..AC-6 | `tools/amend_plan.py` `_row` (line 109), `_first_cell`, `_section`, `_table` (lines 113-160) are the parsing to reuse; `tools/_atomic_write.py` `atomic_write_text`, `print_dry_run`, `add_dry_run_argument`; `tools/check_module_size.py:DEFAULT_LIMIT = 24576`; `deploy/deploy.sh` lines 73, 199, 207 rsync `scripts/`, `tests/`, `docs/`; line 82 `registry/`; `config/*.toml` are individual `cp` lines (checked in Step 3) | `tests/tools/test_fill_affected_areas.py` | Verified |
 | `tests/tools/test_fill_affected_areas.py` | Create unit tests on a temporary git repository and fixture Plans | New file; the directory `tests/tools/` exists; the Issue's Testing Expectations require unit tests on a temporary git repository; `tests/tools/test_amend_plan.py` is the fixture pattern (checked in Step 3) | `REQ-001`..`REQ-005`; AC-1..AC-5 | `tests/tools/test_amend_plan.py` builds fixture Plans and imports `tools.amend_plan`; `tests/conftest.py:35` puts `tools/` on `sys.path` (checked in Step 3) | `tests/tools/test_fill_affected_areas.py` | Verified |
 | `tools/TOOL_DESCRIPTIONS.md` | Add the tool's Index row and Work Items row | `tools/check_tool_descriptions_sync.py` fails for an undocumented tool; the Index lists `amend_plan.py` at line 111 and the Work Items table has its row at line 285 | `REQ-006`; AC-7 | `tools/check_tool_descriptions_sync.py:_documented_tool_files` reads backticked `*.py` names from this file; `routing.md` "Adding a new tool" step 5 (checked in Step 3) | `tests/tools/test_fill_affected_areas.py` | Verified |
 | `skills/issue-to-plan/workflow-path-b.md` | Reference the tool in "Historical analysis" and state the bus factor rule (lowercased author name, more than 70 percent) in place of the `git-fame` line | The Issue's Target Files name this file; the `git-fame` line is unavailable on this host | `REQ-006`; AC-7 | `skills/issue-to-plan/workflow-path-b.md` lines 62-71 hold the churn command and the `git-fame` sentence; 4149 B, under the 16384 B skill size limit (checked in Step 3) | `tools/check_skill_size.py` run | Verified |
@@ -67,7 +67,7 @@ Files that must be read to implement the targets above, but MUST NOT be modified
 | `tools/amend_plan.py` | Section and table parsing helpers to reuse (`_section`, `_table`, `_first_cell`, `_row`, `Refusal`); 22497 B | `REQ-001`, `REQ-004` |
 | `tools/_atomic_write.py` | Atomic write, dry-run diff, and `--dry-run` option helper | `REQ-004` |
 | `tools/audit_plan_target_paths.py` | `CREATE_HINTS` is the existing set of create keywords for `Change Responsibility` | `REQ-001` |
-| `tools/check_module_size.py` | `DEFAULT_LIMIT` for the size note; covers `scripts/` only | `REQ-003` |
+| `tools/check_module_size.py` | `DEFAULT_LIMIT` for the size note; the gate covers `scripts/` by default and `tools/` through `--scripts-dir tools` (pre-commit hook `check-module-size-tools`) | `REQ-003` |
 | `deploy/deploy.sh` | Source of the rsync and `cp` facts behind `deploy.sh Impact` | `REQ-003` |
 | `rules/env.md` | Documents that `scripts/` is rsynced and `config/*.toml` needs a `cp` line | `REQ-003` |
 | `rules/skill-runtime.md` | Change-impact table: the valid `deploy.sh Impact` values | `REQ-003` |
@@ -134,7 +134,7 @@ Path B (more than 3 files, a new module). Analysis recorded:
 - Decision (bus factor): see UNK-01 and `REQ-002`. Lowercasing is the only normalization; no `.mailmap`.
 - Decision (module size): the issue lists "module size headroom" among the mechanical columns, but `templates/plan.md` has no such column. The tool prints it as a separate note, and the table keeps its six columns.
 - Decision (deploy mapping): `rules/env.md` names only `scripts/` and `config/`; `deploy/deploy.sh` also rsyncs `tests/`, `docs/`, and `registry/`, so the tool reads the mapping from `deploy/deploy.sh` facts recorded as constants, with a test that fails if `deploy/deploy.sh` stops containing each rsync line.
-- Predictable fallout check (checked in Step 3): module size - `tools/fill_affected_areas.py` is new and well below 24576 B (the gate covers `scripts/` only); pinned counts - no test pins the number of `tools/*.py` files or gates (`rg` over `tests/tools/test_run_validation_gates.py` found no gate-count assertion), not affected; tool inventory - `tools/TOOL_DESCRIPTIONS.md` rows are target rows; generated blocks - not affected (no generated-reference domain); gate entry in `tools/_validation_gate_defs.py` and `rules/tool-gates.md` row - not affected: both are for tools with a trigger point, and the tool is invoked from the skill text like an analysis aid.
+- Predictable fallout check (checked in Step 3): module size - `tools/fill_affected_areas.py` is new and must stay at or below 24576 B, because the `check-module-size-tools` hook applies the same gate to `tools/` (corrected in plan-to-implementation-procedure Step 3a: the earlier text said `scripts/` only); pinned counts - no test pins the number of `tools/*.py` files or gates (`rg` over `tests/tools/test_run_validation_gates.py` found no gate-count assertion), not affected; tool inventory - `tools/TOOL_DESCRIPTIONS.md` rows are target rows; generated blocks - not affected (no generated-reference domain); gate entry in `tools/_validation_gate_defs.py` and `rules/tool-gates.md` row - not affected: both are for tools with a trigger point, and the tool is invoked from the skill text like an analysis aid.
 - Consumer scan: not applicable (no schema, public API, shared constant, or removed symbol).
 - Persisted schema check: not applicable (no DDL).
 - Validation baseline: `radon` N/A for a new file; `vulture` is not installed (Tool availability guard; `ruff`/`mypy` stand in); `bandit -r scripts/` reports 7 Medium and 38 High pre-existing findings in `scripts/`, unrelated to a `tools/` target, and the new files are checked with `bandit` by path; diff-cover N/A: CI measures `--cov=scripts`, so `tools/` targets are validated by the unit tests (checked in Step 5).
@@ -179,9 +179,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create the tool, its tests, and the `tools/TOOL_DESCRIPTIONS.md` rows (`tools/fill_affected_areas.py`, `tests/tools/test_fill_affected_areas.py`, `tools/TOOL_DESCRIPTIONS.md`) | Pending | — | — | |
-| 2 | Reference the tool in the two skill files (`skills/issue-to-plan/workflow-path-b.md`, `skills/issue-to-plan/workflow.md`) | Pending | — | — | |
-| 3 | Verify on three existing Plans; deployment check is N/A (`tools/fill_affected_areas.py`) | Pending | — | — | |
+| 1 | Create the tool, its tests, and the `tools/TOOL_DESCRIPTIONS.md` rows (`tools/fill_affected_areas.py`, `tests/tools/test_fill_affected_areas.py`, `tools/TOOL_DESCRIPTIONS.md`) | In Progress | — | — |  |
+| 2 | Reference the tool in the two skill files (`skills/issue-to-plan/workflow-path-b.md`, `skills/issue-to-plan/workflow.md`) | In Progress | — | — |  |
+| 3 | Verify on three existing Plans; deployment check is N/A (`tools/fill_affected_areas.py`) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -191,7 +191,11 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261127-090100_01_tools_fill_affected_areas.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261127-090100_02_tests_tools_test_fill_affected_areas.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261127-090100_03_tools_TOOL_DESCRIPTIONS.md.md | 1 | Procedure | Pending | — | — |
+| implementations/20261127-090100_04_skills_issue-to-plan_workflow-path-b.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261127-090100_05_skills_issue-to-plan_workflow.md.md | 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -221,3 +225,5 @@ Table structure, status/type vocabulary, and general guidance: see
 | `REQ-006` | Issue Target Files; `skills/issue-to-plan/workflow-path-b.md` lines 62-71 | `skills/issue-to-plan/workflow-path-b.md` | Phase 2 | AC-7 | `uv run python tools/check_skill_size.py` | Confirmed by repository evidence |
 | `REQ-006` | Issue Target Files; `tools/check_skill_size_baseline.txt` ceiling 42540 B | `skills/issue-to-plan/workflow.md` | Phase 2 | AC-7 | `uv run python tools/check_skill_size.py` | Confirmed by repository evidence |
 | `REQ-007` | Issue Required Changes 4, Acceptance Criteria 1 | `tools/fill_affected_areas.py` | Phase 3 | AC-6 | Manual comparison on three Plans | Derived from confirmed evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261127-090100 -->
