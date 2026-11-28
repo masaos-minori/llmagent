@@ -36,7 +36,9 @@ import orjson
 import pytest
 from mcp_servers.cicd import cicd_service_github_actions as backend_module
 from mcp_servers.cicd.cicd_models import (
+    MAX_ERROR_TEXT_LENGTH,
     CicdAuthorizationError,
+    CicdUpstreamError,
     CicdValidationError,
     DispatchOutcome,
 )
@@ -400,3 +402,89 @@ class TestTriggerWorkflowUrlPathSegment:
         await backend.trigger_workflow("owner", "repo", "ci%2Eyml", "main", {})
 
         assert self._segment(http) == "ci%252Eyml"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Transport failures — the two call sites that propagate raw transport exceptions
+# today are wrapped; the dispatch POST and `_search_runs` keep their pinned
+# behaviors (mcpci002, out of this Plan's scope).
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+class TestTransportFailureWrap:
+    """DNS, TLS, connection, and timeout failures raise CicdUpstreamError (REQ-002)."""
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "transport_exc",
+        [
+            httpx.ConnectError("DNS resolution failed for api.github.com"),
+            httpx.ProtocolError("TLS handshake failed"),
+            httpx.ReadTimeout("connection timed out"),
+        ],
+    )
+    async def test_get_workflow_runs_raises_bounded_upstream_error(
+        self, transport_exc: httpx.HTTPError
+    ) -> None:
+        http = AsyncMock()
+        http.get.side_effect = transport_exc
+        backend = GitHubActionsBackend("token", http)
+        with pytest.raises(CicdUpstreamError) as exc_info:
+            await backend.get_workflow_runs("owner", "repo", "ci.yml", 10)
+        assert "GitHub API transport failure" in str(exc_info.value)
+        # Raw transport exception text never appears in the error (REQ-003).
+        assert str(transport_exc) not in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "transport_exc",
+        [
+            httpx.ConnectError("DNS resolution failed for api.github.com"),
+            httpx.ProtocolError("TLS handshake failed"),
+            httpx.ReadTimeout("connection timed out"),
+        ],
+    )
+    async def test_get_workflow_status_raises_bounded_upstream_error(
+        self, transport_exc: httpx.HTTPError
+    ) -> None:
+        http = AsyncMock()
+        http.get.side_effect = transport_exc
+        backend = GitHubActionsBackend("token", http)
+        with pytest.raises(CicdUpstreamError) as exc_info:
+            await backend.get_workflow_status("owner", "repo", 1)
+        assert "GitHub API transport failure" in str(exc_info.value)
+        assert str(transport_exc) not in str(exc_info.value)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Bounded, redacted error text (REQ-003, AC-5) — the bound is asserted, not a
+# specific value (UNK-04).
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+class TestBoundedRedactedErrorText:
+    """The parsed upstream message is bounded and token-redacted."""
+
+    def test_redact_helper_bounds_text(self) -> None:
+        backend = GitHubActionsBackend("token", MagicMock())
+        redacted = backend._redact_error_text("x" * (MAX_ERROR_TEXT_LENGTH + 100))
+        assert len(redacted) <= MAX_ERROR_TEXT_LENGTH
+
+    def test_redact_helper_removes_token_shaped_content(self) -> None:
+        backend = GitHubActionsBackend("token", MagicMock())
+        redacted = backend._redact_error_text("leaked ghp_" + "A" * 36 + " token")
+        assert "ghp_" not in redacted
+
+    def test_check_response_message_is_bounded_and_redacted(self) -> None:
+        backend = GitHubActionsBackend("token", MagicMock())
+        resp = MagicMock()
+        resp.status_code = 500
+        resp.is_success = False
+        resp.content = orjson.dumps(
+            {"message": "ghp_" + "A" * 36 + " " + "x" * (MAX_ERROR_TEXT_LENGTH + 100)}
+        )
+        resp.headers = {}
+        with pytest.raises(CicdUpstreamError) as exc_info:
+            backend._check_response(resp, "test context")
+        assert "ghp_" not in str(exc_info.value)
+        assert len(str(exc_info.value)) <= MAX_ERROR_TEXT_LENGTH + 64

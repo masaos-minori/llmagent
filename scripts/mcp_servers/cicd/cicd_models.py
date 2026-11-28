@@ -54,6 +54,61 @@ class CicdUpstreamError(RuntimeError):
     """Raised on upstream service failures (e.g. GitHub API 5xx)."""
 
 
+class CicdConflictError(RuntimeError):
+    """Raised on a 409 conflict response (mcpci004)."""
+
+
+class CicdRateLimitError(RuntimeError):
+    """Raised on a 429 rate-limit response (mcpci004).
+
+    Carries the preserved `Retry-After` and `X-RateLimit-Reset` values as structured
+    fields. The backend row parses them; this class only holds them (REQ-003).
+    """
+
+    def __init__(
+        self,
+        message: str,
+        retry_after: str | None = None,
+        rate_limit_reset: str | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.retry_after = retry_after
+        self.rate_limit_reset = rate_limit_reset
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Error-code vocabulary (mcpci004, REQ-006)
+# ──────────────────────────────────────────────────────────────────────────────
+
+# CI/CD-scoped stable lowercase-snake codes, following the style the shared helper
+# recommends for new servers; `CONTROL_ERROR_CODES` is not extended.
+CICD_ERROR_CODES = frozenset(
+    {
+        "authorization_error",
+        "not_found",
+        "validation_error",
+        "upstream_error",
+        "conflict",
+        "rate_limit",
+        "unexpected_error",
+    }
+)
+
+EXCEPTION_ERROR_CODES: dict[type[Exception], str] = {
+    CicdAuthorizationError: "authorization_error",
+    CicdNotFoundError: "not_found",
+    CicdValidationError: "validation_error",
+    CicdUpstreamError: "upstream_error",
+    CicdConflictError: "conflict",
+    CicdRateLimitError: "rate_limit",
+}
+
+# Maximum length of the bounded upstream error text (UNK-04, decided at
+# implementation as a module constant); the backend redaction helper applies this
+# bound. The test asserts the bound rather than this specific value.
+MAX_ERROR_TEXT_LENGTH = 500
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Canonical identifier
 # ──────────────────────────────────────────────────────────────────────────────

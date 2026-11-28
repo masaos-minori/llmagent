@@ -23,6 +23,7 @@ Provided endpoints:
 
 from __future__ import annotations
 
+import threading
 import time
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -43,10 +44,17 @@ from shared.security.result_dto import (
 )
 from shared.security.startup_flow import run_startup_validation
 
-from mcp_servers.audit import _audit_log
+from mcp_servers.audit import AuditEmission
 from mcp_servers.cicd.cicd_credential import resolve_effective_credential
 from mcp_servers.cicd.cicd_models import (
+    EXCEPTION_ERROR_CODES,
+    CicdAuthorizationError,
     CicdConfig,
+    CicdConflictError,
+    CicdNotFoundError,
+    CicdRateLimitError,
+    CicdUpstreamError,
+    CicdValidationError,
     canonical_repo_key,
 )
 from mcp_servers.cicd.cicd_service import CiCdService, build_service
@@ -260,6 +268,63 @@ async def _dispatch_cicd_tool(
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+# Audit emission (mcpci004 REQ-005, REQ-006, REQ-007)
+# ──────────────────────────────────────────────────────────────────────────────
+
+_audit_failure_count: int = 0
+_audit_failure_count_lock = threading.Lock()
+# The lock protects the read-modify-write cycle of the counter, the same narrow scope
+# `scripts/mcp_servers/git/git_server.py` uses.
+
+# Categories that are a failure during the tool's work rather than a refusal before it.
+# `DispatchResult.outcome` yields only ok or error, so `call_tool()` classifies the
+# rejected categories itself: a call refused before the tool's work is `rejected`, a
+# failure during it is `error`.
+_FAILURE_CATEGORIES = frozenset(
+    {"upstream_error", "unexpected_error", "dedup_store_error"}
+)
+
+
+def _audit_target(args: ToolArgs) -> str:
+    """Return the normalized `owner/repo` target for the record (REQ-006).
+
+    A slug that cannot be normalized is reported as requested, never rewritten, so the
+    record still identifies what the caller asked for. A call refused before its
+    arguments are read has no target and reports "-".
+    """
+    requested = args.get("repo", "")
+    if not isinstance(requested, str) or not requested:
+        return "-"
+    try:
+        return canonical_repo_key(requested)
+    except CicdValidationError:
+        return requested
+
+
+def _emit_audit(
+    emission: AuditEmission,
+    *,
+    action: str,
+    target: str,
+    outcome: str,
+    error_type: str,
+) -> None:
+    """Write the record; an audit-write failure is logged and counted, never raised (REQ-007).
+
+    The never-propagate policy is the owner's decision on 20261127, matching
+    `scripts/mcp_servers/git/git_server.py`; the raise-on-failure pattern of
+    `scripts/mcp_servers/github/github_service_security.py` is the rejected alternative.
+    """
+    global _audit_failure_count
+    try:
+        emission.emit(target=target, outcome=outcome, error_type=error_type)
+    except Exception:  # noqa: BLE001 — audit failure must not mask the response
+        with _audit_failure_count_lock:
+            _audit_failure_count += 1
+        logger.error("audit_log failed: tool=%s", action)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 # Endpoints
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -284,33 +349,78 @@ async def list_tools(
 
 @app.post("/v1/call_tool", response_model=CallToolResponse)
 async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
-    """Dispatch an MCP tool call through the CI/CD service with audit logging."""
-    enabled, reason = _cicd_tool_availability(_cfg, req.name)
-    if not enabled:
-        return CallToolResponse(result=f"Tool disabled: {reason}", is_error=True)
-    t0 = time.perf_counter()
-    try:
-        exec_ctx = extract_execution_context(request, req.name, req.args)
-    except ExecutionContextError as exc:
-        return CallToolResponse(result=f"Validation error: {exc}", is_error=True)
+    """Dispatch an MCP tool call through the CI/CD service with audit logging.
+
+    Exactly one record per authenticated call is written from `finally`, so the disabled
+    path, the validation path, and an exception raised by the handler are all covered
+    (REQ-005, AC-4), following `scripts/mcp_servers/web_search/web_search_server.py`.
+    The record carries the normalized target and the stable error code, and never a
+    token, a workflow input value, or raw upstream payload text (REQ-006, AC-5). The
+    response shape is unchanged.
+    """
     session_id, request_id = extract_request_context(request)[:2]
-    # The call identity is bound around the dispatch so the backend can record the
-    # correlation keyed by the call key, the same key the control API looks up
-    # (github precedent: github_service_security.bind_call_identity).
-    with bind_call_identity(session_id, request_id, exec_ctx.idempotency_key):
-        r = await _dispatch_cicd_tool(req.name, req.args, context=exec_ctx)
-    ms = (time.perf_counter() - t0) * 1000
-    logger.info(fmt_kvlog("call_tool", tool=req.name, ms=f"{ms:.0f}"))
-    _audit_log(
+    emission = AuditEmission(
         logger,
         session_id=session_id,
         request_id=request_id,
         action=req.name,
-        target=cast(str, req.args.get("repo", "")),
-        outcome=r.outcome,
         server_key="cicd",
     )
-    return _to_call_tool_response(r)
+    t0 = time.perf_counter()
+    outcome = "rejected"
+    error_type = ""
+    try:
+        enabled, reason = _cicd_tool_availability(_cfg, req.name)
+        if not enabled:
+            # Refused before the tool's work, so the category is a rejection.
+            error_type = "tool_disabled"
+            return CallToolResponse(result=f"Tool disabled: {reason}", is_error=True)
+        try:
+            exec_ctx = extract_execution_context(request, req.name, req.args)
+        except ExecutionContextError as exc:
+            error_type = "validation_error"
+            return CallToolResponse(result=f"Validation error: {exc}", is_error=True)
+        # The call identity is bound around the dispatch so the backend can record the
+        # correlation keyed by the call key, the same key the control API looks up
+        # (github precedent: github_service_security.bind_call_identity).
+        with bind_call_identity(session_id, request_id, exec_ctx.idempotency_key):
+            r = await _dispatch_cicd_tool(req.name, req.args, context=exec_ctx)
+        ms = (time.perf_counter() - t0) * 1000
+        logger.info(fmt_kvlog("call_tool", tool=req.name, ms=f"{ms:.0f}"))
+        error_type = r.error_type or ""
+        if not r.is_error:
+            outcome = "ok"
+        else:
+            outcome = "error" if error_type in _FAILURE_CATEGORIES else "rejected"
+        return _to_call_tool_response(r)
+    except CicdAuthorizationError:
+        # The allowlist guard refuses the call before the tool's work, so the outcome is
+        # a rejection. The error code is the models row's vocabulary value, not
+        # `type(exc).__name__` (Plan Design decision, Error-code home).
+        error_type = EXCEPTION_ERROR_CODES[CicdAuthorizationError]
+        raise
+    except (
+        CicdNotFoundError,
+        CicdValidationError,
+        CicdUpstreamError,
+        CicdConflictError,
+        CicdRateLimitError,
+    ) as exc:
+        outcome = "error"
+        error_type = EXCEPTION_ERROR_CODES[type(exc)]
+        raise
+    except Exception:
+        outcome = "error"
+        error_type = "unexpected_error"
+        raise
+    finally:
+        _emit_audit(
+            emission,
+            action=req.name,
+            target=_audit_target(req.args),
+            outcome=outcome,
+            error_type=error_type,
+        )
 
 
 @app.get("/health")
@@ -334,6 +444,11 @@ async def health() -> JSONResponse:
     except (RuntimeError, OSError):
         deps["config"] = "check failed"
     details: dict[str, object] = {"service": "cicd-mcp"}
+    # UNK-02, decided at implementation: the audit-failure counter is exposed here, the
+    # pattern `scripts/mcp_servers/git/git_server.py` uses (the file the owner's
+    # never-propagate policy decision referenced), so incident review sees audit-write
+    # failures without parsing logs.
+    details["audit_failure_count"] = _audit_failure_count
     details.update(dedup_health_details())
     result: JSONResponse = make_health_response(
         deps, details, security=_security_posture

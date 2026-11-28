@@ -18,7 +18,9 @@ from mcp_servers.cicd import cicd_service_github_actions_job as job_module
 from mcp_servers.cicd.cicd_models import (
     CicdAuthorizationError,
     CicdConfig,
+    CicdConflictError,
     CicdNotFoundError,
+    CicdRateLimitError,
     CicdUpstreamError,
     CicdValidationError,
     DispatchOutcome,
@@ -572,7 +574,10 @@ class TestCheckResponse:
             backend._check_response(resp, "test context")
         assert "Not found" in str(exc_info.value)
 
-    def test_403_rate_limit_includes_reset_time(self) -> None:
+    def test_403_rate_limit_message_raises_plain_auth_error(self) -> None:
+        # The rate-limit substring test is retired as the classification source
+        # (mcpci004): a 403 stays an authorization denial, and the reset metadata is
+        # preserved only as structured fields on the 429 status branch.
         backend = GitHubActionsBackend("token", MagicMock())
         resp = _make_http_response(
             403,
@@ -581,8 +586,8 @@ class TestCheckResponse:
         resp.headers = {"X-RateLimit-Reset": "1714000000"}
         with pytest.raises(CicdAuthorizationError) as exc_info:
             backend._check_response(resp, "test context")
-        assert "rate limit" in str(exc_info.value).lower()
-        assert "1714000000" in str(exc_info.value)
+        assert "Access denied" in str(exc_info.value)
+        assert "1714000000" not in str(exc_info.value)
 
     def test_403_non_rate_limit_raises_auth_error(self) -> None:
         backend = GitHubActionsBackend("token", MagicMock())
@@ -599,12 +604,46 @@ class TestCheckResponse:
             backend._check_response(resp, "test context")
         assert "Validation failed" in str(exc_info.value)
 
-    def test_500_raises_not_found_error(self) -> None:
+    def test_500_raises_upstream_error(self) -> None:
+        # Reversed per Plan Phase 1 (mcpci004): a 5xx is an upstream failure, not a
+        # not-found.
         backend = GitHubActionsBackend("token", MagicMock())
         resp = _make_http_response(500)
-        with pytest.raises(CicdNotFoundError) as exc_info:
+        with pytest.raises(CicdUpstreamError) as exc_info:
             backend._check_response(resp, "test context")
         assert "GitHub API error" in str(exc_info.value)
+
+    def test_503_raises_upstream_error(self) -> None:
+        backend = GitHubActionsBackend("token", MagicMock())
+        resp = _make_http_response(503)
+        with pytest.raises(CicdUpstreamError) as exc_info:
+            backend._check_response(resp, "test context")
+        assert "GitHub API error" in str(exc_info.value)
+
+    def test_409_raises_conflict_error(self) -> None:
+        backend = GitHubActionsBackend("token", MagicMock())
+        resp = _make_http_response(409, body={"message": "Conflict"})
+        resp.headers = {}
+        with pytest.raises(CicdConflictError) as exc_info:
+            backend._check_response(resp, "test context")
+        assert "GitHub API error" in str(exc_info.value)
+
+    def test_429_raises_rate_limit_error_with_structured_fields(self) -> None:
+        backend = GitHubActionsBackend("token", MagicMock())
+        resp = _make_http_response(429, body={"message": "Too many requests"})
+        resp.headers = {"Retry-After": "30", "X-RateLimit-Reset": "1714000000"}
+        with pytest.raises(CicdRateLimitError) as exc_info:
+            backend._check_response(resp, "test context")
+        assert exc_info.value.retry_after == "30"
+        assert exc_info.value.rate_limit_reset == "1714000000"
+
+    def test_401_raises_auth_error(self) -> None:
+        backend = GitHubActionsBackend("token", MagicMock())
+        resp = _make_http_response(401, body={"message": "Bad credentials"})
+        resp.headers = {}
+        with pytest.raises(CicdAuthorizationError) as exc_info:
+            backend._check_response(resp, "test context")
+        assert "Access denied" in str(exc_info.value)
 
     def test_200_does_not_raise(self) -> None:
         backend = GitHubActionsBackend("token", MagicMock())

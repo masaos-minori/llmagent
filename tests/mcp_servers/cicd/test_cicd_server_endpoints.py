@@ -163,6 +163,40 @@ class TestCallToolDisabledGate:
         assert "repo_allowlist is empty" in body["result"]
         handler.assert_not_awaited()
 
+    def test_disabled_tool_writes_exactly_one_rejected_record(
+        self,
+        client: TestClient,
+        fake_service: _FakeService,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """The disabled path now writes a record, which the Plan's corrected documentation states.
+
+        Per-category emission is pinned in `tests/mcp_servers/cicd/test_cicd_audit.py`;
+        this test only closes the gap this file had on the disabled path.
+        """
+        monkeypatch.setattr(
+            cicd_server, "_cfg", CicdConfig(repo_allowlist=[], workflow_allowlist=[])
+        )
+        logger = MagicMock()
+        monkeypatch.setattr(cicd_server, "logger", logger)
+        handler = AsyncMock(return_value="run triggered")
+        fake_service._dispatch_table["trigger_workflow"] = handler
+        resp = client.post(
+            "/v1/call_tool",
+            json={"name": "trigger_workflow", "args": {"repo": "acme/widgets"}},
+            headers={"x-idempotency-key": str(uuid.uuid4())},
+        )
+        assert resp.status_code == 200
+        records = [
+            json.loads(call.args[0])
+            for call in logger.info.call_args_list
+            if str(call.args[0]).startswith("{")
+        ]
+        assert len(records) == 1
+        assert records[0]["outcome"] == "rejected"
+        assert records[0]["error_type"] == "tool_disabled"
+        handler.assert_not_awaited()
+
 
 class TestCallToolEndpoint:
     def test_dispatches_known_tool_and_audit_logs(
@@ -268,6 +302,46 @@ class TestCallToolEndpoint:
         assert body["is_error"] is True
         assert "Unknown tool" in body["result"]
 
+    def test_validation_error_writes_exactly_one_rejected_record(
+        self,
+        client: TestClient,
+        fake_service: _FakeService,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """The `ExecutionContextError` path now writes a record before returning.
+
+        A claimed mode that disagrees with the resolver raises the error, so the call is
+        refused before the handler runs and the outcome is a rejection.
+        """
+        monkeypatch.setattr(
+            cicd_server,
+            "_cfg",
+            CicdConfig(repo_allowlist=["acme/widgets"], workflow_allowlist=["ci.yml"]),
+        )
+        logger = MagicMock()
+        monkeypatch.setattr(cicd_server, "logger", logger)
+        handler = AsyncMock(return_value="run triggered")
+        fake_service._dispatch_table["trigger_workflow"] = handler
+        resp = client.post(
+            "/v1/call_tool",
+            json={"name": "trigger_workflow", "args": {"repo": "acme/widgets"}},
+            headers={
+                "x-idempotency-key": str(uuid.uuid4()),
+                "x-execution-mode": "preview",
+            },
+        )
+        assert resp.status_code == 200
+        assert resp.json()["is_error"] is True
+        records = [
+            json.loads(call.args[0])
+            for call in logger.info.call_args_list
+            if str(call.args[0]).startswith("{")
+        ]
+        assert len(records) == 1
+        assert records[0]["outcome"] == "rejected"
+        assert records[0]["error_type"] == "validation_error"
+        handler.assert_not_awaited()
+
 
 class TestHealthEndpoint:
     def test_healthy_when_github_token_set(
@@ -289,7 +363,12 @@ class TestHealthEndpoint:
         assert body["status"] == "ok"
         assert body["ready"] is True
         assert body["dependencies"] == {}
-        assert body["details"] == {"service": "cicd-mcp"}
+        # The `service` key stays as it is; `audit_failure_count` is the counter the
+        # never-propagate policy maintains (UNK-02), and `dedup` is the block REQ-004
+        # publishes. The value is process-global, so only the key and its type are pinned.
+        assert body["details"]["service"] == "cicd-mcp"
+        assert isinstance(body["details"]["audit_failure_count"], int)
+        assert set(body["details"]) == {"service", "audit_failure_count"}
 
     def test_health_reports_a_failed_probe_as_a_dependency(
         self, client: TestClient, monkeypatch: pytest.MonkeyPatch
@@ -330,9 +409,10 @@ class TestHealthEndpoint:
         assert resp.status_code == 200
         body = resp.json()
 
-        # The `service` key stays as it is; `dedup` is the single new key (REQ-004).
+        # The `service` key stays as it is; `audit_failure_count` is the counter the
+        # never-propagate policy maintains (UNK-02); `dedup` is the single new key (REQ-004).
         assert body["details"]["service"] == "cicd-mcp"
-        assert set(body["details"]) == {"service", "dedup"}
+        assert set(body["details"]) == {"service", "audit_failure_count", "dedup"}
         block = body["details"]["dedup"]
         assert set(block) == DEDUP_FIELDS
         assert block["db_path"] == str(isolated_dedup)

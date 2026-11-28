@@ -14,6 +14,7 @@ import dataclasses
 import datetime
 import hashlib
 import logging
+import re
 import time
 from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
@@ -30,10 +31,14 @@ from shared.mcp_call_state_contract import ReconcileEvidence
 from shared.write_outcome import OUTCOME_UNKNOWN
 
 from mcp_servers.cicd.cicd_models import (
+    MAX_ERROR_TEXT_LENGTH,
     POLL_INTERVAL_S,
     POLL_TIMEOUT_S,
     CicdAuthorizationError,
+    CicdConflictError,
     CicdNotFoundError,
+    CicdRateLimitError,
+    CicdUpstreamError,
     CicdValidationError,
     DispatchOutcome,
 )
@@ -43,6 +48,19 @@ from .cicd_service_defs import (
     GITHUB_REPO_PARTS_COUNT,
     build_auth_headers,
 )
+
+# Status-to-(exception, error-code) mapping (mcpci004, REQ-001). The error code for
+# each type is the models row's vocabulary value in EXCEPTION_ERROR_CODES; the
+# documentation mirrors this table. The kept branches (404, 422, 401/403) stay
+# explicit in `_check_response`; every other non-2xx falls through to
+# `CicdUpstreamError`, the truthful mapping REQ-001 asks for.
+_STATUS_ERROR_MAP: dict[int, type[Exception]] = {
+    HTTPStatus.CONFLICT: CicdConflictError,
+    HTTPStatus.TOO_MANY_REQUESTS: CicdRateLimitError,
+}
+
+# Token-shaped content is redacted from the bounded error text (REQ-003, AC-5).
+_TOKEN_SHAPE_RE = re.compile(r"gh[pousr]_[A-Za-z0-9_]{12,}")
 
 logger = logging.getLogger(__name__)
 
@@ -151,6 +169,17 @@ class GitHubActionsBackend:
         return f"GitHubActionsBackend(token={token_status!r})"
 
     @staticmethod
+    def _redact_error_text(text: str) -> str:
+        """Bound the upstream text at MAX_ERROR_TEXT_LENGTH and redact token-shaped content."""
+        redacted = _TOKEN_SHAPE_RE.sub("[redacted]", text)
+        return redacted[:MAX_ERROR_TEXT_LENGTH]
+
+    @staticmethod
+    def _transport_error(exc: httpx.HTTPError) -> CicdUpstreamError:
+        """Wrap a transport failure; raw transport text never appears in the error (REQ-002)."""
+        return CicdUpstreamError(f"GitHub API transport failure ({type(exc).__name__})")
+
+    @staticmethod
     def _parse_error_message(resp: httpx.Response, default: str) -> str:
         """Parse 'message' field from JSON response or return default."""
         try:
@@ -158,7 +187,7 @@ class GitHubActionsBackend:
         except (ValueError, UnicodeDecodeError):
             return default
         msg = cast(str, body.get("message", default))
-        return msg
+        return GitHubActionsBackend._redact_error_text(msg)
 
     def _check_response(self, resp: httpx.Response, context: str) -> None:
         """Raise domain exceptions for non-2xx responses with contextual messages."""
@@ -170,18 +199,27 @@ class GitHubActionsBackend:
         if resp.status_code in (401, 403):
             self._raise_auth_error(resp, context)
         if not resp.is_success:
-            raise CicdNotFoundError(
-                f"GitHub API error (status={resp.status_code}): {context}",
-            )
+            exc_type = _STATUS_ERROR_MAP.get(resp.status_code, CicdUpstreamError)
+            msg = self._parse_error_message(resp, "")
+            detail = f": {msg}" if msg else ""
+            message = f"GitHub API error (status={resp.status_code}): {context}{detail}"
+            if exc_type is CicdRateLimitError:
+                # The preserved metadata is exception fields, not text in the message.
+                raise CicdRateLimitError(
+                    message,
+                    retry_after=resp.headers.get("Retry-After"),
+                    rate_limit_reset=resp.headers.get("X-RateLimit-Reset"),
+                )
+            raise exc_type(message)
 
     def _raise_auth_error(self, resp: httpx.Response, context: str) -> None:
-        """Raise CicdAuthorizationError for 401/403 responses."""
+        """Raise CicdAuthorizationError for 401/403 responses.
+
+        The rate-limit substring test is retired as the classification source
+        (mcpci004): a genuine 429 status is classified by the status table, so a 403
+        stays an authorization denial even when its message mentions the rate limit.
+        """
         msg = self._parse_error_message(resp, "Access denied")
-        if "rate limit" in msg.lower():
-            reset_ts = resp.headers.get("X-RateLimit-Reset", "unknown")
-            raise CicdAuthorizationError(
-                f"GitHub API rate limit exceeded. Reset at epoch: {reset_ts}",
-            )
         raise CicdAuthorizationError(f"Access denied: {msg}")
 
     @staticmethod
@@ -361,11 +399,16 @@ class GitHubActionsBackend:
         url = (
             f"{_GITHUB_API_BASE}/repos/{owner}/{repo}/actions/workflows/{workflow}/runs"
         )
-        resp = await self._http.get(
-            url,
-            headers=build_auth_headers(self._token),
-            params={"per_page": min(limit, 50)},
-        )
+        try:
+            resp = await self._http.get(
+                url,
+                headers=build_auth_headers(self._token),
+                params={"per_page": min(limit, 50)},
+            )
+        except httpx.HTTPError as exc:
+            # DNS, TLS, connection, and timeout failures become upstream errors
+            # (REQ-002); raw transport text never appears in the error.
+            raise self._transport_error(exc) from exc
         self._check_response(resp, f"get_workflow_runs {owner}/{repo}/{workflow}")
         data = parse_http_json(resp)
         runs = cast(list[dict[str, Any]], data.get("workflow_runs", []))[:limit]
@@ -395,7 +438,12 @@ class GitHubActionsBackend:
     async def get_workflow_status(self, owner: str, repo: str, run_id: int) -> str:
         """Return details for a single workflow run."""
         url = f"{_GITHUB_API_BASE}/repos/{owner}/{repo}/actions/runs/{run_id}"
-        resp = await self._http.get(url, headers=build_auth_headers(self._token))
+        try:
+            resp = await self._http.get(url, headers=build_auth_headers(self._token))
+        except httpx.HTTPError as exc:
+            # DNS, TLS, connection, and timeout failures become upstream errors
+            # (REQ-002); raw transport text never appears in the error.
+            raise self._transport_error(exc) from exc
         self._check_response(resp, f"get_workflow_status {owner}/{repo} run={run_id}")
         r = parse_http_json(resp)
         head_sha_raw = r.get("head_sha")

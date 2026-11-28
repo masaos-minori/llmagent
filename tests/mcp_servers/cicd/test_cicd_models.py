@@ -15,12 +15,15 @@ from __future__ import annotations
 
 import pytest
 from mcp_servers.cicd.cicd_models import (
+    CICD_ERROR_CODES,
     DISPATCH_STATES,
+    EXCEPTION_ERROR_CODES,
     LOG_ERROR_CODES,
     LOG_FETCH_TIMEOUT_S,
     LOG_JOB_STATUSES,
     MAX_ALLOWLIST_SIZE,
     MAX_DECOMPRESSED_BYTES,
+    MAX_ERROR_TEXT_LENGTH,
     MAX_LOG_SIZE_KB,
     MAX_RAW_DOWNLOAD_BYTES,
     MAX_REDIRECTS,
@@ -30,7 +33,9 @@ from mcp_servers.cicd.cicd_models import (
     TRUSTED_LOG_HOSTS,
     CicdAuthorizationError,
     CicdConfig,
+    CicdConflictError,
     CicdNotFoundError,
+    CicdRateLimitError,
     CicdUpstreamError,
     CicdValidationError,
     DispatchOutcome,
@@ -317,6 +322,46 @@ def test_exception_hierarchy() -> None:
     assert issubclass(CicdNotFoundError, ValueError)
     assert issubclass(CicdValidationError, ValueError)
     assert issubclass(CicdUpstreamError, RuntimeError)
+    # mcpci004: the two new types keep the RuntimeError base the callers rely on.
+    assert issubclass(CicdConflictError, RuntimeError)
+    assert issubclass(CicdRateLimitError, RuntimeError)
+
+
+def test_error_code_vocabulary_is_the_ci_cd_frozenset() -> None:
+    assert CICD_ERROR_CODES == frozenset(
+        {
+            "authorization_error",
+            "not_found",
+            "validation_error",
+            "upstream_error",
+            "conflict",
+            "rate_limit",
+            # The audit category for an unexpected failure has no exception class, so
+            # it is a vocabulary code with no mapping entry.
+            "unexpected_error",
+        }
+    )
+
+
+def test_exception_error_codes_map_into_the_vocabulary() -> None:
+    # `unexpected_error` is the only code with no exception mapping.
+    assert set(EXCEPTION_ERROR_CODES.values()) < CICD_ERROR_CODES
+    assert EXCEPTION_ERROR_CODES[CicdConflictError] == "conflict"
+    assert EXCEPTION_ERROR_CODES[CicdRateLimitError] == "rate_limit"
+
+
+def test_rate_limit_error_carries_the_preserved_metadata_fields() -> None:
+    exc = CicdRateLimitError(
+        "Too many requests", retry_after="30", rate_limit_reset="1714000000"
+    )
+    assert exc.retry_after == "30"
+    assert exc.rate_limit_reset == "1714000000"
+
+
+def test_max_error_text_length_is_a_positive_bound() -> None:
+    # The bound is pinned as a bound; the backend test asserts the behavior rather
+    # than this specific value (UNK-04).
+    assert MAX_ERROR_TEXT_LENGTH > 0
 
 
 # ──────────────────────────────────────────────────────────────────────────────
