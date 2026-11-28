@@ -165,10 +165,10 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Relabel and add evidence rows in `docs/10_adr/adr_02_04_013_eventbus-authentication-authorization.md` | Pending | — | — | |
-| 2 | Add the five matrix rows and the summary update in `docs/10_adr/adr_01_index.md` | Pending | — | — | |
-| 3 | Regenerate `registry/manifests/invariant_coverage.yaml` | Pending | — | — | |
-| 4 | Update the pin in `tests/test_run_cited_adr_tests.py` and run the validation plan | Pending | — | — | |
+| 1 | Relabel and add evidence rows in `docs/10_adr/adr_02_04_013_eventbus-authentication-authorization.md` | In Progress | — | — |  |
+| 2 | Add the five matrix rows and the summary update in `docs/10_adr/adr_01_index.md` | In Progress | — | — |  |
+| 3 | Regenerate `registry/manifests/invariant_coverage.yaml` | In Progress | — | — |  |
+| 4 | Update the pin in `tests/test_run_cited_adr_tests.py` and run the validation plan | In Progress | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -178,7 +178,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261128-174125_01_docs_10_adr_adr_02_04_013_eventbus-authentication-authorization.md.md | 1 | Procedure | Pending | — | — |
+| implementations/20261128-174125_02_docs_10_adr_adr_01_index.md.md | 2, 4 | Procedure | Pending | — | — |
+| implementations/20261128-174125_03_registry_manifests_invariant_coverage.yaml.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -199,3 +201,5 @@ Table structure, status/type vocabulary, and general guidance: see
 | REQ-004 | Issue Required Changes (regenerate manifest); `tools/generate_reference_table.py` `_invariant_coverage_entries` | `registry/manifests/invariant_coverage.yaml` | Step 3 | AC-4 | `generate_reference_table.py --check` | Confirmed by repository evidence |
 | REQ-004 | Pinned count at `tests/test_run_cited_adr_tests.py:155` | `tests/test_run_cited_adr_tests.py` | Step 4 | AC-4 | `tests/test_run_cited_adr_tests.py` | Confirmed by repository evidence |
 | REQ-005 | Issue Testing Expectations | `docs/10_adr/adr_01_index.md` | Step 4 | AC-5 | `run_cited_adr_tests.py`; ADR checkers | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261128-174125 -->

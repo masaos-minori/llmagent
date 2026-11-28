@@ -182,13 +182,13 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the publish-if-current function to `scripts/eventbus/auth.py` | Pending | — | — | |
-| 2 | Switch the admin writer in `scripts/eventbus/admin_route.py` | Pending | — | — | |
-| 3 | Switch the sweep writer in `scripts/eventbus/authz_ttl.py` | Pending | — | — | |
-| 4 | Add the admin interleave test and fix the assertion in `tests/eventbus/test_admin_topics_authorization.py` | Pending | — | — | |
-| 5 | Add the race, mixed-generation, and stability tests in `tests/eventbus/test_authz_generation_ttl.py` | Pending | — | — | |
-| 6 | Regenerate `registry/manifests/eventbus_api.yaml` and `docs/24_eventbus/eventbus_08_reference_api.md` | Pending | — | — | |
-| 7 | ADR-013 component list in `docs/10_adr/adr_02_04_013_eventbus-authentication-authorization.md`, validation, deploy hand-off | Pending | — | — | |
+| 1 | Add the publish-if-current function to `scripts/eventbus/auth.py` | In Progress | — | — |  |
+| 2 | Switch the admin writer in `scripts/eventbus/admin_route.py` | In Progress | — | — |  |
+| 3 | Switch the sweep writer in `scripts/eventbus/authz_ttl.py` | In Progress | — | — |  |
+| 4 | Add the admin interleave test and fix the assertion in `tests/eventbus/test_admin_topics_authorization.py` | In Progress | — | — |  |
+| 5 | Add the race, mixed-generation, and stability tests in `tests/eventbus/test_authz_generation_ttl.py` | In Progress | — | — |  |
+| 6 | Regenerate `registry/manifests/eventbus_api.yaml` and `docs/24_eventbus/eventbus_08_reference_api.md` | In Progress | — | — |  |
+| 7 | ADR-013 component list in `docs/10_adr/adr_02_04_013_eventbus-authentication-authorization.md`, validation, deploy hand-off | In Progress | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -198,7 +198,13 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261128-173946_01_scripts_eventbus_auth.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261128-173946_02_scripts_eventbus_admin_route.py.md | 2, 4 | Procedure | Pending | — | — |
+| implementations/20261128-173946_03_scripts_eventbus_authz_ttl.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261128-173946_05_tests_eventbus_test_authz_generation_ttl.py.md | 5 | Procedure | Pending | — | — |
+| implementations/20261128-173946_06_registry_manifests_eventbus_api.yaml.md | 6 | Procedure | Pending | — | — |
+| implementations/20261128-173946_07_docs_24_eventbus_eventbus_08_reference_api.md.md | 6 | Procedure | Pending | — | — |
+| implementations/20261128-173946_08_docs_10_adr_adr_02_04_013_eventbus-authentication-authorization.md.md | 7 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -230,3 +236,5 @@ Table structure, status/type vocabulary, and general guidance: see
 | REQ-005 | Issue Documentation Impact; generated output lists each `auth.py` function (`docs/24_eventbus/eventbus_08_reference_api.md:65`) | `registry/manifests/eventbus_api.yaml` | Step 6 | AC-6 | `generate_reference_table.py --check` | Derived from confirmed evidence |
 | REQ-005 | Same | `docs/24_eventbus/eventbus_08_reference_api.md` | Step 6 | AC-6 | `generate_reference_table.py --check` | Derived from confirmed evidence |
 | REQ-005 | Issue Documentation Impact (ADR component list only); ADR-013 `:312` | `docs/10_adr/adr_02_04_013_eventbus-authentication-authorization.md` | Step 7 | AC-6 | ADR checkers | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261128-173946 -->

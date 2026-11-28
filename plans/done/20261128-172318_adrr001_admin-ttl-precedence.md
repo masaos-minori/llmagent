@@ -159,10 +159,10 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Check order, metadata-only rejection, and TTL helper in `scripts/eventbus/admin_route.py` | Pending | — | — | |
-| 2 | Add the new tests in `tests/eventbus/test_admin_topics_authorization.py` | Pending | — | — | |
-| 3 | Update the ADMIN row in `docs/24_eventbus/eventbus_02_api-reference-index.md` | Pending | — | — | |
-| 4 | ADR-013 Decision Detail 12 sentence in `docs/10_adr/adr_02_04_013_eventbus-authentication-authorization.md`, validation, deploy hand-off | Pending | — | — | |
+| 1 | Check order, metadata-only rejection, and TTL helper in `scripts/eventbus/admin_route.py` | In Progress | — | — |  |
+| 2 | Add the new tests in `tests/eventbus/test_admin_topics_authorization.py` | In Progress | — | — |  |
+| 3 | Update the ADMIN row in `docs/24_eventbus/eventbus_02_api-reference-index.md` | In Progress | — | — |  |
+| 4 | ADR-013 Decision Detail 12 sentence in `docs/10_adr/adr_02_04_013_eventbus-authentication-authorization.md`, validation, deploy hand-off | In Progress | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -172,7 +172,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261128-173757_01_scripts_eventbus_admin_route.py.md | 1, 2 | Procedure | Pending | — | — |
+| implementations/20261128-173757_03_docs_24_eventbus_eventbus_02_api-reference-index.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261128-173757_04_docs_10_adr_adr_02_04_013_eventbus-authentication-authorization.md.md | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -197,3 +199,5 @@ Table structure, status/type vocabulary, and general guidance: see
 | REQ-004 | Issue Testing Expectations | `tests/eventbus/test_admin_topics_authorization.py` | Step 2 | AC-4, AC-5 | Same tests | Explicit in issue |
 | REQ-005 | Issue Documentation Impact | `docs/24_eventbus/eventbus_02_api-reference-index.md` | Step 3 | AC-6 | `generate_reference_table.py --check` | Explicit in issue |
 | REQ-005 | Issue Target Files (ADR wording, conditional); ADR-013 Decision Detail 12 at `:103` | `docs/10_adr/adr_02_04_013_eventbus-authentication-authorization.md` | Step 4 | AC-6 | `check_adr_structure.py`, `check_adr_invariant_matrix.py` | Derived from confirmed evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261128-173757 -->
