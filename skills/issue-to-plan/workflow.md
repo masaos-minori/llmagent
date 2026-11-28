@@ -524,6 +524,10 @@ Verify the `Affected areas` table: every row's `File` is one of the
 `Blast Radius`, `Churn (30d)`, `Bus Factor`, `deploy.sh Impact`) are populated or
 marked `N/A`.
 
+Verify the `Implementation Target Files` rows are ordered by implementation sequence and
+`Implementation steps` cites them in 1-indexed row order; an out-of-order table MUST NOT
+be marked `Frozen`.
+
 Verify the `Risks` section: every Risk entry has a corresponding Mitigation.
 
 A section collapsed to `N/A: {reason}` satisfies the preserved-information check only

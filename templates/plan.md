@@ -16,7 +16,9 @@ High / Medium / Low
 ## Scope
 - **In-Scope**: [List of explicit items to be implemented]
 - **Out-of-Scope**: [List of items explicitly excluded from this task]
-- **Dependencies**: [The Issue's Dependencies, including fix order against sibling issues or plans; `N/A: none` if there are none. Write each ordering dependency as the `Depends on` bullet below; write each other mention by title or id — this line never names another Plan or Issue by a `plans/` or `issues/` path]
+- **Dependencies**: [The Issue's Dependencies, including fix order against sibling issues or plans; `N/A: none` if there are none. Write each ordering dependency as the `Depends on` bullet below; write each other mention by title or id — this line never names another Plan or Issue by a `plans/` or `issues/` path. Canonical
+  per-file implementation order lives in `Implementation Target Files` row order; this line
+  and its `Depends on` bullets record only ordering between Plans and Issues]
   - **Depends on**: {plans/ or issues/ path} | phase {N or all} | {reason}  [one bullet per dependency on another Plan or Issue, `phase` is a step number of that Plan or `all`; omit when `N/A: none`; a Plan that must wait for another Plan or Issue records it as this bullet, and the prose line above never names another Plan or Issue by path — a compatible overlap or a sequencing-only note names it by title or id]
 
 ## Background
@@ -64,6 +66,10 @@ Freeze) for the full validation procedure):
   only backticked paths. `uv run python tools/backtick_plan_related_tests.py plans/{filename}.md`
   normalizes a Plan, and `tools/check_workitem_structure.py` reports a plain path
   (`plain-path-citation`).
+- Order rows by implementation sequence: row N is the Nth implementation unit, and
+  `plan-to-implementation-procedure` derives each procedure's `seq` from this 1-indexed
+  position, so the rows of a `Frozen` table MUST NOT be reordered. Canonical
+  implementation order lives in this table.
 
 ## Reference Files
 Files that must be read to implement the targets above, but MUST NOT be modified. Same
@@ -113,6 +119,8 @@ Each step description MUST cite the exact file path(s) it touches by referencing
 of `Implementation Target Files` above — do not restate file-level detail
 independently of that frozen table. Write each cited path in backticks. A step is a top-level numbered item (a Phase); its
 checklist items are sub-tasks, and the Execution Status table has one row per step.
+Cite rows of `Implementation Target Files` in 1-indexed row order; the step sequence MUST
+match the table's row order.
 Declare a release unit (see `### Release units` below) when a phase breaks existing callers or
 tests until another phase lands (for example a `NOT NULL` column added before its write path):
 one line per unit, `**Unit**: {name} | **Phases**: {N, N} | **Reason**: {why the members cannot be
