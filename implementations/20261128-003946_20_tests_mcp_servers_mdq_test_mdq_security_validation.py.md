@@ -15,13 +15,13 @@ Requirements: REQ-005 (an unexpectedly empty FTS index is not ready). Acceptance
   new contract rather than a mechanical fix of a broken test.
 - The status change itself is implemented by row 5 (`scripts/mcp_servers/mdq/mdq_security_validation.py`);
   this document changes only the test file.
-- `scripts/shared/security/result_dto.py` line 98 states that only FAILED blocks Ready, so the assertion
+- `scripts/shared/security/result_dto.py` line 109 states that only FAILED blocks Ready, so the assertion
   change is what pins AC-4.
 - The reason code stays `REASON_DEPENDENCY_UNREACHABLE`, which is already in the closed vocabulary, so no
   code is added.
 
 ## Design decisions
-- The test name `test_empty_index_over_documents_is_a_warning` (line 275) no longer describes the
+- The test name `test_empty_index_over_documents_is_a_warning` (line 292) no longer describes the
   outcome, so it is renamed to `test_empty_index_over_documents_is_not_ready` (new).
 - The reason-code assertion is kept, so the pin covers both the status and the code.
 
@@ -34,10 +34,10 @@ Requirements: REQ-005 (an unexpectedly empty FTS index is not ready). Acceptance
 `tests/mcp_servers/mdq/test_mdq_security_validation.py`
 
 ### Procedure
-- Change the assertion at line 279 from `SecurityCheckStatus.WARNING` to `SecurityCheckStatus.FAILED` and
+- Change the assertion at line 296 from `SecurityCheckStatus.WARNING` to `SecurityCheckStatus.FAILED` and
   rename the test as stated in Design decisions.
-- Keep the check-id tuple entry at line 51, the `NOT_APPLICABLE` case (lines 271-273), and the OK cases at
-  lines 282-285 and 287-290.
+- Keep the check-id tuple entry at line 53, the `NOT_APPLICABLE` case (lines 288-290), and the OK cases at
+  lines 299-302 and 287-290.
 
 ### Method
 - The fixture stats (`EMPTY_INDEX_STATS`) are unchanged, so only the expected status changes.

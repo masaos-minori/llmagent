@@ -42,17 +42,17 @@ Requirements: REQ-001, REQ-002, REQ-003, REQ-006. Acceptance criteria: AC-1, AC-
 `scripts/mcp_servers/mdq/health_check.py`
 
 ### Procedure
-- Replace the name-set checks in `_check_schema_health` (lines 55-89): the table-name checks at
-  lines 64-69 and the trigger-name checks at lines 71-79 become a comparison of the stored FTS5
+- Replace the name-set checks in `_check_schema_health` (lines 105-136): the table-name checks at
+  lines 115-120 and the trigger-name checks at lines 122-127 become a comparison of the stored FTS5
   statement text and the normalized trigger SQL against the canonical text.
 - Add the functional insert, update, and delete probe on a scratch apply of the canonical DDL, using
   `apply_ddl_in_memory` from the shared fingerprint module, and keep the live probe read-only.
-- In `_collect_dependencies` (line 114), add the identity to `details` (line 136) and the readiness
+- In `_collect_dependencies` (line 162), add the identity to `details` (line 176) and the readiness
   condition name to the same map.
 
 ### Method
 - The scratch apply is opened, probed, and closed inside the same call, so the production connection
-  used at lines 155-168 is never written to.
+  used at lines 190-201 is never written to.
 - A drift, a no-op trigger, or an empty FTS index over rows produces a dependency entry, which is what
   makes `ready` false; the condition name only labels which case it is.
 
@@ -65,10 +65,11 @@ Requirements: REQ-001, REQ-002, REQ-003, REQ-006. Acceptance criteria: AC-1, AC-
 
 ### Companion test files
 - `tests/mcp_servers/mdq/test_mdq_health_endpoint.py`
-  - Procedure: move the plain-table fixtures (lines 68-79, 128-136, 165-173) onto the real FTS5
-    definition; the corrupt case `test_fts5_query_failure_returns_ready_false` (line 551) on the
-    fixture at lines 219-223 now fails through the definition comparison instead of the missing
-    `chunks_fts` column; the key-presence assertions stay unchanged.
+  - Procedure: at current HEAD the plain-table fixtures this row describes are already gone, so the
+    move is not pending work: every fixture builds `chunks_fts` from the canonical `FTS_SQL`
+    constant (lines 49-60), and `test_fts5_query_failure_returns_ready_false` (line 258) reaches
+    the definition comparison through `CORRUPT_FTS_SQL` (line 62) and the
+    `_create_test_db_corrupt_fts` helper (line 146); the key-presence assertions stay unchanged.
   - Validation: `uv run pytest tests/mcp_servers/mdq/test_mdq_health_endpoint.py` — readiness refuses
     a plain table named `chunks_fts` and the preserved keys are still present.
 

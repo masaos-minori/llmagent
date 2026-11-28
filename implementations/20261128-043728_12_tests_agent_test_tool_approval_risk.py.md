@@ -57,8 +57,9 @@ Add the per-mode approval-risk tests for the two MDQ write tools: index `medium`
 
 - `test_declared_tier_is_the_only_risk_source` (line 284) is unchanged: it asserts that no per-tool
   risk rule contributes, which the tier change does not affect.
-- The plan-mode block in `tests/agent/test_tool_approval_preflight.py` (method at line 991) already
-  covers `index_paths` by name (line 987) and `refresh_index` through the tier mapping.
+- The plan-mode block in `tests/agent/test_tool_approval_preflight.py` (method at line 990) already
+  covers `index_paths` by name in `tests/agent/test_tool_approval_preflight.py` (line 987) and
+  `refresh_index` through the tier mapping.
 
 ## Security considerations
 

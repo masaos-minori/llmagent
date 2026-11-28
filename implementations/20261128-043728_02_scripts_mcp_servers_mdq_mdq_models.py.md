@@ -24,7 +24,7 @@ decided without having written anything.
 
 - The preview metadata is a separate model, not extra fields on `IndexPathsMetadata`: executed
   counts and planned counts describe different things and must not be conflated in one record.
-- The model is a `TypedDict` like `IndexPathsMetadata` (line 332), because the audit detail
+- The model is a `TypedDict` like `IndexPathsMetadata` (line 384), because the audit detail
   builder consumes metadata as a plain mapping.
 
 ## Alternatives considered
@@ -38,8 +38,8 @@ decided without having written anything.
 `scripts/mcp_servers/mdq/mdq_models.py`
 
 ### Procedure
-1. Add `dry_run: bool = False` to `IndexPathsRequest` (line 163) and `RefreshIndexRequest`
-   (line 169).
+1. Add `dry_run: bool = False` to `IndexPathsRequest` (line 215) and `RefreshIndexRequest`
+   (line 221).
 2. Add `PlannedOutcomeMetadata` (new) as a `TypedDict` after `IndexPathsMetadata`.
 
 ### Method

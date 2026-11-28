@@ -1,52 +1,52 @@
 ## Goal
 
-Classify `tests/mcp_servers/mdq/test_mdq_config.py` as `characterization`: the module asserts observed behavior with no requirement source, and no citation is required for a characterization module (`REQ-003`, `AC-3`).
+Classify `tests/mcp_servers/mdq/test_mdq_config.py` as `contract`: the plan records `characterization` at the evidence revision, when the module carried no citation; at current HEAD the module carries the `REQ-007` citation at line 7, so its assertions trace to a requirement source and the plan's rule makes it a contract module (`REQ-003`, `AC-3`).
 
 ## Scope
 **Release unit**: mdq-taxonomy-gate
 
 - One module-level `pytestmark` line is added; no assertion or fixture in the module changes.
-- No citation is added: `tools/check_test_taxonomy.py` requires one only for `contract` modules. 
+- No citation clause is written: the `REQ-007` citation at line 7 already satisfies what `tools/check_test_taxonomy.py` requires of a `contract` module, so this row is the marker line only.
 
 ## Assumptions
 
-- `characterization` is the classification the plan records for this module.
+- The plan's `characterization` reason for this module is no longer accurate at current HEAD: the module carries the `REQ-007` citation at line 7, so the plan's classification rule makes it `contract`. This document records that reclassification.
 - `tests/mcp_servers/mdq` is not in `CLASSIFIED_AREAS` at current HEAD (`tools/check_test_taxonomy.py:66`, `in_classified_area()` matches by prefix), so this module is judged only after the classified-area addition. That addition is the same release unit (`mdq-taxonomy-gate`, plan Phases 4 and 5), so the markers and the gate land in one commit.
 - The marker is written through `tools/apply_test_taxonomy_markers.py` from a records JSON array (plan Phase 4); the tool places the marker after the module-level import block and writes nothing else, and it refuses a record whose `pytestmark` already exists or whose kind is not registered in `pyproject.toml`.
 - `import pytest` is present, so the records record needs `add_import: false`.
-- Verified at current HEAD with `has_requirement_citation()`: the module carries none of the accepted forms (requirement number, Accepted ADR path, issue path, or a Canonical Source Registry path named in the module text).
-- The existing citation stays as it is; repointing it to the MDQ canonical doc is a separate decision (plan Risk).
+- Verified at current HEAD with `has_requirement_citation()`: the module carries the `REQ-007` citation at line 7, which is one of the accepted forms (requirement number, Accepted ADR path, issue path, or a Canonical Source Registry path named in the module text).
+- The existing `REQ-007` citation at line 7 is left as it is; this row writes the marker only.
 
 ## Design decisions
 
-- Classify as `characterization` because the module asserts observed behavior with no requirement source.
+- Classify as `contract` because the assertions trace to a requirement source through the `REQ-007` citation the module already carries (`REQ-007`, `AC-3`).
 
 ## Alternatives considered
 
-- `N/A: one-line classification change; the plan names the marker.`
+- `N/A: one-line classification change; the plan names the marker, and the citation the plan expected to be absent is already present.`
 
 ## Implementation
 ### Target file
 `tests/mcp_servers/mdq/test_mdq_config.py`
 
 ### Procedure
-1. Add `pytestmark = pytest.mark.characterization` after the module-level import block.
+1. Add `pytestmark = pytest.mark.contract` after the module-level import block.
 2. Leave the docstring as it is.
 
 ### Method
 
 - Applied through `tools/apply_test_taxonomy_markers.py` from the batch records JSON array; the marker line is the only change the tool makes to the module.
-- The marker is placed after the import block, not in the docstring, so the module docstring stays the place the citation clause is written.
+- The marker is placed after the import block, not in the docstring, so the citation the module already carries is not touched.
 
 ### Details
 
-- Records record: `{"path": "tests/mcp_servers/mdq/test_mdq_config.py", "pytestmark": "characterization", "add_import": false}`.
+- Records record: `{"path": "tests/mcp_servers/mdq/test_mdq_config.py", "pytestmark": "contract", "add_import": false}`.
 - No citation clause is written; the module is judged by its marker alone.
 
 ## Compatibility considerations
 
 - `N/A: test-only change.`
-- After classification the CI report step groups this module under `characterization` (`AC-6`). A characterization failure remains report-only.
+- After classification the CI report step groups this module under `contract` (`AC-6`), so a failure here is a checker finding, not a report-only result.
 
 ## Security considerations
 

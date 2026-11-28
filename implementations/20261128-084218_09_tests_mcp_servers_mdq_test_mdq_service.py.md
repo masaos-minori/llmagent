@@ -5,8 +5,9 @@ Drop the assertion for the removed field and read the service read paths' consis
 ## Scope
 **Release unit**: N/A: not part of a release unit
 
-- `test_get_chunk_request_defaults` loses `assert req.with_neighbors is False` (line 215).
-- The read-path assertions that treat the returned value as text unpack the pair: `test_get_chunk_returns_content_after_indexing` (734), `test_stats_returns_counts_after_indexing` (761), `test_stats_includes_fts_count` (768), `test_stats_includes_stale_count` (776), `test_outline_returns_headings` (816), `test_outline_truncates_large_heading_list` (990), `test_request_override_bounded_by_config_cap` (1020).
+- `test_get_chunk_request_defaults` (method at line 214) loses
+  `assert req.with_neighbors is False` (line 217).
+- The read-path assertions that treat the returned value as text unpack the pair: `test_get_chunk_returns_content_after_indexing` (724), `test_stats_returns_counts_after_indexing` (758), `test_stats_includes_fts_count` (769), `test_stats_includes_stale_count` (775), `test_outline_returns_headings` (838), `test_outline_truncates_large_heading_list` (1006), `test_request_override_bounded_by_config_cap` (1020).
 - One new assertion per read path for the post-refresh consistency state.
 
 ## Assumptions

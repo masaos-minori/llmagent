@@ -59,7 +59,8 @@ and force-escalation cases, so the policy tests describe the tier the tools now 
 - `tests/agent/test_tool_policy_comprehensive.py` (300-314) asserts side-effect membership and
   operation type for these tools, which the tier change does not affect.
 - `tests/agent/test_tool_approval_preflight.py` `test_plan_mode_blocks_every_non_read_only_tool`
-  (line 991) names `index_paths` in its parametrize list (line 987) and covers `refresh_index`
+  (line 990 in `tests/agent/test_tool_approval_preflight.py`) names `index_paths` in its
+  parametrize list (line 987) and covers `refresh_index`
   through the tier mapping; both remain blocked after the change.
 
 ## Security considerations

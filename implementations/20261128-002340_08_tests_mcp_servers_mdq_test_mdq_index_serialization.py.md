@@ -16,7 +16,7 @@ Requirements: REQ-001. Acceptance criterion: AC-1.
 - This row gets its own document because no other row names it in `Related Tests`, so it is not a
   companion under `SKILL.md`'s companion rule.
 - The existing proof records start and end only inside the section protected by `_index_lock`
-  (`test_concurrent_refresh_calls_are_serialized`, line 44); that mechanism is kept, not rewritten.
+  (`test_concurrent_refresh_calls_are_serialized`, line 46); that mechanism is kept, not rewritten.
 
 ## Design decisions
 - Keep the three serialization tests as behavior locks and add one failure case; the tests assert the
@@ -32,9 +32,9 @@ Requirements: REQ-001. Acceptance criterion: AC-1.
 `tests/mcp_servers/mdq/test_mdq_index_serialization.py`
 
 ### Procedure
-- Keep `test_concurrent_refresh_calls_are_serialized` (line 44),
-  `test_concurrent_index_paths_calls_are_serialized` (line 82), and
-  `test_index_paths_and_refresh_index_are_serialized` (line 116) passing against the caller-owned
+- Keep `test_concurrent_refresh_calls_are_serialized` (line 46),
+  `test_concurrent_index_paths_calls_are_serialized` (line 84), and
+  `test_index_paths_and_refresh_index_are_serialized` (line 118) passing against the caller-owned
   transaction.
 - Add one test that fails the first call inside its transaction and asserts the second call sees the
   pre-operation state (no partial document, chunk, FTS5, or `index_state` rows).
@@ -44,7 +44,7 @@ Requirements: REQ-001. Acceptance criterion: AC-1.
   row counts read through a separate connection, so it does not depend on the transaction internals.
 
 ### Details
-- `test_is_indexing_warning_visible_during_active_index` (line 175) is unaffected and stays as is.
+- `test_is_indexing_warning_visible_during_active_index` (line 177) is unaffected and stays as is.
 
 ## Compatibility considerations
 - This file is also targeted by plans 008 and 010; compatible ordering overlap, this Plan executes

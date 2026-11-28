@@ -6,7 +6,7 @@ Pass `dry_run` from the call arguments into the two MDQ write request models in 
 ## Scope
 **Release unit**: preview path
 
-- `_handle_index_paths()` (line 264) and `_handle_refresh_index()` (line 272): the request
+- `_handle_index_paths()` (line 253) and `_handle_refresh_index()` (line 261): the request
   construction only.
 
 ## Assumptions
@@ -46,7 +46,7 @@ Pass `dry_run` from the call arguments into the two MDQ write request models in 
 
 ## Compatibility considerations
 
-- For a preview call the metadata is the planned model, so `_build_call_tool_audit_detail()` (line 341)
+- For a preview call the metadata is the planned model, so `_build_call_tool_audit_detail()` (line 350)
   reads executed keys (`indexed_count`, `skipped_count`, `deleted_count`, `failed_count`) that are
   absent from the planned model and reports zeros through its existing `.get(..., 0)` defaults. The
   audit payload shape is not changed by this Plan (UNK-03), and the preview is identified by

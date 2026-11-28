@@ -27,7 +27,7 @@ Requirements: REQ-005 (an unexpectedly empty FTS index is not ready). Acceptance
 
 ## Alternatives considered
 - Keep the warning and gate `ready` separately: rejected, because `ready` is derived from the
-  dependency map and the posture validation alone (`scripts/mcp_servers/health_response.py` line 65),
+  dependency map and the posture validation alone (`scripts/mcp_servers/health_response.py` line 71),
   so a warning cannot make the service not ready.
 
 ## Implementation
@@ -35,9 +35,9 @@ Requirements: REQ-005 (an unexpectedly empty FTS index is not ready). Acceptance
 `scripts/mcp_servers/mdq/mdq_security_validation.py`
 
 ### Procedure
-- In `_index_check` (lines 218-234), return `SecurityCheckStatus.FAILED` for the case where the FTS
+- In `_index_check` (lines 220-245), return `SecurityCheckStatus.FAILED` for the case where the FTS
   row count is zero while documents or chunks exist, keeping the same check id and reason code.
-- Leave the `NOT_APPLICABLE` branch (line 219) and the healthy branch (lines 231-234) unchanged.
+- Leave the `NOT_APPLICABLE` branch (lines 222-228) and the healthy branch (lines 240-245) unchanged.
 
 ### Method
 - The message text is kept so operators still see which condition failed; the status is the only
@@ -50,7 +50,7 @@ Requirements: REQ-005 (an unexpectedly empty FTS index is not ready). Acceptance
 ### Companion test files
 - `tests/mcp_servers/mdq/test_mdq_health_posture.py`
   - Procedure: add the not-validated bind case for an empty FTS index over rows; the existing
-    validated-posture assertion (line 34) stays, and the warning assertion itself is not in this file.
+    validated-posture assertion (line 46) stays, and the warning assertion itself is not in this file.
   - Validation: `uv run pytest tests/mcp_servers/mdq/test_mdq_health_posture.py` — the bind gate
     refuses the posture for an empty index over rows.
 

@@ -6,11 +6,13 @@ Make `tools/check_test_taxonomy.py` judge the MDQ test modules as a classified a
 **Release unit**: mdq-taxonomy-gate
 
 - One tuple element is added to `CLASSIFIED_AREAS`; the matching logic, the categories, the baseline handling, and the report rendering are unchanged.
-- The area is activated in the same commit as the markers on the 35 modules (plan Phase 4), because the area reports `unclassified-module` for a module that has no marker.
+- The area is activated in the same commit as the markers on the 38 modules (plan Phase 4), because the area reports `unclassified-module` for a module that has no marker.
 
 ## Assumptions
 
-- At current HEAD `CLASSIFIED_AREAS` is at line 66 and `in_classified_area()` is at line 223. The plan recorded line 219 for the function at the evidence revision; the procedure cites the current position, and the difference is a line shift, not a rule change.
+- At current HEAD `CLASSIFIED_AREAS` is at line 66 and `in_classified_area()` is at line 223. The
+  plan recorded 219 for the function at the evidence revision; the procedure cites the current
+  position, and the difference is a line shift, not a rule change.
 - `in_classified_area()` matches by prefix (`module_path.startswith(f"{area}/")`), so the entry is written as `tests/mcp_servers/mdq` and matches every module under it.
 - `tests/tools/test_check_test_taxonomy.py` builds its own temporary root and never asserts the contents of `CLASSIFIED_AREAS`; its findings are produced from paths under `tests/agent/`, so the addition keeps that module green.
 - No MDQ module is added to `tools/test_taxonomy_baseline.txt`, which has no MDQ entry today, because the baseline is for modules that cannot be classified.
@@ -22,7 +24,7 @@ Make `tools/check_test_taxonomy.py` judge the MDQ test modules as a classified a
 
 ## Alternatives considered
 
-- Add the 35 modules to the baseline instead: rejected, it contradicts the plan's stated intent that every MDQ module is classifiable.
+- Add the 38 modules to the baseline instead: rejected, it contradicts the plan's stated intent that every MDQ module is classifiable.
 - Widen the rule to classify every `tests/` module: rejected, it would report findings for areas the plan does not own.
 
 ## Implementation
@@ -45,7 +47,7 @@ Make `tools/check_test_taxonomy.py` judge the MDQ test modules as a classified a
 ## Compatibility considerations
 
 - The change activates findings for MDQ modules only: once the markers land, `uv run python tools/check_test_taxonomy.py` reports no finding for `tests/mcp_servers/mdq/` (`AC-3`).
-- Between the area activation and the marker application the checker reports `unclassified-module` for the 35 modules; that is the reason the plan declares Phase 4 and Phase 5 as one release unit.
+- Between the area activation and the marker application the checker reports `unclassified-module` for the 38 modules; that is the reason the plan declares Phase 4 and Phase 5 as one release unit.
 - Module size is 17221 B, below the 24576 B gate in `tools/check_module_size.py`.
 
 ## Security considerations
@@ -71,7 +73,7 @@ Make `tools/check_test_taxonomy.py` judge the MDQ test modules as a classified a
 
 ## Out of Scope
 
-- The `pytestmark` lines and the 9 citation additions on the 35 modules (plan rows 8 and 11-44).
+- The `pytestmark` lines and the 7 citation additions on the 38 modules (plan rows 8 and 11-44, 45-47).
 - Any change to the checker's categories, citation forms, or baseline handling.
 
 ## Execution Status

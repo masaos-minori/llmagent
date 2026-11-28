@@ -5,8 +5,8 @@ Flip the assertion that pins silent ignoring of extra fields, and read `get_chun
 ## Scope
 **Release unit**: N/A: not part of a release unit
 
-- `test_use_summary_field_silently_ignored` (line 79) becomes a rejection case.
-- `test_get_chunk_truncates_large_content` (line 70) asserts the metadata pair instead of the `"[Truncated —"` marker.
+- `test_use_summary_field_silently_ignored` (method at line 80) becomes a rejection case.
+- `test_get_chunk_truncates_large_content` (method at line 57, assertion at line 72) asserts the metadata pair instead of the `"[Truncated —"` marker.
 
 ## Assumptions
 

@@ -12,9 +12,9 @@ Remove the 9 response models in `scripts/mcp_servers/mdq/mdq_models.py` that no 
 
 - Removal is the plan default because no producer exists. Implementing the shapes would make the service return models, which is a behavior change owned by the mdqmcp001 and mdqmcp008 plans.
 - Verified at current HEAD: zero references to `ParsedSectionRequest`, `SearchDocsResponse`, `GetChunkResponse`, `OutlineResponse`, `IndexPathsResponse`, `RefreshIndexResponse`, `IndexMetadata`, `StatsResponse`, and `GrepDocsResponse` outside `mdq_models.py` in `scripts/`, `tests/`, and `docs/`.
-- `IndexMetadata` is `pass`-only and is named only by `StatsResponse.index_metadata` (line 270), and `stats()` builds its metadata dict from raw `index_state` rows without the model (`scripts/mcp_servers/mdq/mdq_service.py:346`), so both are removed together.
+- `IndexMetadata` is `pass`-only and is named only by `StatsResponse.index_metadata` (line 322); at current HEAD `stats()` builds no metadata dict from `index_state` (its docstring, line 334, says the raw dict is not part of the response), so the model has no producer left and is removed.
 - `vulture --min-confidence 80` reports nothing for this module, because these are public definitions, which is why the static dead-code gate cannot catch them and the guard test is the enforcement.
-- `tools/check_docstrings_baseline.txt` line 183 records this module as `missing separator`; the entry stays valid because no module docstring changes. Module size 12071 B, below the 24576 B gate.
+- `tools/check_docstrings_baseline.txt` line 185 records this module as `missing separator`; the entry stays valid because no module docstring changes. Module size 12071 B, below the 24576 B gate.
 
 ## Design decisions
 
@@ -32,7 +32,7 @@ Remove the 9 response models in `scripts/mcp_servers/mdq/mdq_models.py` that no 
 `scripts/mcp_servers/mdq/mdq_models.py`
 
 ### Procedure
-1. Delete `ParsedSectionRequest` (52), `SearchDocsResponse` (212), `GetChunkResponse` (218), `OutlineResponse` (236), `IndexPathsResponse` (243), `RefreshIndexResponse` (249), `IndexMetadata` (259), `StatsResponse` (265), and `GrepDocsResponse` (283).
+1. Delete `ParsedSectionRequest` (59), `SearchDocsResponse` (264), `GetChunkResponse` (270), `OutlineResponse` (288), `IndexPathsResponse` (295), `RefreshIndexResponse` (301), `IndexMetadata` (311), `StatsResponse` (317), and `GrepDocsResponse` (335).
 2. Leave every other definition in place.
 
 ### Method

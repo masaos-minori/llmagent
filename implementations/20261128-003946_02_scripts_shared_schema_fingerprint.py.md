@@ -37,9 +37,9 @@ Requirements: REQ-001 (definition comparison, not names). Acceptance criterion: 
 ### Procedure
 - Extend `_strip_virtual_statements` (line 92) to return, for FTS5 statements, the normalized
   statement text alongside the base name; extension-backed statements keep only the name.
-- In `expected_fingerprint` (line 265), build the FTS5 entry from that normalized text instead of
+- In `expected_fingerprint` (line 263), build the FTS5 entry from that normalized text instead of
   the empty marker from `_name_only`.
-- In `_raise_first_difference` (line 279), limit the name-only skip at lines 308-310 to
+- In `_raise_first_difference` (line 279), limit the name-only skip at lines 309-310 to
   extension-backed entries, so an FTS5 entry compares its text against the live statement.
 - Use `definition` as the refusal part label for an FTS5 entry, so the message reads
   `mdq.sqlite.chunks_fts: definition differ from the canonical schema` rather than reporting a

@@ -11,16 +11,17 @@ Make the MDQ read paths report their consistency state as structured metadata, k
 
 ## Assumptions
 
-- `refresh_in_progress` comes from `self._is_indexing` (line 97, set at 285 and 298, cleared at 290 and 305); it is the existing source, not a new flag.
-- `index_generation` is a service-level counter incremented when a refresh completes, per the plan default in the Plan's UNK-05; nothing persisted carries a generation (`index_state` holds `mtime:<path>` keys only, read at 346), so a read after a restart reports the unknown case with a nullable field rather than an invented value.
+- `refresh_in_progress` comes from `self._is_indexing` (line 99, set at 287 and 298, cleared at 292 and 305); it is the existing source, not a new flag.
+- `index_generation` is a service-level counter incremented when a refresh completes, per the plan default in the Plan's UNK-05; nothing persisted carries a generation (`index_state` holds `mtime:<path>` keys only and `stats()` no longer reads them (its docstring,
+  line 334, says the raw dict is not part of the response)), so a read after a restart reports the unknown case with a nullable field rather than an invented value.
 - The `get_chunk` truncation fields are the persisted columns owned by the mdqmcp004 plan and the read-time cap that was applied; this row reads them, it does not define or extend them. The per-file status and reason vocabulary owned by the mdqmcp003 plan is consumed unchanged.
 - Because three read methods change return shape, the handler unpacking in `scripts/mcp_servers/mdq/mdq_server.py` must cover `outline` and `stats` as well as `get_chunk` (row 03), and the tests that treat the returned value as text must read the pair instead: rows 08, 09, and the two rows added by the Plan's 2026-11-28 fallout amendment (`tests/mcp_servers/mdq/test_mdq_stale_detection.py`, `tests/mcp_servers/mdq/test_mdq_outline_stale_helper.py`).
-- `tests/mcp_servers/mdq/test_mdq_error_taxonomy.py:76,89,98` and `tests/mcp_servers/mdq/test_mdq_path_jail.py:164` call these methods only inside exception assertions, so the shape change does not affect them; they are verification dependencies, not targets.
+- `tests/mcp_servers/mdq/test_mdq_error_taxonomy.py:136,149,158` and `tests/mcp_servers/mdq/test_mdq_path_jail.py:166` call these methods only inside exception assertions, so the shape change does not affect them; they are verification dependencies, not targets.
 
 ## Design decisions
 
 - Return the metadata as the second element of the pair, the pattern `search_docs()` and `grep_docs()` already use, rather than encoding the state into the returned text; that is what keeps `AC-5` true — a wording change cannot change the state.
-- Keep `stale_warning` and the refresh warning as display text for the human-facing output, with the metadata as the authoritative state, so `docs/22_mcp/mcp_04_04_mdq.md:66` remains accurate once row 14 restates it.
+- Keep `stale_warning` and the refresh warning as display text for the human-facing output, with the metadata as the authoritative state, so `docs/22_mcp/mcp_04_04_mdq.md:92` remains accurate once row 14 restates it.
 
 ## Alternatives considered
 
@@ -39,7 +40,9 @@ Make the MDQ read paths report their consistency state as structured metadata, k
 ### Method
 
 - The metadata shapes are the `TypedDict` declarations from row 01 (`SearchDocsMetadata`, `OutlineMetadata` (new), `StatsMetadata` (new), `GetChunkMetadata` (new), `GrepDocsMetadata`, `IndexPathsMetadata`); this row only fills them.
-- `stats()` currently has no metadata path: `index_metadata` at 346 is display content built from raw `index_state` rows, so the new metadata carries only the consistency fields.
+- `stats()` has no metadata path: at the evidence revision it built a display dict from raw
+  `index_state` rows; at current HEAD that dict is gone, so the new metadata carries only the
+  consistency fields.
 - `get_chunk()` reports `truncated`, `truncation_char_count`, `char_count` plus the consistency fields; the read-time cap is the effective value of `max_chars_per_chunk` after the `MdqConfig` bounds.
 
 ### Details

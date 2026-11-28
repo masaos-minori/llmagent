@@ -10,7 +10,7 @@ Create `tests/mcp_servers/mdq/test_mdq_model_usage.py`, which pins the 9 respons
 
 ## Assumptions
 
-- The module does not exist today; `tests/mcp_servers/mdq/` holds 35 test modules and none checks model usage, and the directory has no `__init__.py`, so the module is imported as `tests.mcp_servers.mdq.test_mdq_model_usage` following the existing helper precedent.
+- The module does not exist today; `tests/mcp_servers/mdq/` holds 38 test modules at current HEAD (35 at the evidence revision) and none checks model usage, and the directory has no `__init__.py`, so the module is imported as `tests.mcp_servers.mdq.test_mdq_model_usage` following the existing helper precedent.
 - `vulture --min-confidence 80` reports nothing for `mdq_models.py`, because these are public definitions, so the static dead-code gate cannot catch them; this module is the enforcement the plan names.
 - The consumer rule excludes `mdq_models.py` itself, so a definition referenced only from inside the module does not satisfy `AC-4`; this is what keeps a `pass`-only placeholder such as `IndexMetadata` from passing the guard.
 - `tools/test_taxonomy_baseline.txt` has no MDQ entry, and none is added: the baseline is for modules that cannot be classified, and this module can be.

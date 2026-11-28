@@ -7,7 +7,7 @@ Make the MDQ request models the single source of the published input contract (`
 
 - The 7 tool request models change base class and gain field constraints; no behavior is added to this module.
 - Read metadata shapes gain `refresh_in_progress` (new) and `index_generation` (new); `GetChunkMetadata` (new) is added.
-- `with_neighbors` is removed from `GetChunkRequest` (line 151).
+- `with_neighbors` is removed from `GetChunkRequest` (line 203).
 
 ## Assumptions
 
@@ -35,23 +35,23 @@ Make the MDQ request models the single source of the published input contract (`
 `scripts/mcp_servers/mdq/mdq_models.py`
 
 ### Procedure
-1. Change the base of `SearchDocsRequest` (134), `GetChunkRequest` (147), `OutlineRequest` (155), `IndexPathsRequest` (163), `RefreshIndexRequest` (169), `StatsRequest` (176), `GrepDocsRequest` (182) to `StrictRequestModel`, and declare `model_config = ConfigDict(extra="forbid", strict=True)` on each of them so the model makes the same accept/reject decision as the Agent-side jsonschema check.
+1. Change the base of `SearchDocsRequest` (186), `GetChunkRequest` (199), `OutlineRequest` (207), `IndexPathsRequest` (215), `RefreshIndexRequest` (221), `StatsRequest` (228), `GrepDocsRequest` (234) to `StrictRequestModel`, and declare `model_config = ConfigDict(extra="forbid", strict=True)` on each of them so the model makes the same accept/reject decision as the Agent-side jsonschema check.
 2. Express each advertised bound as a `Field` constraint on the model field it belongs to.
-3. Delete `with_neighbors` from `GetChunkRequest` (line 151).
-4. Add `refresh_in_progress: bool` and `index_generation: int | None` to `SearchDocsMetadata` (321), `IndexPathsMetadata` (332), `GrepDocsMetadata` (342), `OutlineMetadata` (new), `StatsMetadata` (new).
+3. Delete `with_neighbors` from `GetChunkRequest` (line 203).
+4. Add `refresh_in_progress: bool` and `index_generation: int | None` to `SearchDocsMetadata` (373), `IndexPathsMetadata` (384), `GrepDocsMetadata` (394), `OutlineMetadata` (new), `StatsMetadata` (new).
 5. Add `GetChunkMetadata` (new).
 
 ### Method
 
 - This module holds declarations only; the enforcement stays in `scripts/mcp_servers/mdq/mdq_server.py` (whole-mapping validation) and the consistency values are filled by `scripts/mcp_servers/mdq/mdq_service.py`.
 - Constraint mapping, so the generated schema publishes the same values the current blocks publish (the current blocks carry `minimum` and `minItems`, verified at `mdq_tools.py:28,56,62,96,126,132,162,191,247,253,259,264`): maxima — `limit` and `max_results_limit` le 100, `max_total_result_chars` le 100000, `max_chars_per_chunk` le 10000, `max_outline_items` le 500, `max_depth` le 6, `max_grep_matches` le 200, `max_chars_per_match` le 500; minima — ge 1 on every bounded numeric field, ge 0 on `context_before` and `context_after`; `min_length=1` on the `list[str]` fields; `Literal["bm25"]` for the search mode.
-- `StrictRequestModel` makes unknown fields a validation error, which is what the flipped characterization test asserts (`tests/mcp_servers/mdq/test_mdq_get_chunk_behavior.py:79`).
+- `StrictRequestModel` makes unknown fields a validation error, which is what the flipped characterization test asserts (`tests/mcp_servers/mdq/test_mdq_get_chunk_behavior.py:81`).
 
 ### Details
 
 - `GetChunkMetadata` (new) fields: `chunk_id`, `truncated`, `truncation_char_count` (new), `char_count`, `refresh_in_progress` (new), `index_generation` (new) — the persisted truncation fields come from the mdqmcp004 plan, the read-time cap that was applied is the effective value of `max_chars_per_chunk` after `MdqConfig` bounds.
 - `OutlineMetadata` (new) and `StatsMetadata` (new) carry only the consistency fields; existing outline and stats output shapes are unchanged.
-- `stale_warning` (line 240) keeps its field and meaning as display text; the state it describes is now also carried by `refresh_in_progress` (new).
+- `stale_warning` (line 292) keeps its field and meaning as display text; the state it describes is now also carried by `refresh_in_progress` (new).
 
 ## Compatibility considerations
 

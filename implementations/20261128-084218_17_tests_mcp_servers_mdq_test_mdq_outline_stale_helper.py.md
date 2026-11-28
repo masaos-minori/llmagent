@@ -5,8 +5,9 @@ Read the returned text and metadata separately in the missing-document-row case,
 ## Scope
 **Release unit**: N/A: not part of a release unit
 
-- One test, `test_outline_no_stale_warning_when_document_row_missing`, lines 61-63.
-- Line 62 asserts the metadata state is not stale; line 63 asserts the heading text through the returned text element.
+- One test, `test_outline_no_stale_warning_when_document_row_missing` (method at line 39, the
+  assertion at line 65).
+- Line 62 asserts the metadata state is not stale; line 65 asserts the heading text through the returned text element.
 - The fixture that deletes the `documents` row and the module docstring statement about the unreachable NULL half of the guard are unchanged.
 
 ## Assumptions
@@ -29,9 +30,9 @@ Read the returned text and metadata separately in the missing-document-row case,
 `tests/mcp_servers/mdq/test_mdq_outline_stale_helper.py`
 
 ### Procedure
-1. Unpack the value `service.outline()` returns at line 61 into the text element and the metadata.
-2. Assert `metadata["stale"] is False` in place of line 62.
-3. Assert `"Title" in text` in place of line 63.
+1. Unpack the value `service.outline()` returns at line 63 into the text element and the metadata.
+2. Assert `metadata["stale"] is False` in place of line 64.
+3. Assert `"Title" in text` in place of line 65.
 
 ### Method
 

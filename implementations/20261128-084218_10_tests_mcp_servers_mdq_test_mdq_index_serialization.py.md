@@ -5,7 +5,7 @@ Assert the machine-readable consistency state during an active refresh, and keep
 ## Scope
 **Release unit**: N/A: not part of a release unit
 
-- `test_is_indexing_warning_visible_during_active_index` (line 197) asserts `metadata["refresh_in_progress"] is True` as the consistency signal.
+- `test_is_indexing_warning_visible_during_active_index` (method at line 177, assertion at line 199) asserts `metadata["refresh_in_progress"] is True` as the consistency signal.
 - One new test keeps the display wording pinned separately, so the module still records that the warning text appears.
 
 ## Assumptions

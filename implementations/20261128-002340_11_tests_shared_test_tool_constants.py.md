@@ -13,7 +13,8 @@ Requirements: REQ-005. Acceptance criterion: AC-3.
 ## Assumptions
 - Lightweight fill: the existing comparison needs no logic change; this row adds one assertion and
   confirms the comparison passes.
-- `test_retryable_reference_equals_declared_retryable` (line 142) builds `declared` from the
+- `test_retryable_reference_equals_declared_retryable` (method at line 136, the assertion at
+  line 142) builds `declared` from the
   declarations filtered through `retry_policy_is_retryable`, so once rows 4 and 5 land the mdq tools
   are absent from both sides and the assertion passes unchanged.
 - This row gets its own document because it is named in `Related Tests` by two rows (4 and 5), so it

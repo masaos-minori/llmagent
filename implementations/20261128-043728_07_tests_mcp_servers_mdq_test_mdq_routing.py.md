@@ -35,7 +35,7 @@ tier that maps to `medium`.
 
 ### Method
 
-- `test_mdq_write_dangerous_tools` (line 54) asserts membership only and does not name a tier
+- `test_mdq_write_dangerous_tools` (line 56) asserts membership only and does not name a tier
   value, so it needs no change.
 
 ### Details

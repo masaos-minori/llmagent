@@ -40,8 +40,8 @@ Requirements: REQ-001 (readiness compares the stored FTS5 definition). Acceptanc
 `tests/mcp_servers/mdq/test_mdq_health.py`
 
 ### Procedure
-- Replace the plain-table `CREATE TABLE chunks_fts` statement in `_create_test_db` (line 60, with the
-  `chunks_fts` column at line 68) with the canonical FTS5 definition read from
+- Replace the plain-table `CREATE TABLE chunks_fts` statement in `_create_test_db` (line 70, with the
+  `chunks_fts` column at line 78) with the canonical FTS5 definition read from
   `scripts/shared/mdq_schema.py` (new) and executed on the fixture connection.
 - Add the readiness assertion for the aligned fixture in each test that already reads the response
   body, so the fixture is pinned as definition-compliant.

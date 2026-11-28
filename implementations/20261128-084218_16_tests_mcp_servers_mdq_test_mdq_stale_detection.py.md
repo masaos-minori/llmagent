@@ -28,7 +28,7 @@ Assert the outline consistency state through metadata instead of the warning tex
 `tests/mcp_servers/mdq/test_mdq_stale_detection.py`
 
 ### Procedure
-1. Unpack the returned pair in the two outline cases and assert the metadata state at lines 89 and 118.
+1. Unpack the returned pair in the two outline cases and assert the metadata state at lines 91 and 118.
 2. Keep the predicate and SQL-condition agreement cases as they are.
 
 ### Method
