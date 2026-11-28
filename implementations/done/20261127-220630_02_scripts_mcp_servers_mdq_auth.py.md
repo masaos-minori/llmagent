@@ -9,7 +9,8 @@ Expose the canonicalized roots used by the SQL source predicate, so authorizatio
 - Companion test row (SKILL.md conditions 1-4 hold): `tests/mcp_servers/mdq/test_mdq_path_jail.py`.
 - `tests/mcp_servers/mdq/test_auth.py` is a related test but not a target row, so it is not a companion; it is run unchanged as the authorization behavior lock.
 - The SQL predicate is built in `scripts/mcp_servers/mdq/search.py` (seq 01); this document exposes the roots, it does not build the predicate.
-- Execution-order dependency on plan 001: its procedures are still Pending, so the Step 3c gated marker is written on each pending row of this document. `tools/plan_dependency_order.py` reports this plan Ready on 20261127 because plan 001's generation cycle completed; the marker records the substantive dependency, not tool readiness.
+- Verified 20261128 against current source (HEAD `23d03f418`): `auth.py` exposes no canonicalized root set, so the premise holds; the cited lines (`_is_within_root()` line 12, `authorize_path()` line 19, the empty-allowlist branch line 27, the resolve loop line 35) are unchanged. `tests/mcp_servers/mdq/test_mdq_path_jail.py` has no canonicalized-prefix case, so the companion addition is still needed.
+- Execution-order dependency on plan 001: resolved 20261128 - its procedures have been executed and archived; the gated markers this document carried were cleared by owner decision on 20261128 (recorded in Execution Status Notes). `tools/plan_dependency_order.py` reports this plan Ready.
 
 ## Design decisions
 - The module returns the canonicalized root set as data; it does not decide authorization for the caller.
@@ -63,10 +64,10 @@ Expose the canonicalized roots used by the SQL source predicate, so authorizatio
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Gated: plans/20261127-160114_mdqmcp001_mdq-server-boundary.md phase all - the closed error-code vocabulary and the single audit-emission boundary this plan's classification and metrics must match are defined there | Depends on plan 001 procedures, which are still Pending |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Gated: plans/20261127-160114_mdqmcp001_mdq-server-boundary.md phase all - the closed error-code vocabulary and the single audit-emission boundary this plan's classification and metrics must match are defined there | Companion test file is covered by this document |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Gated: plans/20261127-160114_mdqmcp001_mdq-server-boundary.md phase all - the closed error-code vocabulary and the single audit-emission boundary this plan's classification and metrics must match are defined there |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Gated: plans/20261127-160114_mdqmcp001_mdq-server-boundary.md phase all - the closed error-code vocabulary and the single audit-emission boundary this plan's classification and metrics must match are defined there | Documentation is a separate row (seq 11) |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261128-130500 | Gated marker cleared 20261128 by owner decision: the blocking plan plans/20261127-160114_mdqmcp001_mdq-server-boundary.md was executed and archived and plan_dependency_order.py reports this plan Ready - Depends on plan 001 procedures, which have landed and are archived canonicalized_roots added; companion red-first confirmed 20261128: prefix_outside_allowed_dirs_excluded_by_the_predicate fails at matched_count 1 != 0 (no SQL predicate today); canonicalized_roots contract and symlinked-root guard green; test_auth.py unchanged |
+| 2 | Add or update tests per Validation plan | Completed | 20261128-134500 | 20261128-134500 | Companion tests finalized 20261128: red-first confirmed at write time (prefix_outside_allowed_dirs_excluded_by_the_predicate failed at matched_count 1 != 0, no SQL predicate today); turned green with the seq 01 predicate. Final run 21 passed including test_auth.py unchanged. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261128-134500 | 20261128-134500 | ruff format/check and mypy clean on auth.py; gates run per member via run_validation_gates.py (fast mode) at end of unit; full suite ran once at end of unit with coverage, baseline-only failures. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261128-134500 | 20261128-134500 | Documentation out of scope for this procedure; covered by the plan's documentation row (seq 11), landed 20261128. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

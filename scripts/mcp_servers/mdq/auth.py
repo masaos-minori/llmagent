@@ -16,6 +16,22 @@ def _is_within_root(resolved: Path, resolved_root: Path) -> bool:
     ) == str(resolved_root)
 
 
+def canonicalized_roots(allowed_dirs: list[str]) -> list[str]:
+    """Return the resolved allowlist roots as strings.
+
+    Uses the same `Path.resolve()` call `authorize_path()` performs, so the SQL
+    source predicate and the authorization decision compare the same values.
+    Roots that fail to resolve are skipped, mirroring the authorization loop.
+    """
+    roots: list[str] = []
+    for root in allowed_dirs:
+        try:
+            roots.append(str(Path(root).resolve()))
+        except (OSError, ValueError):
+            continue
+    return roots
+
+
 def authorize_path(path: Path, allowed_dirs: list[str]) -> bool:
     """Authorize access to a file path based on the allowlist.
 

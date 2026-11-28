@@ -34,7 +34,7 @@ Tool membership and risk tiers: [mcp_01_tool_ownership_matrix.md](mcp_01_tool_ow
 - `max_file_chars`: a larger file is skipped with a warning and is not indexed.
 - `max_chunk_chars`: content is truncated before `content_hash` is calculated, so the hash matches the stored content.
 - `max_snippet_chars` truncates search snippets.
-- `search_timeout_sec`: `search_docs()` raises `MdqConsistencyError` on timeout; the background thread is not forcibly interrupted.
+- `search_timeout_sec`: a timed-out `search_docs` call stops its worker through the progress-handler stop event and waits for it inside the bounded drain interval (`DRAIN_INTERVAL_SEC`, module constant); the call is reported with the code `timeout` and the worker's connection is closed by the worker before the caller returns. A worker that does not stop inside the drain interval is left to release its own connection, and the connection an interrupted search holds is never reused by another search. See `mcp_05_05_mdq-enforcement-and-lockdown.md` for the enforcement boundary.
 
 **Stored data:** `chunks.tags_json` holds the YAML frontmatter `tags:` values (list or comma-separated) and is the data `search_docs` `tag_filter` matches against. `token_count` is an approximation (`max(1, len(content) // 4)`, so an empty or very short section still reports at least 1), not an accurate tokenizer.
 
@@ -52,12 +52,22 @@ All tools receiving paths enforce fail-closed authorization via `allowed_dirs`. 
 | `index_paths` | Directory/File to index | `authorize_path()` raises `MdqAuthorizationError` if outside `allowed_dirs` |
 | `refresh_index` | Path to refresh | Path authorization; raises `MdqAuthorizationError` if any path is denied |
 | `outline` | File to outline | `authorize_path()` raises `MdqAuthorizationError` if outside `allowed_dirs` |
-| `search_docs` | `source_path` of indexed chunks (re-checked upon reading) | Chunks outside `allowed_dirs` are silently excluded from results (not counted) |
+| `search_docs` | `source_path` of indexed chunks (authorized in SQL before `COUNT`, ranking, and `LIMIT`) | Chunks outside the canonicalized `allowed_dirs` roots are excluded by the query predicate — they are not counted and cannot fill a result slot; `matched_count` is the authorized count. Empty `allowed_dirs` matches no row (fail-closed) |
 | `get_chunk` | `source_path` of chunk to retrieve (re-checked upon reading) | Raises `MdqAuthorizationError` if outside `allowed_dirs` |
 | `grep_docs` | Explicitly specified path, or the authorized set of all indexed `source_path`s (re-checked upon reading) | An unauthorized explicit path rejects the entire call with `MdqAuthorizationError`; with no filter, unauthorized paths are silently excluded |
 
 - `..` traversal and symbolic-link escapes are blocked by `Path.resolve()` within `authorize_path()` (`scripts/mcp_servers/mdq/auth.py`).
-- Empty `allowed_dirs = []` (default) denies all path access (fail-closed).
+- Empty `allowed_dirs = []` (default) denies all path access (fail-closed). `canonicalized_roots()` gives the SQL query boundary the same canonical form `authorize_path()` resolves to, so the predicate and the authorization never disagree.
+
+### Query boundary contract
+
+`search_docs` applies the authorized-source predicate in SQL before `COUNT`, ranking, and `LIMIT`, so an unauthorized row can neither change a visible count nor fill a result slot. Filter semantics are exact, not pattern-based:
+
+- `path_prefix` compares the literal prefix with a path-separator boundary (`%` and `_` in the prefix are data, not wildcards), and the filter is authorized before the query is built.
+- `tag_filter` matches whole JSON array values, so a similar tag does not match.
+- `matched_count` is the authorized count reported by the predicate before any `LIMIT`; the response reports matched and shown counts separately when limiting hides rows.
+- Each search owns one connection through `db.helper.SQLiteHelper`, cancelled through the progress-handler stop event within the bounded drain; active searches are capped at `MAX_ACTIVE_SEARCHES`, the existing per-server concurrency convention (`DEFAULT_PER_SERVER_CONCURRENCY`).
+- The raw query text never reaches the response, the metadata, or the persistent log line: the hashed identifier from `hash_query_value()` is used instead.
 
 ### Availability and execution contract
 
@@ -81,7 +91,9 @@ Administrator diagnostics stay on the existing runtime-availability diagnostics 
 
 ### Error codes
 
-The error vocabulary is one closed set of lowercase-snake codes, recorded in `mcp_02_03_audit-logging-and-errors.md`: `validation_error`, `authorization_error`, `tool_disabled`, `not_found`, `database_unavailable`, `consistency_error`, `timeout`, and `unexpected_error`. `timeout` is reserved for the search path, which reports a timeout as `consistency_error` today, and `unexpected_error` covers a failure with no mdq exception class. A code never carries exception text, SQLite detail, or a path, and `error_type` in an audit record is one of these codes rather than an exception class name.
+The error vocabulary is one closed set of lowercase-snake codes, recorded in `mcp_02_03_audit-logging-and-errors.md`: `validation_error`, `authorization_error`, `tool_disabled`, `not_found`, `database_unavailable`, `consistency_error`, `timeout`, and `unexpected_error`. `timeout` is reserved for the search path and is resolved from the cause of the exception it raises (a `TimeoutError` cause maps to `timeout` in `scripts/mcp_servers/mdq/mdq_error_codes.py`); `tool_disabled` has no exception class and is produced by the dispatch boundary. `unexpected_error` covers a failure with no mdq exception class. A code never carries exception text, SQLite detail, or a path, and `error_type` in an audit record is one of these codes rather than an exception class name.
+
+Search-path classification is by cause, not by swallowing: a rejected FTS5 query syntax resolves to `validation_error`, an index-consistency failure (missing table, corruption) resolves to `consistency_error` and is not retryable, a busy or locked database resolves to `consistency_error` and is retryable, and an interrupted statement resolves to `timeout`. A malformed FTS5 query is no longer reported as a successful zero-result response.
 
 Tool-domain failures return HTTP 200 with `is_error=true` and the code, per `mcp_02_01_endpoints-and-transport.md`, so they count as transport successes in the health registry and are not retried; retry classification applies only to transport failures (see `mcp_03_03_transport-and-health.md`). The exception handlers render the transport response only.
 

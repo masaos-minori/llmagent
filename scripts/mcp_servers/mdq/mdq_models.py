@@ -371,9 +371,14 @@ STALE_SQL_CONDITION: str = "mtime_ns > CAST(indexed_at * 1e9 AS INTEGER)"
 
 
 class SearchDocsMetadata(TypedDict):
-    """Structured audit metadata produced by search_docs(), consumed by mdq_server.py."""
+    """Structured audit metadata produced by search_docs(), consumed by mdq_server.py.
 
-    query_preview: str
+    `query_preview` carries the hashed identifier produced by
+    `mcp_servers.audit.hash_query_value`; no raw query text, and no prefix of it,
+    is reachable from this metadata (AC-5).
+    """
+
+    query_preview: str  # hashed identifier; the raw query value is not stored here
     result_count: int  # exact match count before truncation
     shown_count: int  # results actually included in the formatted text
     truncated: bool

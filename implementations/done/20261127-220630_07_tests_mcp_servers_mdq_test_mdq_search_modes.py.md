@@ -9,7 +9,8 @@ Keep the mode and cap characterization passing under the new query boundary and 
 - Plan Gap recorded by this pass: no `Implementation steps` entry cites this row; the row is covered by the plan's Tests section (REQ-003), not by a step.
 - This row keeps its own document because it fails the companion condition (2): no code row in this plan names it in its `Related Tests` cell.
 - Written in Phase 1 before the production change; the zero-result assertion fails first because the current boundary reports a count for rows the caller cannot see.
-- Execution-order dependency on plan 001: its procedures are still Pending, so the Step 3c gated marker is written on each pending row of this document. `tools/plan_dependency_order.py` reports this plan Ready on 20261127 because plan 001's generation cycle completed; the marker records the substantive dependency, not tool readiness.
+- Corrected 20261128: that failing-first holds only when the case is measured through `_search_docs_structured()`. Through the formatted `search_docs()` response the current early-return branch (line 59) already reports zero for rows the caller cannot see, so an assertion on the formatted text alone passes before the change; the test asserts the boundary count through the structured result and then that the caller sees zero.
+- Execution-order dependency on plan 001: resolved 20261128 - its procedures have been executed and archived; the gated markers this document carried were cleared by owner decision on 20261128 (recorded in Execution Status Notes). `tools/plan_dependency_order.py` reports this plan Ready.
 
 ## Design decisions
 - The mode and cap assertions are behavior locks: they must not change under the new boundary, so the document adds no new mode behavior.
@@ -23,8 +24,8 @@ Keep the mode and cap characterization passing under the new query boundary and 
 `tests/mcp_servers/mdq/test_mdq_search_modes.py`
 
 ### Procedure
-- Keep `test_default_mode_is_bm25` (line 37), `test_unsupported_mode_rejected` (line 45), and `test_request_override_above_cap_is_bounded` (line 100) unchanged.
-- Add the genuine zero-result case: rows exist in the index, all outside the authorized roots, and the caller sees zero matches.
+- Keep `test_default_mode_is_bm25` (line 39), `test_unsupported_mode_rejected` (line 47), and `test_request_override_above_cap_is_bounded` (line 102) unchanged (re-cited 20261128 against current source).
+- Add the genuine zero-result case: rows exist in the index, all outside the authorized roots, and the caller sees zero matches. Assert `matched_count` from `_search_docs_structured()` (the boundary) as zero, then that the formatted response reports zero to the caller.
 
 ### Method
 - The fixture indexes under one root and authorizes a different root, so the rows exist but are not visible.
@@ -58,8 +59,8 @@ Keep the mode and cap characterization passing under the new query boundary and 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Gated: plans/20261127-160114_mdqmcp001_mdq-server-boundary.md phase all - the closed error-code vocabulary and the single audit-emission boundary this plan's classification and metrics must match are defined there | Depends on plan 001 procedures, which are still Pending |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Gated: plans/20261127-160114_mdqmcp001_mdq-server-boundary.md phase all - the closed error-code vocabulary and the single audit-emission boundary this plan's classification and metrics must match are defined there |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261128-115000 | Gated marker cleared 20261128 by owner decision: the blocking plan plans/20261127-160114_mdqmcp001_mdq-server-boundary.md was executed and archived and plan_dependency_order.py reports this plan Ready - Depends on plan 001 procedures, which have landed and are archived Red-first confirmed 20261128: TestGenuineZeroResult fails at matched_count 3 != 0 (count query has no authorized-source predicate today); 8 existing guards pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261128-134500 | 20261128-134500 | Red test green after the seq 01 predicate; member run 9 passed; the pre-existing max_search_results call-arg mypy error is outside CI mypy scope; gates clean; full suite once at end of unit, baseline-only failures. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

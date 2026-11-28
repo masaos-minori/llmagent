@@ -9,7 +9,7 @@ Assert that the `LIMIT` slots are filled only by authorized rows, so an unauthor
 - This row keeps its own document because it fails the companion condition (2): no code row in this plan names it in its `Related Tests` cell.
 - Written in Phase 1 before the production change; the added assertion fails first and pins the current post-`LIMIT` authorization order.
 - The existing cap assertions stay unchanged; only the authorization order is added.
-- Execution-order dependency on plan 001: its procedures are still Pending, so the Step 3c gated marker is written on each pending row of this document. `tools/plan_dependency_order.py` reports this plan Ready on 20261127 because plan 001's generation cycle completed; the marker records the substantive dependency, not tool readiness.
+- Execution-order dependency on plan 001: resolved 20261128 - its procedures have been executed and archived; the gated markers this document carried were cleared by owner decision on 20261128 (recorded in Execution Status Notes). `tools/plan_dependency_order.py` reports this plan Ready.
 
 ## Design decisions
 - The test places an unauthorized row that ranks above an authorized row, so a `LIMIT` slot taken by the unauthorized row is observable as a missing authorized result.
@@ -24,7 +24,7 @@ Assert that the `LIMIT` slots are filled only by authorized rows, so an unauthor
 
 ### Procedure
 - Add the case where an unauthorized row ranks above an authorized row and the `LIMIT` slots contain only authorized rows.
-- Keep `test_default_limit_from_config` (line 44), `test_explicit_limit_below_cap_is_honored` (line 54), and `test_explicit_limit_above_cap_is_bounded_at_sql_layer` (line 66) unchanged.
+- Keep `test_default_limit_from_config` (line 46), `test_explicit_limit_below_cap_is_honored` (line 56), and `test_explicit_limit_above_cap_is_bounded_at_sql_layer` (line 68) unchanged (re-cited 20261128 against current source).
 
 ### Method
 - Rows are indexed under two roots and the allowlist is narrowed to one, so the unauthorized row is present in the database but not visible.
@@ -57,8 +57,8 @@ Assert that the `LIMIT` slots are filled only by authorized rows, so an unauthor
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Gated: plans/20261127-160114_mdqmcp001_mdq-server-boundary.md phase all - the closed error-code vocabulary and the single audit-emission boundary this plan's classification and metrics must match are defined there | Depends on plan 001 procedures, which are still Pending |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Gated: plans/20261127-160114_mdqmcp001_mdq-server-boundary.md phase all - the closed error-code vocabulary and the single audit-emission boundary this plan's classification and metrics must match are defined there |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261128-110504 | 20261128-114500 | Gated marker cleared 20261128 by owner decision: the blocking plan plans/20261127-160114_mdqmcp001_mdq-server-boundary.md was executed and archived and plan_dependency_order.py reports this plan Ready - Depends on plan 001 procedures, which have landed and are archived Red-first confirmed 20261128: test_unauthorized_row_cannot_take_a_limit_slot fails (unauthorized row takes the LIMIT slot because authorization is applied in Python after LIMIT today); 3 existing cap guards pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261128-134500 | 20261128-134500 | Red test green after the seq 01 predicate; member run 4 passed; gates clean (ruff, taxonomy); full suite once at end of unit, baseline-only failures. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

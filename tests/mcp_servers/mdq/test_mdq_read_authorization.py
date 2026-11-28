@@ -2,7 +2,9 @@
 
 Read-time authorization regression tests for `search_docs`, `get_chunk`, `grep_docs` —
 verifies narrowing `allowed_dirs` after indexing immediately hides previously-indexed
-content, per `plans/20260719-205532_plan.md`.
+content, per `plans/20260719-205532_plan.md`. Adds the mixed-root search cases measured
+through the query boundary (REQ-002, AC-1): source
+issues/20261119-142124_mdqmcp002_mdq-search-query-boundary.md.
 """
 
 from __future__ import annotations
@@ -21,7 +23,7 @@ from mcp_servers.mdq.mdq_models import (
     StatsRequest,
 )
 from mcp_servers.mdq.mdq_service import MdqService
-from mcp_servers.mdq.search import search_docs
+from mcp_servers.mdq.search import _search_docs_structured, search_docs
 
 from tests.mcp_servers.mdq._startup import make_startup
 
@@ -74,6 +76,64 @@ class TestSearchDocsReadTimeAuthorization:
             service, SearchDocsRequest(query="SecretKeyword")
         )
         assert "No results found" in text
+
+    async def test_mixed_roots_unauthorized_row_ranked_first(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        """Phase 1 characterization (REQ-002, AC-1): the unauthorized row ranks above the
+        authorized row, so a `LIMIT` slot must not be taken by it. Written before the
+        production change; it fails first because authorization is applied in Python after
+        `LIMIT` today, so the unauthorized row takes the slot and the authorized row is
+        missing.
+        """
+        unauthorized_root = tmp_path / "unauthorized"
+        authorized_root = tmp_path / "authorized"
+        unauthorized_root.mkdir()
+        authorized_root.mkdir()
+        # bm25 ranks the unauthorized doc first by term frequency, so the assertion does
+        # not depend on insertion order.
+        (unauthorized_root / "unauthorized.md").write_text(
+            "# Unauthorized\n\nUniform Uniform Uniform.", encoding="utf-8"
+        )
+        (authorized_root / "authorized.md").write_text(
+            "# Authorized\n\nUniform content here.", encoding="utf-8"
+        )
+        await index_paths(service, IndexPathsRequest(paths=[str(tmp_path)]))
+
+        # Both roots are indexed; only one is authorized, so the unauthorized row can only
+        # be excluded by the SQL predicate.
+        service._allowed_dirs = [str(authorized_root)]
+        result = _search_docs_structured(
+            service, SearchDocsRequest(query="Uniform", limit=1)
+        )
+
+        assert len(result["results"]) == 1
+        assert result["results"][0].source_path.startswith(
+            str(authorized_root.resolve())
+        )
+        assert result["matched_count"] == 1
+
+    async def test_shrunk_allowlist_reported_zero_through_the_query_boundary(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        """Phase 1 characterization (REQ-002, AC-1): the same shrink case measured through
+        the query boundary rather than the Python filter, so the assertion is on the SQL
+        predicate. Written before the production change; it fails first because the count
+        query has no authorized-source predicate today.
+        """
+        f = tmp_path / "visible.md"
+        f.write_text("# Title\n\nSecretKeyword content.", encoding="utf-8")
+        await index_paths(service, IndexPathsRequest(paths=[str(f)]))
+
+        other_dir = tmp_path / "other-unrelated-dir"
+        other_dir.mkdir()
+        service._allowed_dirs = [str(other_dir)]
+
+        result = _search_docs_structured(
+            service, SearchDocsRequest(query="SecretKeyword")
+        )
+        assert result["matched_count"] == 0
+        assert result["results"] == []
 
 
 class TestGetChunkReadTimeAuthorization:

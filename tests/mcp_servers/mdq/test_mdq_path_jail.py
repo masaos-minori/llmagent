@@ -3,7 +3,9 @@ Fail-closed path authorization tests for MDQ path-accepting tools.
 
 Verifies that index_paths, refresh_index (via _validate_paths), and
 outline all raise MdqAuthorizationError instead of silently skipping
-denied paths.
+denied paths. Also pins the canonicalized-prefix cases for the SQL source
+predicate (REQ-002): source
+issues/20261119-142124_mdqmcp002_mdq-search-query-boundary.md.
 """
 
 from __future__ import annotations
@@ -13,14 +15,17 @@ from pathlib import Path
 from tempfile import mkstemp
 
 import pytest
+from mcp_servers.mdq.auth import canonicalized_roots
 from mcp_servers.mdq.indexer import index_paths
 from mcp_servers.mdq.mdq_models import (
     IndexPathsRequest,
     MdqAuthorizationError,
     OutlineRequest,
     RefreshIndexRequest,
+    SearchDocsRequest,
 )
 from mcp_servers.mdq.mdq_service import MdqService
+from mcp_servers.mdq.search import _search_docs_structured
 
 from tests.mcp_servers.mdq._startup import make_startup
 
@@ -164,3 +169,74 @@ class TestOutlineAuthorization:
         req = OutlineRequest(path=str(md_file))
         with pytest.raises(MdqAuthorizationError):
             await denied_service.outline(req)
+
+
+# ── SQL source predicate (canonicalized roots) ────────────────────────────────
+
+
+class TestSearchSourcePredicate:
+    async def test_canonicalized_roots_resolves_allowlist_entries(
+        self, tmp_path: Path
+    ) -> None:
+        """`canonicalized_roots()` returns the same resolved values the authorization
+        decision compares, skipping entries that fail to resolve.
+        """
+        real_root = tmp_path / "real-root"
+        real_root.mkdir()
+        link_root = tmp_path / "link-root"
+        link_root.symlink_to(real_root)
+
+        roots = canonicalized_roots([str(link_root), str(real_root / ".." / "x")])
+        assert roots == [
+            str(real_root.resolve()),
+            str((real_root / ".." / "x").resolve()),
+        ]
+
+    async def test_prefix_outside_allowed_dirs_excluded_by_the_predicate(
+        self, tmp_path: Path
+    ) -> None:
+        """Fails first (recorded 20261128): the count query has no authorized-source
+        predicate today, so a row in a sibling directory that shares the textual prefix
+        of the allowlist root is reported. Post-change, the predicate must match the
+        canonicalized root with the path separator boundary.
+        """
+        root = tmp_path / "root"
+        sibling = tmp_path / "root_evil"
+        root.mkdir()
+        sibling.mkdir()
+        (sibling / "evil.md").write_text(
+            "# PrefixTrap\n\nUniformTrap content.", encoding="utf-8"
+        )
+        svc = MdqService(make_startup(str(tmp_path / "pred.db")))
+        # Index with the sibling authorized, then narrow the allowlist to `root`: the row
+        # shares the textual prefix of the root but is outside it.
+        svc._allowed_dirs = [str(sibling)]
+        await index_paths(svc, IndexPathsRequest(paths=[str(sibling / "evil.md")]))
+        svc._allowed_dirs = [str(root)]
+        result = _search_docs_structured(svc, SearchDocsRequest(query="UniformTrap"))
+        assert result["matched_count"] == 0
+        assert result["results"] == []
+
+    async def test_symlinked_root_predicate_compares_canonicalized_values(
+        self, tmp_path: Path
+    ) -> None:
+        """Guard (green today via the Python gate, green post-change through the predicate):
+        rows stored under the canonicalized root stay visible when the allowlist entry is a
+        symlink to that root.
+        """
+        real_root = tmp_path / "real-root"
+        real_root.mkdir()
+        link_root = tmp_path / "link-root"
+        link_root.symlink_to(real_root)
+        (real_root / "doc.md").write_text(
+            "# Canonical\n\nCanonicalProbe content.", encoding="utf-8"
+        )
+
+        svc = MdqService(make_startup(str(tmp_path / "canon.db")))
+        svc._allowed_dirs = [str(link_root)]
+        await index_paths(svc, IndexPathsRequest(paths=[str(real_root)]))
+
+        result = _search_docs_structured(svc, SearchDocsRequest(query="CanonicalProbe"))
+        assert result["matched_count"] == 1
+        assert len(result["results"]) == 1
+        assert result["results"][0].source_path.startswith(str(real_root.resolve()))

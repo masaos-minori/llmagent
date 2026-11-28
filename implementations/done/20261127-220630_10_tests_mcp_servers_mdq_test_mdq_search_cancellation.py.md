@@ -8,8 +8,11 @@ Create the cancellation and concurrency tests: dedicated connection per search, 
 ## Assumptions
 - This row keeps its own document because it fails the companion condition (3): the cancellation, drain, and connection-lifecycle assertions are design decisions of this row, not assertion updates following a boundary another row decides.
 - The file does not exist yet; `tests/mcp_servers/mdq/` holds 35 test files and none covers cancellation or worker leakage.
+- Corrected 20261128: the directory holds 38 `test_*.py` modules (re-counted against current source); the none-covers-cancellation claim still holds.
+- Corrected 20261128: the taxonomy claim does not apply as written. `tools/check_test_taxonomy.py` classifies modules under `tests/agent` and `tests/shared` only, and no MDQ module carries `pytestmark` today; plan 010 adds the marker to the five shared MDQ modules. This module carries the requirement citation (`REQ-004` plus the source issue path) in its docstring and no `pytestmark`, which is what the rule requires of a contract module once the marker is added later.
+- Corrected 20261128: the bounded-drain assertion cannot be observed through the current call path, where the caller returns at the timeout without waiting for the worker; the test pins the post-change behavior. Because the helper's default `check_every` is 1000 VM steps, a short statement can finish before the stop event is observed, so the test uses a statement long enough for the progress handler to fire.
 - Written in Phase 1 before the production change; the tests fail first and pin the current behavior, where the worker is not interrupted and the connection is shared.
-- Execution-order dependency on plan 001: its procedures are still Pending, so the Step 3c gated marker is written on each pending row of this document. `tools/plan_dependency_order.py` reports this plan Ready on 20261127 because plan 001's generation cycle completed; the marker records the substantive dependency, not tool readiness.
+- Execution-order dependency on plan 001: resolved 20261128 - its procedures have been executed and archived; the gated markers this document carried were cleared by owner decision on 20261128 (recorded in Execution Status Notes). `tools/plan_dependency_order.py` reports this plan Ready.
 
 ## Design decisions
 - The leak test runs the timeout path repeatedly and asserts the connection count returns to the baseline, so a single leaked connection is observable.
@@ -32,10 +35,11 @@ Create the cancellation and concurrency tests: dedicated connection per search, 
 
 ### Method
 - Connections are counted through `scripts/db/helper.py` as it stands, with a caller-supplied `db_path`; the helper is not modified.
+- Corrected 20261128: the helper exposes no connection counter, so counting is done by the test itself (monkeypatched `sqlite3.connect` recording each opened connection, plus the connection object identity), not by a helper facility. The helper is still not modified.
 - The progress-handler stop event is triggered by the test, so the interruption is observable without waiting for a real long query.
 
 ### Details
-- The tests are marked with the plan's test-taxonomy marker used by the other MDQ test modules.
+- The tests carry the `REQ-004` citation and the source issue path in the module docstring; no `pytestmark` is added (see the 20261128 correction in Assumptions).
 
 ## Compatibility considerations
 - N/A: new test file.
@@ -64,8 +68,8 @@ Create the cancellation and concurrency tests: dedicated connection per search, 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Gated: plans/20261127-160114_mdqmcp001_mdq-server-boundary.md phase all - the closed error-code vocabulary and the single audit-emission boundary this plan's classification and metrics must match are defined there | Depends on plan 001 procedures, which are still Pending |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Gated: plans/20261127-160114_mdqmcp001_mdq-server-boundary.md phase all - the closed error-code vocabulary and the single audit-emission boundary this plan's classification and metrics must match are defined there |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261128-124000 | Gated marker cleared 20261128 by owner decision: the blocking plan plans/20261127-160114_mdqmcp001_mdq-server-boundary.md was executed and archived and plan_dependency_order.py reports this plan Ready - Depends on plan 001 procedures, which have landed and are archived Red-first confirmed 20261128: 6 red - helper ownership (search uses service accessor today), handler not installed, caller returns at timeout without waiting for a worker that never stops, interrupted connection not closed at raise, no active-search limit constant, peak exceeds limit; 2 guards pass today (connection-per-search identity, leak-at-raise observable) via a recording sqlite3.Connection stand-in |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261128-134500 | 20261128-134500 | All six reds green after the seq 01 implementation; three test adjustments recorded (drain measured inside the loop, follow-up search shortened to complete inside the timeout, gather with return_exceptions); member run 6 passed; gates clean; full suite once at end of unit, baseline-only failures. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

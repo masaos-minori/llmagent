@@ -10,7 +10,7 @@ Make `SearchDocsMetadata.query_preview` carry the hashed query identifier instea
 - The field type stays `str`; only the value written by `scripts/mcp_servers/mdq/search.py` (seq 01) changes.
 - The request model keeps `path_prefix`, `heading_prefix`, `mode`, and `limit` unchanged, which `tests/mcp_servers/mdq/test_mdq_search_modes.py` (seq 07) pins.
 - The hashed identifier and the hashing convention come from plan 001 (`scripts/mcp_servers/audit.py`); this document defines none.
-- Execution-order dependency on plan 001: its procedures are still Pending, so the Step 3c gated marker is written on each pending row of this document. `tools/plan_dependency_order.py` reports this plan Ready on 20261127 because plan 001's generation cycle completed; the marker records the substantive dependency, not tool readiness.
+- Execution-order dependency on plan 001: resolved 20261128 - its procedures have been executed and archived; the gated markers this document carried were cleared by owner decision on 20261128 (recorded in Execution Status Notes). `tools/plan_dependency_order.py` reports this plan Ready.
 
 ## Design decisions
 - The model holds the identifier, not the raw text, so a consumer cannot recover the query from metadata.
@@ -24,7 +24,7 @@ Make `SearchDocsMetadata.query_preview` carry the hashed query identifier instea
 `scripts/mcp_servers/mdq/mdq_models.py`
 
 ### Procedure
-- Keep `query_preview: str` (line 324) as the field, and document in the model that its value is the hashed identifier.
+- Keep `query_preview: str` (line 376, re-cited 20261128) as the field, and document in the model that its value is the hashed identifier.
 - Do not change any other field of `SearchDocsMetadata` or `SearchDocsRequest`.
 
 ### Method
@@ -34,8 +34,8 @@ Make `SearchDocsMetadata.query_preview` carry the hashed query identifier instea
 - The 80-character truncation is removed with the raw value, so no prefix of the query survives.
 
 ## Compatibility considerations
-- `tests/mcp_servers/test_mdq_audit.py` asserts the absence of raw query text in persisted records; it is run unchanged and is the guard for this change.
-- `tests/mcp_servers/mdq/test_mdq_model_usage.py` is run unchanged.
+- `tests/mcp_servers/test_mdq_audit.py` asserts the absence of raw query text in persisted records; it is run unchanged and is the guard for this change (verified 20261128: `test_query_value_is_persisted_as_a_hash` compares the stored target against `hash_query_value(query)`).
+- Corrected 20261128: `tests/mcp_servers/mdq/test_mdq_model_usage.py` does not exist; it is a Create row of `plans/20261127-203046_mdqmcp010_mdq-release-readiness.md`, so it cannot be run here. The Validation plan below drops it.
 
 ## Security considerations
 - No raw query text may appear in the response or in a persisted record (AC-5).
@@ -44,7 +44,7 @@ Make `SearchDocsMetadata.query_preview` carry the hashed query identifier instea
 - N/A: revert the commit.
 
 ## Validation plan
-- `uv run pytest tests/mcp_servers/test_mdq_audit.py tests/mcp_servers/mdq/test_mdq_model_usage.py tests/mcp_servers/mdq/test_search.py`
+- `uv run pytest tests/mcp_servers/test_mdq_audit.py tests/mcp_servers/mdq/test_search.py`
 - Full sequence per `rules/toolchain.md`, including `PYTHONPATH=scripts uv run lint-imports`.
 
 ## Completion criteria
@@ -60,9 +60,9 @@ Make `SearchDocsMetadata.query_preview` carry the hashed query identifier instea
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Gated: plans/20261127-160114_mdqmcp001_mdq-server-boundary.md phase all - the closed error-code vocabulary and the single audit-emission boundary this plan's classification and metrics must match are defined there | Depends on plan 001 procedures, which are still Pending |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Gated: plans/20261127-160114_mdqmcp001_mdq-server-boundary.md phase all - the closed error-code vocabulary and the single audit-emission boundary this plan's classification and metrics must match are defined there | No test change; the existing assertions stay compatible |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Gated: plans/20261127-160114_mdqmcp001_mdq-server-boundary.md phase all - the closed error-code vocabulary and the single audit-emission boundary this plan's classification and metrics must match are defined there | Documentation is a separate row (seq 11) |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261128-134500 | 20261128-134500 | Docstring records query_preview as the hashed identifier (no raw query prefix); actual hashing happens in seq 01, landed 20261128. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261128-134500 | 20261128-134500 | Existing assertion guard test_query_value_is_persisted_as_a_hash stays green with the hashed identifier; gates clean at end of unit. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261128-134500 | 20261128-134500 | Documentation is a separate row (seq 11), landed 20261128. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -210,11 +210,11 @@ Doc content policy applies: the cause-to-code classification table is a closed v
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: characterization tests first | In Progress | — | — | Unauthorized-rows-ranked-first and repeated-timeout leak tests written first per the issue's instruction |
-| 2 | Phase 2: query construction | In Progress | — | — | Authorized SQL predicate, exact prefix and tag semantics |
-| 3 | Phase 3: error classification | In Progress | — | — | Cause-based mapping to the closed code vocabulary |
-| 4 | Phase 4: cancellation and concurrency | In Progress | — | — | Dedicated connection, stop event, bounded drain, bounded concurrency |
-| 5 | Phase 5: documentation | In Progress | — | — | MDQ contract doc and doc content policy gate |
+| 1 | Phase 1: characterization tests first | Completed | — | 20261128-125000 | Unauthorized-rows-ranked-first and repeated-timeout leak tests written first per the issue's instruction Phase 1 characterization tests written and confirmed red-first: 10 failing tests across seq 06/07/08/10 (1 limit slot, 1 genuine zero, 2 mixed-root/shrink, 6 cancellation) recorded in each procedure's Execution Notes; companion rows pass; 22 green guards |
+| 2 | Phase 2: query construction | Completed | — | 20261128-123034 | Authorized SQL predicate, exact prefix and tag semantics |
+| 3 | Phase 3: error classification | Completed | — | 20261128-123034 | Cause-based mapping to the closed code vocabulary |
+| 4 | Phase 4: cancellation and concurrency | Completed | — | 20261128-123034 | Dedicated connection, stop event, bounded drain, bounded concurrency |
+| 5 | Phase 5: documentation | Completed | — | 20261128-123034 | MDQ contract doc and doc content policy gate |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -224,14 +224,14 @@ Doc content policy applies: the cause-to-code classification table is a closed v
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261127-220630_01_scripts_mcp_servers_mdq_search.py.md` | 1, 2, 3, 4 | Procedure | Pending | — | — |
-| `implementations/20261127-220630_02_scripts_mcp_servers_mdq_auth.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261127-220630_03_scripts_mcp_servers_mdq_mdq_models.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261127-220630_06_tests_mcp_servers_mdq_test_mdq_search_limits.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261127-220630_07_tests_mcp_servers_mdq_test_mdq_search_modes.py.md` | — (Plan Gap: no Implementation step modifies this path) | Procedure | Pending | — | — |
-| `implementations/20261127-220630_08_tests_mcp_servers_mdq_test_mdq_read_authorization.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261127-220630_10_tests_mcp_servers_mdq_test_mdq_search_cancellation.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261127-220630_11_docs_22_mcp_mcp_04_04_mdq.md.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261127-220630_01_scripts_mcp_servers_mdq_search.py.md` | 1, 2, 3, 4 | Procedure | Completed | — | — |
+| `implementations/20261127-220630_02_scripts_mcp_servers_mdq_auth.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261127-220630_03_scripts_mcp_servers_mdq_mdq_models.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261127-220630_06_tests_mcp_servers_mdq_test_mdq_search_limits.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261127-220630_07_tests_mcp_servers_mdq_test_mdq_search_modes.py.md` | — (Plan Gap: no Implementation step modifies this path) | Procedure | Completed | — | — |
+| `implementations/20261127-220630_08_tests_mcp_servers_mdq_test_mdq_read_authorization.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261127-220630_10_tests_mcp_servers_mdq_test_mdq_search_cancellation.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261127-220630_11_docs_22_mcp_mcp_04_04_mdq.md.md` | 5 | Procedure | Completed | — | — |
 
 Plan Gap: no `Implementation steps` entry modifies `tests/mcp_servers/mdq/test_mdq_search_modes.py`; the row is covered by the plan's Tests section (REQ-003), not by a step.
 

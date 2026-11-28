@@ -2,7 +2,9 @@
 
 Regression coverage for search_docs mode restriction and result-limit
 behavior after the hybrid-search placeholder removal. Replaces the deleted
-tests/test_mdq_hybrid_search.py.
+tests/test_mdq_hybrid_search.py. Also pins the genuine zero-result case measured
+through the query boundary (REQ-003, AC-3): source
+issues/20261119-142124_mdqmcp002_mdq-search-query-boundary.md.
 """
 
 from __future__ import annotations
@@ -15,7 +17,7 @@ import pytest
 from mcp_servers.mdq.indexer import index_paths
 from mcp_servers.mdq.mdq_models import IndexPathsRequest, SearchDocsRequest
 from mcp_servers.mdq.mdq_service import MdqService
-from mcp_servers.mdq.search import search_docs
+from mcp_servers.mdq.search import _search_docs_structured, search_docs
 from pydantic import ValidationError
 
 from tests.mcp_servers.mdq._startup import make_startup
@@ -118,3 +120,37 @@ class TestResultLimitBehavior:
         assert metadata["truncated"] is True
         assert metadata["result_count"] == 3
         assert metadata["shown_count"] == 2
+
+
+class TestGenuineZeroResult:
+    def test_rows_outside_the_authorized_roots_report_zero_through_the_boundary(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        """Phase 1 characterization (REQ-003, AC-3): rows exist in the index while all
+        of them are outside the authorized roots, so the query boundary must report a
+        genuine zero. Written before the production change; it fails first because the
+        count query has no authorized-source predicate today, so `matched_count` reports
+        rows the caller cannot see.
+        """
+        for i in range(3):
+            f = tmp_path / f"doc{i}.md"
+            f.write_text(f"# Section {i}\n\nKeyword content here.", encoding="utf-8")
+        asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(tmp_path)])))
+
+        # The allowlist is narrowed to a different root after indexing, so every indexed
+        # row is present in the database but not visible.
+        authorized_root = tmp_path / "authorized"
+        authorized_root.mkdir()
+        service._allowed_dirs = [str(authorized_root)]
+
+        result = _search_docs_structured(service, SearchDocsRequest(query="Keyword"))
+        assert result["matched_count"] == 0
+        assert result["results"] == []
+
+        text, metadata = asyncio.run(
+            search_docs(service, SearchDocsRequest(query="Keyword"))
+        )
+        assert "No results found" in text
+        assert metadata["result_count"] == 0
+        assert metadata["shown_count"] == 0
+        assert metadata["truncated"] is False

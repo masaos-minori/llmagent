@@ -46,11 +46,18 @@ MDQ_DOMAIN_ERROR_CODES = frozenset(
 
 UNEXPECTED_ERROR = "unexpected_error"
 TOOL_DISABLED = "tool_disabled"
+TIMEOUT = "timeout"
+
+# Cause-based codes (REQ-003): `timeout` has no MDQ exception class, so the search path
+# resolves it from the cause of the domain exception it raises. Only a cause listed here can
+# change the resolved code, so an unrelated cause never reclassifies an exception.
+CAUSE_ERROR_CODES: dict[type[BaseException], str] = {TimeoutError: TIMEOUT}
 
 # Keyed by the MDQ exception classes, most specific first and `MdqServiceError`
 # last so the mapping resolves a subclass before its base. `tool_disabled` and
-# `timeout` have no exception class: they are produced by the dispatch boundary
-# and by the search path respectively.
+# `timeout` have no exception class: `tool_disabled` is produced by the dispatch
+# boundary and `timeout` is resolved from the cause of the exception the search
+# path raises (see `CAUSE_ERROR_CODES`).
 EXCEPTION_ERROR_CODES: dict[type[Exception], str] = {
     MdqValidationError: "validation_error",
     MdqAuthorizationError: "authorization_error",
@@ -65,9 +72,18 @@ EXCEPTION_ERROR_CODES: dict[type[Exception], str] = {
 def code_for_exception(exc: BaseException) -> str:
     """Return the closed-vocabulary code for an MDQ exception.
 
+    A cause listed in `CAUSE_ERROR_CODES` decides the code before the exception class, so the
+    domain exception the search path raises for an interrupted statement reports `timeout`.
+
     The returned code never carries exception text, SQLite detail, or a path
     (AC-5); an exception outside the MDQ classes resolves to `unexpected_error`.
     """
+    cause = exc.__cause__
+    if cause is not None:
+        cause_code = CAUSE_ERROR_CODES.get(type(cause))
+        if cause_code is not None:
+            return cause_code
+
     for error_class, code in EXCEPTION_ERROR_CODES.items():
         if isinstance(exc, error_class):
             return code

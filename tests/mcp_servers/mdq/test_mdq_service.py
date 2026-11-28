@@ -11,6 +11,7 @@ from tempfile import mkstemp
 from unittest.mock import patch
 
 import pytest
+from mcp_servers.audit import hash_query_value
 from mcp_servers.mdq.index_scan import iter_indexable_files
 from mcp_servers.mdq.index_write import generate_chunk_id
 from mcp_servers.mdq.indexer import (
@@ -610,7 +611,10 @@ class TestSearchDocs:
         req = SearchDocsRequest(query="foo bar")
         with caplog.at_level(logging.INFO, logger="mcp_servers.mdq.search"):
             asyncio.run(search_docs(service, req))
-        assert "foo bar" in caplog.text
+        # Behavior change recorded 20261128 (AC-5): the persistent log line carries the
+        # hashed identifier, not the raw query.
+        assert hash_query_value("foo bar") in caplog.text
+        assert "foo bar" not in caplog.text
 
     def test_snippet_length_respects_max_snippet_chars(
         self, service: MdqService, tmp_path: Path
@@ -703,9 +707,16 @@ class TestSearchDocs:
         asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(f)])))
         service.search_timeout_sec = 0.01
 
-        def _slow_search(_service: MdqService, _req: SearchDocsRequest):
+        def _slow_search(
+            _service: MdqService, _req: SearchDocsRequest, _stop: object = None
+        ):
             _time.sleep(0.2)
-            return {"query": _req.query, "results": [], "total": 0}
+            return {
+                "query": _req.query,
+                "results": [],
+                "matched_count": 0,
+                "shown_count": 0,
+            }
 
         with patch("mcp_servers.mdq.search._search_docs_structured", _slow_search):
             with pytest.raises(MdqConsistencyError, match="timed out"):
@@ -719,7 +730,8 @@ class TestMdqService:
     def test_search_docs_delegates(self, service: MdqService) -> None:
         req = SearchDocsRequest(query="test")
         text, _metadata = asyncio.run(service.search_docs(req))
-        assert "test" in text
+        # Behavior change recorded 20261128 (AC-5): the response carries the hashed identifier.
+        assert hash_query_value("test") in text
 
     def test_get_chunk_returns_content_after_indexing(
         self, service: MdqService, md_file: Path

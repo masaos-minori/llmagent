@@ -81,3 +81,38 @@ class TestEffectiveLimit:
         assert result["shown_count"] == 2
         # matched_count remains the exact, unbounded match count.
         assert result["matched_count"] == 5
+
+    def test_unauthorized_row_cannot_take_a_limit_slot(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        """Phase 1 characterization (REQ-002, AC-1): an unauthorized row that ranks
+        above an authorized row must not fill a `LIMIT` slot. Written before the
+        production change in the release unit; it fails first because the SQL `LIMIT`
+        runs before authorization today, so the unauthorized row takes the slot and the
+        authorized result is missing.
+        """
+        authorized_root = tmp_path / "authorized"
+        unauthorized_root = tmp_path / "unauthorized"
+        authorized_root.mkdir()
+        unauthorized_root.mkdir()
+        # bm25 ranks the unauthorized doc first by term frequency, so the ranking does
+        # not depend on insertion order.
+        (unauthorized_root / "unauthorized.md").write_text(
+            "# Unauthorized\n\nUniform Uniform Uniform.", encoding="utf-8"
+        )
+        (authorized_root / "authorized.md").write_text(
+            "# Authorized\n\nUniform content here.", encoding="utf-8"
+        )
+        asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(tmp_path)])))
+
+        # The allowlist is narrowed after indexing, so the unauthorized row is present
+        # in the database but not visible.
+        service._allowed_dirs = [str(authorized_root)]
+        result = _search_docs_structured(
+            service, SearchDocsRequest(query="Uniform", limit=1)
+        )
+
+        assert len(result["results"]) == 1
+        assert result["results"][0].source_path.startswith(
+            str(authorized_root.resolve())
+        )

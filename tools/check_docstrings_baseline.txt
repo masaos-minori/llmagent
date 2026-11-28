@@ -184,7 +184,6 @@ mcp_servers/mdq/mdq_models.py	missing separator
 mcp_servers/mdq/mdq_server.py	missing separator
 mcp_servers/mdq/mdq_tools.py	missing separator
 mcp_servers/mdq/parser.py	empty description
-mcp_servers/mdq/search.py	missing separator
 mcp_servers/models.py	missing separator
 mcp_servers/rag_pipeline/document_manager.py	missing separator
 mcp_servers/rag_pipeline/rag_pipeline_server.py	missing separator
