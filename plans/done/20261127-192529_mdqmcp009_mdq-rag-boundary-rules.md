@@ -184,11 +184,11 @@ N/A: no release unit — every phase changes its own pins and passes validation 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: characterization pins for alias imports, wrapper connections, comment text, and the stale allowlist entry | Pending | — | — | Pins the current gaps as failing fixtures before the change |
-| 2 | Phase 2: import-linter contracts for the three unenforced directions | Pending | — | — | `lint-imports` must stay green |
-| 3 | Phase 3: AST helper | Pending | — | — | Alias-aware import resolution and call-site detection; exception record shape |
-| 4 | Phase 4: boundary test rewrite and exception records | Pending | — | — | Substring scans replaced; stale entry removed; `repo_scan` marker added |
-| 5 | Phase 5: documentation | Pending | — | — | Enforced directions, AST call check, remaining convention, exception policy |
+| 1 | Phase 1: characterization pins for alias imports, wrapper connections, comment text, and the stale allowlist entry | In Progress | — | — | Pins the current gaps as failing fixtures before the change |
+| 2 | Phase 2: import-linter contracts for the three unenforced directions | In Progress | — | — | `lint-imports` must stay green |
+| 3 | Phase 3: AST helper | In Progress | — | — | Alias-aware import resolution and call-site detection; exception record shape |
+| 4 | Phase 4: boundary test rewrite and exception records | In Progress | — | — | Substring scans replaced; stale entry removed; `repo_scan` marker added |
+| 5 | Phase 5: documentation | In Progress | — | — | Enforced directions, AST call check, remaining convention, exception policy |
 | 6 | Phase 6: verification | Pending | — | — | Lint, types, `lint-imports`, full suite, docs gates |
 
 ### Blocker Log
@@ -199,7 +199,11 @@ N/A: no release unit — every phase changes its own pins and passes validation 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261128-093131_01_.importlinter.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261128-093131_02_tests_mcp_servers_mdq__boundary_ast.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261128-093131_03_tests_mcp_servers_mdq_test_mdq_rag_boundary.py.md` | 1, 4 | Procedure | Pending | — | — |
+| `implementations/20261128-093131_04_docs_22_mcp_mcp_05_04_mdq-rag-boundary.md.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261128-093131_05_docs_22_mcp_mcp_05_05_mdq-enforcement-and-lockdown.md.md` | 5 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -219,3 +223,5 @@ N/A: no release unit — every phase changes its own pins and passes validation 
 | REQ-003 | Required Changes item 3; `tests/mcp_servers/mdq/test_mdq_rag_boundary.py:71-84` (stale entry at line 78, removed in commit `70391b306`), `docs/00_governance/governance_03_issue-and-uncertainty-management.md:741` | `tests/mcp_servers/mdq/test_mdq_rag_boundary.py`, `tests/mcp_servers/mdq/_boundary_ast.py` | Phase 3, Phase 4 | AC-3 | exception-record tests, expiry and missing-module checks | Confirmed |
 | REQ-004 | Documentation Impact; `docs/22_mcp/mcp_05_04_mdq-rag-boundary.md:69,79,86`, `docs/22_mcp/mcp_05_05_mdq-enforcement-and-lockdown.md:16,38` | `docs/22_mcp/mcp_05_04_mdq-rag-boundary.md`, `docs/22_mcp/mcp_05_05_mdq-enforcement-and-lockdown.md` | Phase 5 | AC-4 | `uv run python tools/check_docs_content_policy.py` | Confirmed |
 | REQ-005 | Testing Expectations; `pyproject.toml:147`, `tests/agent/workflow/test_no_workflow_bypass.py:117`, `tools/_validation_gate_toolchain.py:117` | `tests/mcp_servers/mdq/test_mdq_rag_boundary.py` | Phase 4 | AC-5 | deselection run with `-m "not repo_scan"` | Confirmed |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261128-093131 -->

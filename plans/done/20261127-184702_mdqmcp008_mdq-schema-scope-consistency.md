@@ -53,6 +53,7 @@ Adversarial verification against current source (evidence revision in Traceabili
 - Corrected: no index-generation concept exists. `index_state` is a key/value table keyed `mtime:<path>` (`indexer.py:318`; `index_delete.py` deletes `mtime:{path}%`), and `IndexMetadata` is an empty placeholder model. Generation metadata has to be defined, not read from existing state.
 - Corrected: MDQ is a single store (`config/mdq_mcp_server.toml:16`, `scripts/mcp_servers/mdq/health_check.py:145`); the issue's "distinguish multiple stores if supported" is not applicable, so one store identity per server is sufficient.
 - Corrected: the shared strict request base, the schema generator, and the execution-mode and result-metadata contract already exist (`scripts/mcp_servers/request_contract.py`, `scripts/mcp_servers/execution_context.py`, `scripts/mcp_servers/dispatch.py`) and are consumed unchanged, not redefined.
+- Confirmed (Step 3a re-verification, 2026-11-28): parity on wrong-type inputs needs strict typing, not only the strict base. `StrictRequestModel` sets `extra="forbid"` only (`scripts/mcp_servers/request_contract.py:34-41`), and pydantic coerces a string-encoded number to `int` by default — `SearchDocsRequest.model_validate({"limit": "5"})` yields `5` at current HEAD — while `validate_tool_arguments()`'s jsonschema type check rejects the same argument (`scripts/agent/tool_arg_validator.py:62-66`). So `AC-1` for wrong-type inputs requires strict typing on each MDQ request model; the shared base is out of scope, so strictness is declared per MDQ model.
 
 ## Problem
 Agent and direct calls accept different inputs for the same MDQ tool; scheduler conflicts for the two MDQ write tools do not match the single database they write; and a read that runs during a refresh has no machine-readable consistency state, only formatter wording that a wording change can silently alter.
@@ -73,6 +74,8 @@ One source for the request contract: the model, from which the published schema 
 
 ## Implementation Target Files
 **Freeze status**: Frozen — `issue-to-plan` Step 8's Implementation Target Files Validation passes (backtick and structure checks, `tools/audit_plan_target_paths.py`, `tools/check_plan_target_overlaps.py`).
+Amended 2026-11-28 (fallout): added tests/mcp_servers/mdq/test_mdq_stale_detection.py — Assert the outline consistency state through metadata instead of the warning text in the returned value, because REQ-003 changes the outline return shape to text plus metadata
+Amended 2026-11-28 (fallout): added tests/mcp_servers/mdq/test_mdq_outline_stale_helper.py — Assert the outline consistency state through metadata instead of the warning text in the returned value, because REQ-003 changes the outline return shape to text plus metadata
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
@@ -91,6 +94,8 @@ One source for the request contract: the model, from which the published schema 
 | `tests/mcp_servers/mdq/test_mdq_read_consistency_metadata.py` | Create | New file: batch-refresh read metadata for `search_docs`, `outline`, `get_chunk`, `grep_docs`, and `stats` reports the consistency state without depending on formatter wording | REQ-003, REQ-004, AC-4, AC-5 | Does not exist; the only refresh-time read test asserts the warning string (checked in Step 3) | itself | Verified |
 | `docs/22_mcp/mcp_04_04_mdq.md` | Modify | State the MDQ input contract as one source (generated schema, strict models, validation error), the read consistency state, and the `get_chunk` metadata | REQ-001, REQ-003, REQ-004, REQ-006, AC-1, AC-4, AC-5 | Line 66 describes the stale check as a reporting guard that returns `stale_warning`; no input-contract or read-consistency statement exists for mdq (checked in Step 3) | `uv run python tools/check_docs_content_policy.py` | Verified |
 | `docs/22_mcp/mcp_03_01_dispatch-and-routing.md` | Modify | Record the store-kind scope identity rule: a store-kind write with no declared keys resolves to the store identity rather than the synthetic global write scope | REQ-002, REQ-006, AC-3 | Line 122 states that a write tool with no resolved scope is treated as the synthetic `"global:write"` scope, and line 171 repeats it in the conflict table (checked in Step 3) | `uv run python tools/check_docs_content_policy.py` | Verified |
+| `tests/mcp_servers/mdq/test_mdq_stale_detection.py` | Modify | Assert the outline consistency state through metadata instead of the warning text in the returned value, because REQ-003 changes the outline return shape to text plus metadata | REQ-003 / N/A: none cites REQ-003 | Lines 89 and 118 apply `in result` to the value outline() returns (line 89 asserts the absence of "modified since last indexing", line 118 its presence); after the REQ-003 return-shape change that value is a text-plus-metadata pair, so the assertion must read the metadata | itself | Verified |
+| `tests/mcp_servers/mdq/test_mdq_outline_stale_helper.py` | Modify | Assert the outline consistency state through metadata instead of the warning text in the returned value, because REQ-003 changes the outline return shape to text plus metadata | REQ-003 / N/A: none cites REQ-003 | Lines 61-63 apply `in result` to the value outline() returns (asserting the absence of "modified since last indexing" and the presence of "Title"); after the REQ-003 return-shape change that value is a text-plus-metadata pair, so the assertion must read the returned text element and the metadata separately | itself | Verified |
 
 ## Reference Files
 | File Path | Why It Must Be Read | Related Target File or Requirement |
@@ -163,9 +168,12 @@ Yes. `REQ-001`, `REQ-003`, `REQ-004`, and `REQ-006` drive it. Per `docs/00_index
 | `tests/mcp_servers/mdq/test_mdq_read_consistency_metadata.py` | Create | Low: test only | N/A (new) | N/A (new) | not applicable (rsynced) |
 | `docs/22_mcp/mcp_04_04_mdq.md` | Modify | Low: documentation only | 2 | High (100% single author) | not applicable (rsynced) |
 | `docs/22_mcp/mcp_03_01_dispatch-and-routing.md` | Modify | Low: documentation only | 8 | High (100% single author) | not applicable (rsynced) |
+| `tests/mcp_servers/mdq/test_mdq_stale_detection.py` | Modify | Not assessed (amendment 2026-11-28) | N/A | N/A | Not assessed (amendment 2026-11-28) |
+| `tests/mcp_servers/mdq/test_mdq_outline_stale_helper.py` | Modify | Not assessed (amendment 2026-11-28) | N/A | N/A | Not assessed (amendment 2026-11-28) |
 
 ## Design
 - Single source for the request contract. `scripts/mcp_servers/request_contract.py` already provides `StrictRequestModel` and `build_input_schema()`, and the GitHub tools use them (`scripts/mcp_servers/github/github_tools.py`, `github_models_file.py`); the documented contract in `docs/22_mcp/mcp_04_01_web-search-file-read-github.md:94` states that the discovered schema and the enforced validation are one source. MDQ is the exception: hand-written schema blocks plus plain `BaseModel` request models and per-key extraction in the handlers. The Plan moves MDQ to the shared contract rather than defining a new one. Bounds move to model constraints (`Field(ge=…, le=…)`, `min_length`, `Literal`, `list[str]`) so the generated schema keeps the values the existing tests assert; the config cross-check test continues to compare the generated maxima with `config/mdq_mcp_server.toml`.
+- Strict typing is part of the parity requirement, not the strict base. `StrictRequestModel` carries `extra="forbid"` only, so a string-encoded number is coerced by the model and rejected by the Agent-side jsonschema type check; each MDQ request model declares `model_config = ConfigDict(extra="forbid", strict=True)` so both paths make the same decision, and the shared base stays unchanged.
 - Store identity. The scope-key convention `f"{kind}:{normalized_value}"` is already defined by `resolve_resource_scopes()` (docstring lines 90-91) and reused here. Alternatives considered: (a) a new `ResourceKeyKind` value — rejected, the identity would still come from args and the closed set is pinned by `tests/shared/test_tool_metadata.py:53`; (b) a server-owned identity field in the schema-2.1 contract — rejected as the plan default, it changes `validate_tool_schema_v2()` and the `RuntimeTool` required-field contract and needs the contract owner (UNK-03); (c) plan default — keep `resource_scope_kind: "mdq_store"`, declare no keys, and resolve a store-kind write to `<kind>:<server_key>`. Path order and duplication cannot affect a single store identity, and store-level serialization for the two MDQ write tools already comes from `requires_serial: True` (`mdq_tools.py:177,210`).
 - Reads stay unscoped (`resource_scope_kind: ""`, `mdq_tools.py:79,113,149,229,280`), because the conflict graph only groups overlapping scopes when at least one call is `is_write=True` (`docs/22_mcp/mcp_03_01_dispatch-and-routing.md:171`, and the mcpai013 plan recorded the same boundary). The consistency state is reported in metadata, not enforced through the conflict graph.
 - Consumer scan candidates (`tools/scan_change_consumers.py --seed resolve_resource_scopes`): `scripts/shared/runtime_tool_registry.py`, `scripts/agent/tool_scheduler.py`, and `scripts/agent/services/mcp_tool_discovery_fetch.py` are reference rows (consume the predicate unchanged); `tests/shared/test_resource_scope.py` is a target row; `tests/shared/test_runtime_tool_registry.py`, `tests/shared/test_tool_routing_validation.py`, `tests/agent/test_tool_scheduler*.py`, `tests/agent/test_tool_runner.py`, and `tests/agent/test_tool_run_recorder.py` are not affected: they pin the global fallback for `filesystem` and `github_branch` kinds only (`test_resource_scope.py:186-199`, `test_runtime_tool_registry.py:102,143`, `test_tool_routing_validation.py:100,144`, `test_tool_scheduler_serialization.py:178`), never a store kind. `scripts/mcp_servers/rag_pipeline/rag_pipeline_tools.py` is a reference row whose resolved scope string changes as a consequence of the rule (UNK-04, Risk). ADR basis for the seed (`docs/10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md:72`) names `resource_scope_kind` and `resource_scope_keys` as producer-declared fields on `RuntimeTool`; the plan default changes how a declared kind resolves, not the ownership of the declaration, so no ADR decision changes here.
@@ -192,6 +200,8 @@ Yes. `REQ-001`, `REQ-003`, `REQ-004`, and `REQ-006` drive it. Per `docs/00_index
    - [ ] Read paths report the state in metadata and keep the warning text display-only; `get_chunk` returns text plus metadata (REQ-003, REQ-004; `scripts/mcp_servers/mdq/mdq_service.py`)
    - [ ] The audit detail for `get_chunk` reads the truncation state from metadata instead of the output marker (REQ-004; `scripts/mcp_servers/mdq/mdq_server.py`)
    - [ ] Batch-refresh read tests and the re-expressed warning-string test (REQ-003, REQ-004; `tests/mcp_servers/mdq/test_mdq_read_consistency_metadata.py`, `tests/mcp_servers/mdq/test_mdq_index_serialization.py`, `tests/mcp_servers/mdq/test_mdq_service.py`)
+   - [ ] Modify (REQ-003; `tests/mcp_servers/mdq/test_mdq_stale_detection.py`) — amendment 2026-11-28
+   - [ ] Modify (REQ-003; `tests/mcp_servers/mdq/test_mdq_outline_stale_helper.py`) — amendment 2026-11-28
 5. **Phase 5: Documentation**
    - [ ] MDQ input contract, read consistency state, and `get_chunk` metadata in the mdq per-server section (REQ-006; `docs/22_mcp/mcp_04_04_mdq.md`)
    - [ ] Store-kind scope identity rule in the dispatch-and-routing document (REQ-006; `docs/22_mcp/mcp_03_01_dispatch-and-routing.md`)
@@ -222,17 +232,18 @@ N/A: no release unit — every phase changes its own pins and passes validation 
 - **Risk**: the plan default takes the store identity from `RuntimeTool.server_key`, which names the server rather than the configured database path → **Mitigation**: MDQ is a single store, so the server key identifies it; the alternative is recorded as an Unknown and no contract field is invented here (UNK-03).
 - **Risk**: reporting the generation as a service-level value means it does not survive a restart, so a read after a restart reports a generation that is not the one the stored rows were written under → **Mitigation**: the plan reports the state as "generation unknown after restart" rather than inventing a persisted value; persistence is recorded as an Unknown (UNK-05).
 - **Risk**: this Plan consumes vocabularies owned by open plans, and implementing before them would rewrite the same lines twice → **Mitigation**: ordering recorded in the `Depends on` bullets; the Plan consumes the closed vocabularies and does not extend them (UNK-06).
+- **Risk**: `StrictRequestModel` does not enable strict typing, so a string-encoded number is accepted by the model and rejected by the Agent-side check, leaving `AC-1` unsatisfied for wrong-type inputs → **Mitigation**: declare `model_config = ConfigDict(extra="forbid", strict=True)` on each MDQ request model, asserted by `tests/mcp_servers/mdq/test_mdq_validation_parity.py`; the shared base is not modified.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: characterization pins for parity, store scope, and read consistency | Pending | — | — | Pins the current behavior before any production change |
-| 2 | Phase 2: single-source request contract | Pending | — | — | Strict models, generated schema, handler validation path, `with_neighbors` removal |
-| 3 | Phase 3: store scope identity | Pending | — | — | Declaration change plus the store-kind identity rule in the resolver |
-| 4 | Phase 4: read consistency and `get_chunk` metadata | Pending | — | — | Machine-readable state in metadata; audit detail reads metadata |
-| 5 | Phase 5: documentation | Pending | — | — | mdq per-server section and dispatch-and-routing rule |
+| 1 | Phase 1: characterization pins for parity, store scope, and read consistency | In Progress | — | — | Pins the current behavior before any production change |
+| 2 | Phase 2: single-source request contract | In Progress | — | — | Strict models, generated schema, handler validation path, `with_neighbors` removal |
+| 3 | Phase 3: store scope identity | In Progress | — | — | Declaration change plus the store-kind identity rule in the resolver |
+| 4 | Phase 4: read consistency and `get_chunk` metadata | In Progress | — | — | Machine-readable state in metadata; audit detail reads metadata |
+| 5 | Phase 5: documentation | In Progress | — | — | mdq per-server section and dispatch-and-routing rule |
 | 6 | Phase 6: deployment and verification | Pending | — | — | Hand-off to `skills/deploy/SKILL.md` after commit and push |
 
 ### Blocker Log
@@ -243,7 +254,23 @@ N/A: no release unit — every phase changes its own pins and passes validation 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261128-084218_01_scripts_mcp_servers_mdq_mdq_models.py.md` | 2, 4 | Procedure | Pending | — | — |
+| `implementations/20261128-084218_02_scripts_mcp_servers_mdq_mdq_tools.py.md` | 2, 3 | Procedure | Pending | — | — |
+| `implementations/20261128-084218_03_scripts_mcp_servers_mdq_mdq_server.py.md` | 2, 4 | Procedure | Pending | — | — |
+| `implementations/20261128-084218_04_scripts_mcp_servers_mdq_mdq_service.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261128-084218_05_scripts_shared_resource_scope.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261128-084218_06_tests_mcp_servers_mdq_test_mdq_tool_schema.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261128-084218_07_tests_mcp_servers_mdq_test_mdq_tool_layer_consistency.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261128-084218_08_tests_mcp_servers_mdq_test_mdq_get_chunk_behavior.py.md` | 1, 2 | Procedure | Pending | — | — |
+| `implementations/20261128-084218_09_tests_mcp_servers_mdq_test_mdq_service.py.md` | 2, 4 | Procedure | Pending | — | — |
+| `implementations/20261128-084218_10_tests_mcp_servers_mdq_test_mdq_index_serialization.py.md` | 1, 4 | Procedure | Pending | — | — |
+| `implementations/20261128-084218_11_tests_shared_test_resource_scope.py.md` | 1, 3 | Procedure | Pending | — | — |
+| `implementations/20261128-084218_12_tests_mcp_servers_mdq_test_mdq_validation_parity.py.md` | 1, 2 | Procedure | Pending | — | — |
+| `implementations/20261128-084218_13_tests_mcp_servers_mdq_test_mdq_read_consistency_metadata.py.md` | 1, 4 | Procedure | Pending | — | — |
+| `implementations/20261128-084218_14_docs_22_mcp_mcp_04_04_mdq.md.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261128-084218_15_docs_22_mcp_mcp_03_01_dispatch-and-routing.md.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261128-084218_16_tests_mcp_servers_mdq_test_mdq_stale_detection.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261128-084218_17_tests_mcp_servers_mdq_test_mdq_outline_stale_helper.py.md` | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -253,7 +280,7 @@ N/A: no release unit — every phase changes its own pins and passes validation 
 - **Source implementation procedure**: N/A: not applicable in this phase
 - **Generated at**: 20261127-184702
 - **Evidence revision**: 4504b4fd6b2a7ec7ccc08109911a975387b7a8b5
-- **Related target files**: `scripts/mcp_servers/mdq/mdq_models.py`, `scripts/mcp_servers/mdq/mdq_tools.py`, `scripts/mcp_servers/mdq/mdq_server.py`, `scripts/mcp_servers/mdq/mdq_service.py`, `scripts/shared/resource_scope.py`, `tests/mcp_servers/mdq/test_mdq_tool_schema.py`, `tests/mcp_servers/mdq/test_mdq_tool_layer_consistency.py`, `tests/mcp_servers/mdq/test_mdq_get_chunk_behavior.py`, `tests/mcp_servers/mdq/test_mdq_service.py`, `tests/mcp_servers/mdq/test_mdq_index_serialization.py`, `tests/shared/test_resource_scope.py`, `tests/mcp_servers/mdq/test_mdq_validation_parity.py`, `tests/mcp_servers/mdq/test_mdq_read_consistency_metadata.py`, `docs/22_mcp/mcp_04_04_mdq.md`, `docs/22_mcp/mcp_03_01_dispatch-and-routing.md`
+- **Related target files**: `scripts/mcp_servers/mdq/mdq_models.py`, `scripts/mcp_servers/mdq/mdq_tools.py`, `scripts/mcp_servers/mdq/mdq_server.py`, `scripts/mcp_servers/mdq/mdq_service.py`, `scripts/shared/resource_scope.py`, `tests/mcp_servers/mdq/test_mdq_tool_schema.py`, `tests/mcp_servers/mdq/test_mdq_tool_layer_consistency.py`, `tests/mcp_servers/mdq/test_mdq_get_chunk_behavior.py`, `tests/mcp_servers/mdq/test_mdq_service.py`, `tests/mcp_servers/mdq/test_mdq_index_serialization.py`, `tests/shared/test_resource_scope.py`, `tests/mcp_servers/mdq/test_mdq_validation_parity.py`, `tests/mcp_servers/mdq/test_mdq_read_consistency_metadata.py`, `docs/22_mcp/mcp_04_04_mdq.md`, `docs/22_mcp/mcp_03_01_dispatch-and-routing.md`, `tests/mcp_servers/mdq/test_mdq_stale_detection.py`, `tests/mcp_servers/mdq/test_mdq_outline_stale_helper.py`
 
 ### Requirement Traceability
 | Requirement ID | Source Issue section or evidence | Target file | Implementation step | Acceptance criterion | Test or validation item | Status |
@@ -264,3 +291,7 @@ N/A: no release unit — every phase changes its own pins and passes validation 
 | REQ-004 | Required Changes item 1; `scripts/mcp_servers/mdq/mdq_server.py:247,360`, `scripts/mcp_servers/mdq/mdq_models.py:321-330` | `scripts/mcp_servers/mdq/mdq_models.py`, `scripts/mcp_servers/mdq/mdq_server.py` | Phase 4 | AC-4 | `tests/mcp_servers/mdq/test_mdq_get_chunk_behavior.py` | Confirmed |
 | REQ-005 | Required Changes item 1; `scripts/mcp_servers/mdq/mdq_models.py:151`, `mdq_tools.py:89`, `mdq_server.py:244`, `tests/mcp_servers/mdq/test_mdq_service.py:215` | `scripts/mcp_servers/mdq/mdq_models.py`, `scripts/mcp_servers/mdq/mdq_tools.py`, `scripts/mcp_servers/mdq/mdq_server.py` | Phase 2 | AC-1 | `tests/mcp_servers/mdq/test_mdq_service.py` | Confirmed |
 | REQ-006 | Documentation Impact; `docs/22_mcp/mcp_04_04_mdq.md:66`, `docs/22_mcp/mcp_03_01_dispatch-and-routing.md:122,171` | `docs/22_mcp/mcp_04_04_mdq.md`, `docs/22_mcp/mcp_03_01_dispatch-and-routing.md` | Phase 5 | AC-6 | `uv run python tools/check_docs_content_policy.py` | Confirmed |
+| REQ-003 | Amendment 2026-11-28: Assert the outline consistency state through metadata instead of the warning text in the returned value, because REQ-003 changes the outline return shape to text plus metadata | tests/mcp_servers/mdq/test_mdq_stale_detection.py | Phase 4 | N/A: none cites REQ-003 | itself | Confirmed by repository evidence |
+| REQ-003 | Amendment 2026-11-28: Assert the outline consistency state through metadata instead of the warning text in the returned value, because REQ-003 changes the outline return shape to text plus metadata | tests/mcp_servers/mdq/test_mdq_outline_stale_helper.py | Phase 4 | N/A: none cites REQ-003 | itself | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261128-084218 -->
