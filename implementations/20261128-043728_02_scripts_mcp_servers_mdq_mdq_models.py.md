@@ -24,7 +24,7 @@ decided without having written anything.
 
 - The preview metadata is a separate model, not extra fields on `IndexPathsMetadata`: executed
   counts and planned counts describe different things and must not be conflated in one record.
-- The model is a `TypedDict` like `IndexPathsMetadata` (line 389), because the audit detail
+- The model is a `TypedDict` like `IndexPathsMetadata` (line 498), because the audit detail
   builder consumes metadata as a plain mapping.
 
 ## Alternatives considered

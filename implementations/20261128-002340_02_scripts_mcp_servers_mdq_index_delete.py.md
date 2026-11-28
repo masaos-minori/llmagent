@@ -14,7 +14,7 @@ Requirements: REQ-001, REQ-003. Acceptance criterion: AC-2.
 - Full form: this row changes key semantics for existing `index_state` rows and the helper's
   transaction behavior.
 - The canonical key string is `mtime:{path}` as produced by `scripts/mcp_servers/mdq/indexer.py`
-  (line 316); the helper uses the same string the writer stores, so no key-format change is
+  (line 507); the helper uses the same string the writer stores, so no key-format change is
   introduced (the Plan's Assumptions).
 - The FTS5 effect stays inside the caller's transaction: the `chunks_ad` trigger fires on the
   `chunks` statements (line 27 comment), so no separate FTS handling is added.

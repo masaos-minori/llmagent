@@ -11,7 +11,7 @@ Make `scripts/mcp_servers/mdq/parser.py` state the fence-content exclusion in it
 ## Assumptions
 
 - The documented exclusion is the plan default (plan UNK-01): fence content stays out of the searchable section body. This row states it; it does not change it, because the issue excludes behavior changes.
-- The exclusion is implemented at lines 96-99 (`if in_fence:` then `continue`), so the statement describes existing behavior rather than a planned behavior.
+- The exclusion is implemented at lines 107-110 (`if in_fence:` then `continue`), so the statement describes existing behavior rather than a planned behavior.
 - `tools/check_docstrings_baseline.txt` line 186 records `mcp_servers/mdq/parser.py` as `empty description`; the change adds content to the description, so the entry stays valid and the docstring gate stays green.
 - The module is 9551 B, below the 24576 B gate in `tools/check_module_size.py`.
 

@@ -11,7 +11,7 @@ Assert that each MDQ read path reports its consistency state as metadata while a
 
 ## Assumptions
 
-- The state is read during the real transition, using the pattern row 10's module already uses: run `index_paths()` as a task and yield once so the lock is acquired and `_is_indexing` is True (`scripts/mcp_servers/mdq/mdq_service.py:287,300`).
+- The state is read during the real transition, using the pattern row 10's module already uses: run `index_paths()` as a task and yield once so the lock is acquired and `_is_indexing` is True (`scripts/mcp_servers/mdq/mdq_service.py:288,301`).
 - `index_generation` is None before the first completed refresh and increments at each completed refresh (Plan UNK-05 plan default); the during-refresh cases assert the value the read is looking at, not a post-refresh value.
 - The fixtures are local to the module (`service`, `md_file`), the same pattern `test_mdq_service.py` and `test_mdq_index_serialization.py` use; no `conftest.py` exists for `tests/mcp_servers/mdq/`, so nothing is added there.
 - `get_chunk` needs an indexed chunk before the read, so the module indexes once and reads the stored `chunk_id` through the service's own connection, as the existing truncation test does.

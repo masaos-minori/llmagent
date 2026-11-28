@@ -7,7 +7,7 @@ path and the write path.
 ## Scope
 **Release unit**: preview path
 
-- `index_paths()` (lines 281-292) and `refresh_index()` (lines 295-307): the branch that selects
+- `index_paths()` (lines 282-293) and `refresh_index()` (lines 296-308): the branch that selects
   the decision-only path, and the metadata returned for a preview call.
 
 ## Assumptions

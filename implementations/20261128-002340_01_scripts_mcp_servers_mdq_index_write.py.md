@@ -15,7 +15,7 @@ Requirements: REQ-001, REQ-002, REQ-006. Acceptance criterion: AC-1.
 - The caller that owns the transaction is `scripts/mcp_servers/mdq/indexer.py` (this Plan's row 3);
   this document does not define its commit point.
 - The writer already propagates `sqlite3.Error`; the failure-swallowing is the caller's
-  (`indexer.py` lines 106-108), so no error handling is added here.
+  (`indexer.py` lines 218-220), so no error handling is added here.
 - The insert column list is the shape plan 004 defines: `source_content_hash` (new), the renamed
   fingerprint, and the chunk truncation fields. That plan executes first per the dependency bullet, so
   this row changes only transaction ownership, not the columns.
@@ -51,7 +51,7 @@ Requirements: REQ-001, REQ-002, REQ-006. Acceptance criterion: AC-1.
   docstring says the writer runs a `BEGIN IMMEDIATE` transaction.
 
 ## Compatibility considerations
-- Every call site is `scripts/mcp_servers/mdq/indexer.py` (line 105), a row of this Plan; no other
+- Every call site is `scripts/mcp_servers/mdq/indexer.py` (line 217), a row of this Plan; no other
   caller exists.
 - `tests/mcp_servers/mdq/test_mdq_incremental_refresh.py` pins the transaction shape through a
   recording connection; that pin moves with the change (this Plan's row 7).

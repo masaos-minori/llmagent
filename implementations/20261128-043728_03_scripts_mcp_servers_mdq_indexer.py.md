@@ -39,12 +39,12 @@ database.
 `scripts/mcp_servers/mdq/indexer.py`
 
 ### Procedure
-1. Extract the per-file decision from `_refresh_changed_file()` (line 304) into a decision
+1. Extract the per-file decision from `_refresh_changed_file()` (line 491) into a decision
    function that returns the action label for one file from `index_state` and the file's current
    mtime, and performs no write.
 2. Keep the write side as a separate call that runs only when the caller is executing, and have
    `_refresh_changed_file()` call the decision then the write.
-3. Split `_detect_deleted_files()` (line 258): compute the planned delete set from the current
+3. Split `_detect_deleted_files()` (line 428): compute the planned delete set from the current
    state and the discovered files, and delete rows only in the execution branch.
 4. Add the preview entry point that runs discovery, `authorize_path()`, and the decision for each
    path and fills the planned counts.

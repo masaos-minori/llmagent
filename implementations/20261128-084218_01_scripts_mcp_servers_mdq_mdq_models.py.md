@@ -38,7 +38,7 @@ Make the MDQ request models the single source of the published input contract (`
 1. Change the base of `SearchDocsRequest` (186), `GetChunkRequest` (199), `OutlineRequest` (207), `IndexPathsRequest` (215), `RefreshIndexRequest` (221), `StatsRequest` (228), `GrepDocsRequest` (234) to `StrictRequestModel`, and declare `model_config = ConfigDict(extra="forbid", strict=True)` on each of them so the model makes the same accept/reject decision as the Agent-side jsonschema check.
 2. Express each advertised bound as a `Field` constraint on the model field it belongs to.
 3. Delete `with_neighbors` from `GetChunkRequest` (line 203).
-4. Add `refresh_in_progress: bool` and `index_generation: int | None` to `SearchDocsMetadata` (373), `IndexPathsMetadata` (389), `GrepDocsMetadata` (399), `OutlineMetadata` (new), `StatsMetadata` (new).
+4. Add `refresh_in_progress: bool` and `index_generation: int | None` to `SearchDocsMetadata` (482), `IndexPathsMetadata` (498), `GrepDocsMetadata` (512), `OutlineMetadata` (new), `StatsMetadata` (new).
 5. Add `GetChunkMetadata` (new).
 
 ### Method

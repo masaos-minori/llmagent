@@ -37,7 +37,7 @@ planned counts equal to the executed counts under unchanged inputs.
 
 ### Procedure
 1. Reuse the fixture shape of `tests/mcp_servers/mdq/test_mdq_incremental_refresh.py` (the
-   `MdqService(db_path=...)` fixture with `_allowed_dirs` set to `tmp_path`, lines 41-46).
+   `MdqService(db_path=...)` fixture with `_allowed_dirs` set to `tmp_path`, lines 44-49).
 2. No-op group: run a preview call and assert no `index_state` change, no row deletion, no dedup
    row, and `side_effect_applied=False` with `execution_mode="preview"`.
 3. Authorization group: a path outside `allowed_dirs` is denied in preview before any decision

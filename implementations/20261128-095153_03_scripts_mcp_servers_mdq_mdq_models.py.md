@@ -32,7 +32,7 @@ Remove the 9 response models in `scripts/mcp_servers/mdq/mdq_models.py` that no 
 `scripts/mcp_servers/mdq/mdq_models.py`
 
 ### Procedure
-1. Delete `ParsedSectionRequest` (59), `SearchDocsResponse` (264), `GetChunkResponse` (270), `OutlineResponse` (288), `IndexPathsResponse` (295), `RefreshIndexResponse` (301), `IndexMetadata` (311), `StatsResponse` (317), and `GrepDocsResponse` (335).
+1. Delete `ParsedSectionRequest` (59), `SearchDocsResponse` (264), `GetChunkResponse` (270), `OutlineResponse` (288), `IndexPathsResponse` (295), `RefreshIndexResponse` (301), `IndexMetadata` (311), `StatsResponse` (317), and `GrepDocsResponse` (341).
 2. Leave every other definition in place.
 
 ### Method

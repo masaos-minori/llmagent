@@ -40,7 +40,7 @@ Create `tests/mcp_servers/mdq/test_mdq_benchmark.py`, the harness that measures 
 
 ### Method
 
-- Use `MdqService` with a `tmp_path` database and `tmp_path` in `allowed_dirs`, following the existing fixture precedent in `tests/mcp_servers/mdq/test_parser.py:26`, so the harness writes nothing under `/opt/llm`.
+- Use `MdqService` with a `tmp_path` database and `tmp_path` in `allowed_dirs`, following the existing fixture precedent in `tests/mcp_servers/mdq/test_parser.py:28`, so the harness writes nothing under `/opt/llm`.
 - The benchmark fixture requires a synchronous callable, so async service calls are wrapped in `asyncio.run()` inside the callable rather than making the test itself async.
 - Concurrency levels are measured as `asyncio.gather` batches of the same call, so a level is one benchmarked call that runs N tasks.
 - Land the module in the same commit as the marker registration (the `benchmark-marker-and-harness` release unit), because the marker would be selected as unknown without it.

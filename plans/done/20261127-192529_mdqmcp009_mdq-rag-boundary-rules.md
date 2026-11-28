@@ -82,7 +82,7 @@ Import direction is enforced by import-linter contracts, which see alias imports
 | `scripts/shared/schema_fingerprint.py` | A `shared` module that creates a connection today, in-memory (line 217); becomes an exception record | REQ-003 |
 | `scripts/shared/mcp_dedup.py` | The other `shared` module that creates connections, to its own store file (lines 172, 418, 489); becomes an exception record | REQ-003 |
 | `scripts/eventbus/db_conn.py` | `eventbus` owns its store and creates a connection (line 92); it is in the database-owning set, not an exception | REQ-002 |
-| `scripts/mcp_servers/mdq/mdq_service.py` | MDQ owns `mdq.sqlite` and creates connections (lines 117, 128); it is in the database-owning set | REQ-002 |
+| `scripts/mcp_servers/mdq/mdq_service.py` | MDQ owns `mdq.sqlite` and creates connections (lines 118, 128); it is in the database-owning set | REQ-002 |
 | `docs/40_shared/shared_01_overview.md` | Section 3 states `agent/` depends on all layers, which is why `agent → rag` is not made a contract here | REQ-004, Unknown |
 
 ## Acceptance Criteria

@@ -15,11 +15,11 @@ Requirements: REQ-001, REQ-002, REQ-004, REQ-006. Acceptance criteria: AC-1, AC-
 - Full form: this row moves transaction ownership across the writer and delete helpers and adds a
   postcondition check that every write path depends on.
 - Plan default for UNK-01: one transaction covers a single file only; directory deletion keeps the
-  current structured partial success (`_delete_stale_entries()`, line 232). Confirm with the owner
+  current structured partial success (`_delete_stale_entries()`, line 402). Confirm with the owner
   before widening it.
 - Plan default for UNK-02: the existing indexer entry points own the connection; no new repository
   module is created.
-- The canonical key string is the one `scripts/mcp_servers/mdq/indexer.py` already builds (line 316),
+- The canonical key string is the one `scripts/mcp_servers/mdq/indexer.py` already builds (line 507),
   so the state write and the exact-key delete use the same value.
 - The `chunks_ad` trigger fires inside the same transaction as the `chunks` statements, so the FTS5
   effect needs no separate handling.
@@ -43,12 +43,12 @@ Requirements: REQ-001, REQ-002, REQ-004, REQ-006. Acceptance criteria: AC-1, AC-
 `scripts/mcp_servers/mdq/indexer.py`
 
 ### Procedure
-- In `_index_single_file()` (lines 77-112): open the connection, begin the transaction, call
+- In `_index_single_file()` (lines 80-115): open the connection, begin the transaction, call
   `write_document_chunks()` as a statement executor, write `index_state`, check postconditions, then
   commit; keep `_rollback_quietly()` on the failure branch.
-- Move the state insert and commit that are currently separate from the write (lines 323-327) into the
+- Move the state insert and commit that are currently separate from the write (lines 364-368) into the
   same transaction.
-- In `_reindex_forced()` (lines 276-292): record `index_state` for each indexable file it processes.
+- In `_reindex_forced()` (lines 317-333): record `index_state` for each indexable file it processes.
 
 ### Method
 - Postconditions are the row counts for the document, its chunks, the FTS5 rows, and the state row;
@@ -58,19 +58,19 @@ Requirements: REQ-001, REQ-002, REQ-004, REQ-006. Acceptance criteria: AC-1, AC-
 
 ### Details
 - The connection is opened once per file operation and closed in the existing `finally` block
-  (line 111); no connection is shared across files.
+  (line 114); no connection is shared across files.
 
 ### Companion test files
 - `tests/mcp_servers/mdq/test_mdq_incremental_refresh.py`
   - Procedure: move the transaction-shape pin in `test_successful_write_brackets_its_row_statements`
-    (lines 669-687) from the helper to the caller, and add the forced-then-incremental state case for
+    (lines 821-839) from the helper to the caller, and add the forced-then-incremental state case for
     REQ-004; keep the `_rollback_quietly` tests in
-    `tests/mcp_servers/mdq/test_mdq_incremental_refresh.py` (methods at lines 641 and 654).
+    `tests/mcp_servers/mdq/test_mdq_incremental_refresh.py` (methods at lines 793 and 654).
   - Validation: `uv run pytest tests/mcp_servers/mdq/test_mdq_incremental_refresh.py` — forced refresh
     leaves correct incremental state (AC-2).
 
 ## Compatibility considerations
-- Call sites of `write_document_chunks()` are only this file (line 107), so the signature change is
+- Call sites of `write_document_chunks()` are only this file (line 110), so the signature change is
   internal to the mdq module.
 - `_index_lock` serialization behavior is unchanged; the serialization test (this Plan's row 8) runs
   against the single caller-owned transaction.

@@ -19,7 +19,7 @@ Requirements: REQ-003, REQ-004. Acceptance criterion: AC-2.
   lines 181-206), which pins the current over-match.
 - This row gets its own document because no other row names it in `Related Tests`.
 - The key form under test is the canonical `mtime:{path}` string produced by
-  `scripts/mcp_servers/mdq/indexer.py` (line 316); no key-format change is introduced.
+  `scripts/mcp_servers/mdq/indexer.py` (line 507); no key-format change is introduced.
 
 ## Design decisions
 - Test the delete boundary through the helper with an exact key, so the cases prove identity rather
