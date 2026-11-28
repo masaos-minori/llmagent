@@ -15,10 +15,11 @@ source). Acceptance criterion: AC-2.
 - Full form: this row pins the refusal outcome for a shape that passes today, so the assertion design is
   the deliverable.
 - The behavior is defined by rows 1 and 2; this document changes only the test file.
-- The plan 004 procedure pass (`implementations/20261127-234020_14_tests_mcp_servers_mdq_test_db_schema.py.md`)
-  already moves the shape assertions and the mismatch-message test onto the renamed `documents` columns,
-  so the drift case at line 124 drops the renamed column, not `content_hash`; this row adds the FTS5
-  definition case on top of that.
+- Plan 004's row for this file has no generated procedure document, and its column rename is not
+  implemented at current HEAD: `documents` still declares `content_hash`
+  (`scripts/mcp_servers/mdq/db_schema.py:32`), and the drift case in
+  `tests/mcp_servers/mdq/test_db_schema.py` (line 124) still drops `content_hash`. So this row adds the
+  FTS5 definition case on top of the test as it stands, not after a rename.
 - The refusal message for an FTS5 entry is the one row 2 defines: `mdq.sqlite.chunks_fts: definition
   differ from the canonical schema`.
 - This file is also a target row of the mdqmcp010 plan; the Plan's dependency bullets order this Plan

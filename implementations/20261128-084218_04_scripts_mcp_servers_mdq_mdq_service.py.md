@@ -16,12 +16,12 @@ Make the MDQ read paths report their consistency state as structured metadata, k
   line 334, says the raw dict is not part of the response)), so a read after a restart reports the unknown case with a nullable field rather than an invented value.
 - The `get_chunk` truncation fields are the persisted columns owned by the mdqmcp004 plan and the read-time cap that was applied; this row reads them, it does not define or extend them. The per-file status and reason vocabulary owned by the mdqmcp003 plan is consumed unchanged.
 - Because three read methods change return shape, the handler unpacking in `scripts/mcp_servers/mdq/mdq_server.py` must cover `outline` and `stats` as well as `get_chunk` (row 03), and the tests that treat the returned value as text must read the pair instead: rows 08, 09, and the two rows added by the Plan's 2026-11-28 fallout amendment (`tests/mcp_servers/mdq/test_mdq_stale_detection.py`, `tests/mcp_servers/mdq/test_mdq_outline_stale_helper.py`).
-- `tests/mcp_servers/mdq/test_mdq_error_taxonomy.py:136,149,158` and `tests/mcp_servers/mdq/test_mdq_path_jail.py:166` call these methods only inside exception assertions, so the shape change does not affect them; they are verification dependencies, not targets.
+- `tests/mcp_servers/mdq/test_mdq_error_taxonomy.py:136,149,158` and `tests/mcp_servers/mdq/test_mdq_path_jail.py:171` call these methods only inside exception assertions, so the shape change does not affect them; they are verification dependencies, not targets.
 
 ## Design decisions
 
 - Return the metadata as the second element of the pair, the pattern `search_docs()` and `grep_docs()` already use, rather than encoding the state into the returned text; that is what keeps `AC-5` true — a wording change cannot change the state.
-- Keep `stale_warning` and the refresh warning as display text for the human-facing output, with the metadata as the authoritative state, so `docs/22_mcp/mcp_04_04_mdq.md:92` remains accurate once row 14 restates it.
+- Keep `stale_warning` and the refresh warning as display text for the human-facing output, with the metadata as the authoritative state, so `docs/22_mcp/mcp_04_04_mdq.md:104` remains accurate once row 14 restates it.
 
 ## Alternatives considered
 
@@ -52,7 +52,7 @@ Make the MDQ read paths report their consistency state as structured metadata, k
 
 ## Compatibility considerations
 
-- Test files that treat the returned value as text must be updated: rows 08, 09, 16, 17. `test_mdq_service.py:734,761,768,776,816,990,1020` and `test_mdq_get_chunk_behavior.py:70` are the concrete assertions in target rows.
+- Test files that treat the returned value as text must be updated: rows 08, 09, 16, 17. `test_mdq_service.py:748,775,784,792,853,1027,1057` are the lines in those rows where the returned value is read as text, and `test_mdq_get_chunk_behavior.py:72` asserts the truncation marker in that text.
 - The service restart is required at deploy time (`skills/deploy/SKILL.md`), per the Plan's Affected areas row.
 
 ## Security considerations

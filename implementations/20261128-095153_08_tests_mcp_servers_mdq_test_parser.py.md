@@ -6,11 +6,11 @@ Classify `tests/mcp_servers/mdq/test_parser.py` as `characterization` and add th
 **Release unit**: mdq-taxonomy-gate
 
 - One `pytestmark` line and four golden tests; the two existing tests are unchanged.
-- The search-exclusion golden stays in `tests/mcp_servers/mdq/test_mdq_service.py:665`, which is not a target of this row.
+- The search-exclusion golden stays in `tests/mcp_servers/mdq/test_mdq_service.py:669`, which is not a target of this row.
 
 ## Assumptions
 
-- The module has no `pytestmark` today and already imports `pytest` (line 18), so `add_import` is `false` in the records file.
+- The module has no `pytestmark` today and already imports `pytest` (line 19), so `add_import` is `false` in the records file.
 - The module already carries an accepted citation through the Canonical Source Registry path `scripts/mcp_servers/` named in its docstring; as a characterization module it needs no citation for `AC-3` anyway.
 - Golden values are inline literals, following the repository precedent (`tests/rag/ingestion/test_chunk_utils.py:129`, `tests/tools/test_tool_report_output.py:183`); no fixtures directory is introduced.
 - The existing `service` fixture (lines 26-37) is reused, because `parse_markdown()` needs a service with `allowed_dirs` and a temp DB path.
@@ -24,7 +24,7 @@ Classify `tests/mcp_servers/mdq/test_parser.py` as `characterization` and add th
 
 ## Alternatives considered
 
-- Assert the search exclusion here: rejected, the search-level golden already exists in `tests/mcp_servers/mdq/test_mdq_service.py:665` and duplicating it would create two pins for one behavior.
+- Assert the search exclusion here: rejected, the search-level golden already exists in `tests/mcp_servers/mdq/test_mdq_service.py:669` and duplicating it would create two pins for one behavior.
 - Classify as `contract`: rejected, the plan's `AC-1` names these as golden pins of current behavior, and the classification rule reserves `contract` for assertions that trace to a requirement source; the citation here is a registry path, not a requirement clause.
 
 ## Implementation
@@ -77,7 +77,7 @@ Classify `tests/mcp_servers/mdq/test_parser.py` as `characterization` and add th
 ## Out of Scope
 
 - The parser feature list wording (`scripts/mcp_servers/mdq/parser.py`, row 01) and the tool descriptions (row 02).
-- The search-exclusion golden in `tests/mcp_servers/mdq/test_mdq_service.py:665`.
+- The search-exclusion golden in `tests/mcp_servers/mdq/test_mdq_service.py:669`.
 - `tools/check_test_taxonomy.py`'s classified-area list (row 05).
 
 ## Execution Status

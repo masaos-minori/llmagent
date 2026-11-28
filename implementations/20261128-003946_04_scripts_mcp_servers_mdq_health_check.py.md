@@ -43,7 +43,7 @@ Requirements: REQ-001, REQ-002, REQ-003, REQ-006. Acceptance criteria: AC-1, AC-
 
 ### Procedure
 - Replace the name-set checks in `_check_schema_health` (lines 105-136): the table-name checks at
-  lines 115-120 and the trigger-name checks at lines 122-127 become a comparison of the stored FTS5
+  lines 115-120 and the trigger-name checks at lines 122-126 become a comparison of the stored FTS5
   statement text and the normalized trigger SQL against the canonical text.
 - Add the functional insert, update, and delete probe on a scratch apply of the canonical DDL, using
   `apply_ddl_in_memory` from the shared fingerprint module, and keep the live probe read-only.

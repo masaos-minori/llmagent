@@ -1,6 +1,6 @@
 ## Goal
 
-Classify `tests/mcp_servers/mdq/test_mdq_read_authorization.py` as `contract`: read-time re-authorization is a documented contract, and the citation the plan recorded as missing is present at current HEAD in the module text at line 158 (`REQ-003`, `AC-3`).
+Classify `tests/mcp_servers/mdq/test_mdq_read_authorization.py` as `contract`: read-time re-authorization is a documented contract, and the citation the plan recorded as missing is present at current HEAD in the module text at line 218 (`REQ-003`, `AC-3`).
 
 ## Scope
 **Release unit**: mdq-taxonomy-gate
@@ -14,8 +14,8 @@ Classify `tests/mcp_servers/mdq/test_mdq_read_authorization.py` as `contract`: r
 - `tests/mcp_servers/mdq` is not in `CLASSIFIED_AREAS` at current HEAD (`tools/check_test_taxonomy.py:66`, `in_classified_area()` matches by prefix), so this module is judged only after the classified-area addition. That addition is the same release unit (`mdq-taxonomy-gate`, plan Phases 4 and 5), so the markers and the gate land in one commit.
 - The marker is written through `tools/apply_test_taxonomy_markers.py` from a records JSON array (plan Phase 4); the tool places the marker after the module-level import block and writes nothing else, and it refuses a record whose `pytestmark` already exists or whose kind is not registered in `pyproject.toml`.
 - `import pytest` is present, so the records record needs `add_import: false`.
-- Verified at current HEAD with `has_requirement_citation()`: the module carries the `REQ-002` citation at line 158, which is one of the accepted forms (requirement number, Accepted ADR path, issue path, or a Canonical Source Registry path named in the module text).
-- The existing `REQ-002` citation at line 158 is left as it is; this row writes the marker only.
+- Verified at current HEAD with `has_requirement_citation()`: the module carries the `REQ-002` citation at line 218, which is one of the accepted forms (requirement number, Accepted ADR path, issue path, or a Canonical Source Registry path named in the module text).
+- The existing `REQ-002` citation at line 218 is left as it is; this row writes the marker only.
 - The module cites `plans/20260719-205532_plan.md` in its docstring. A `plans/` path is not an accepted form, so the `REQ-003` clause is what makes the module citable; the existing reference stays as prose.
 
 ## Design decisions

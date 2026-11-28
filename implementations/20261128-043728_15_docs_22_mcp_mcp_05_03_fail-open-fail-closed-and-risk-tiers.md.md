@@ -7,7 +7,7 @@ counts with the new mdq write tier.
 **Release unit**: tier change and its pins
 
 - `docs/22_mcp/mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`: the Dry-Run Support list sentence
-  (line 72), the `WRITE_SAFE` example row (line 86), the `WRITE_DANGEROUS` example row (line 87), and
+  (line 71), the `WRITE_SAFE` example row (line 86), the `WRITE_DANGEROUS` example row (line 87), and
   the reachability counts (line 90).
 
 ## Assumptions
@@ -29,7 +29,7 @@ counts with the new mdq write tier.
 `docs/22_mcp/mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`
 
 ### Procedure
-1. Add the two mdq write tools to the Dry-Run Support list sentence (line 72).
+1. Add the two mdq write tools to the Dry-Run Support list sentence (line 71).
 2. Remove `index_paths` from the `WRITE_SAFE` example row (line 86) and add `index_paths` and
    `refresh_index` to the `WRITE_DANGEROUS` example row (line 87).
 3. Update the reachability counts (line 90): 64 declared tiers become 39 `READ_ONLY`, 10 `WRITE_SAFE`,

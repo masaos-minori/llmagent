@@ -30,7 +30,7 @@ Read the returned text and metadata separately in the missing-document-row case,
 `tests/mcp_servers/mdq/test_mdq_outline_stale_helper.py`
 
 ### Procedure
-1. Unpack the value `service.outline()` returns at line 63 into the text element and the metadata.
+1. Unpack the value `service.outline()` returns at line 65 into the text element and the metadata.
 2. Assert `metadata["stale"] is False` in place of line 64.
 3. Assert `"Title" in text` in place of line 65.
 

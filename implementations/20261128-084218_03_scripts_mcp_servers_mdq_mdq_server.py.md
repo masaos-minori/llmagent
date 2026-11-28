@@ -11,8 +11,8 @@ Move the MDQ handler path from per-key argument extraction to whole-mapping vali
 
 ## Assumptions
 
-- A validation failure is reported as `MdqValidationError`, which already has an exception handler (`mdq_server.py:139`) and is in the `call_tool` catch set (417-418), so the wire behavior stays HTTP 200 with `is_error=True` and the audit `error_type` remains `MdqValidationError`.
-- A `pydantic.ValidationError` must be converted inside the handler, not left to escape: the audit record's `error_type` is `type(exc).__name__` (422), so an unconverted error would change the reported error kind and break the error-taxonomy expectation.
+- A validation failure is reported as `MdqValidationError`, which already has an exception handler (`mdq_server.py:124`) and is in the `call_tool` catch set (`_TOOL_LEVEL_ERRORS` 433, caught by `except MdqServiceError` at 491), so the wire behavior stays HTTP 200 with `is_error=True` (495-496) and the audit `error_type` stays the code mapped from `MdqValidationError` (`validation_error`, `mdq_error_codes.py:62`).
+- A `pydantic.ValidationError` must be converted inside the handler, not left to escape: the audit record's `error_type` is `code_for_exception(exc)` (493), which resolves any exception outside the MDQ classes to `unexpected_error` (`mdq_error_codes.py:88`), so an unconverted error would change the reported error kind and break the error-taxonomy expectation.
 - The audit detail format for `get_chunk` keeps the `truncated=true` part, so `tests/mcp_servers/mdq/test_mdq_exception_handlers.py::TestGetChunkTruncationAuditDetail` still passes with the state sourced from metadata.
 - That test file's module docstring says `get_chunk` is "the one tool whose truncation flag is not carried via structured metadata"; the wording becomes inaccurate after this row. The file is not a target row, so no modification is instructed here; the caveat is recorded in the Plan's Assumptions.
 - Metadata is passed from handler to audit through `_mdq_metadata_var` (196-206, lifecycle documented in its comment block); this row keeps that mechanism.

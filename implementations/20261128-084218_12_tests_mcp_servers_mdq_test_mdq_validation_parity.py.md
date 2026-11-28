@@ -11,7 +11,7 @@ Compare the two validation paths for the MDQ tools, so a divergence between the 
 
 ## Assumptions
 
-- `validate_tool_arguments()` checks required fields, extra fields (unless `allow_extra_fields=True`), then jsonschema types (`scripts/agent/tool_arg_validator.py:53-66`); the test calls it with the default, so unknown fields are rejected on the Agent side.
+- `validate_tool_arguments()` checks required fields, extra fields (unless `allow_extra_fields=True`), then jsonschema types (`scripts/agent/tool_arg_validator.py:54-66`); the test calls it with the default, so unknown fields are rejected on the Agent side.
 - Verified at current HEAD: `SearchDocsRequest.model_validate({"limit": "5"})` coerces the string to `int`, while jsonschema rejects the same argument. The divergence closes only when each MDQ model declares `strict=True` (row 01), so the wrong-type case is the case that pins `AC-1`.
 - No `minLength` constraint exists in the current schema blocks (`mdq_tools.py` carries `minimum` and `minItems` only), so an empty `query` is accepted by both paths and stays an equality case, not a rejection case.
 - `minItems` on `paths` maps to pydantic `min_length=1` on `list[str]`, so both paths reject an empty list.
