@@ -104,7 +104,10 @@ USAGE = "/session export [markdown|md|json] [file] [--output <file>]"
         # more than one output file is a usage error
         ("md a.md b.md", _Raises(f"{USAGE}: more than one output file")),
         ("md --output a.md b.md", _Raises(f"{USAGE}: more than one output file")),
-        ("md --output a.md --output b.md", _Raises(f"{USAGE}: more than one output file")),
+        (
+            "md --output a.md --output b.md",
+            _Raises(f"{USAGE}: more than one output file"),
+        ),
         # a bare --output has no filename
         ("md --output", _Raises(f"{USAGE}: --output requires a filename")),
     ],

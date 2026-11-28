@@ -70,7 +70,9 @@ class TestRenderHistoryMd:
         assert all(len(fence) > longest_run for fence in fences), fences
         # the block is closed: the content sits between the opening and closing fence
         assert fences[0] == fences[1]
-        assert result.index(fences[0]) < result.index(content) < result.rindex(fences[1])
+        assert (
+            result.index(fences[0]) < result.index(content) < result.rindex(fences[1])
+        )
 
     def test_tool_call_id_heading_marker_is_escaped(self) -> None:
         """REQ-001 / D1: a tool call id that begins with a heading marker cannot read as
