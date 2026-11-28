@@ -23,7 +23,7 @@ Medium
 - Add the ordering rule as prose to the existing `Implementation Target Files` section rules and the `Implementation steps` / `Dependencies` guidance of `templates/plan.md`, and add one Step 8a validation bullet to `skills/issue-to-plan/workflow.md`. No new sections, headings, tools, or tests.
 
 ## Requirements
-- `REQ-001`: `templates/plan.md` states that `Implementation Target Files` rows are ordered by implementation sequence, that `Implementation steps` cites rows in that order, and that canonical implementation order lives in this table (the `Dependencies` section defers to it).
+- `REQ-001`: `templates/plan.md` states that `Implementation Target Files` rows are ordered by implementation sequence, that `Implementation steps` cites rows in that order, and that canonical implementation order lives in this table (the `Dependencies` bullet in `Scope` defers to it).
 - `REQ-002`: `skills/issue-to-plan/workflow.md` Step 8 gains a row-order check bullet: reject a table marked `Frozen` whose `Implementation steps` citations do not match the 1-indexed row order.
 - `REQ-003`: Heading sets and section names of both files stay unchanged, and both files stay within their `tools/check_skill_size.py` ceilings after the edits (`wc -c` measured before and after each file).
 
@@ -32,7 +32,7 @@ Medium
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
-| `templates/plan.md` | Add the row-order rule to the `Implementation Target Files` section rules, the `Implementation steps` note, and the `Dependencies` section note; text-only edit inside existing sections. | The table lacks any row-order statement, yet downstream phases derive order from it. | `REQ-001`; `AC-1`, `AC-3` | `templates/plan.md` 12596 B, ceiling 20480 B, headroom 7884 B (`tools/check_skill_size.py --headroom`); no row-order statement found by grep over `templates/plan.md`, `skills/issue-to-plan/`, `skills/code-implementation/workflow.md`, `rules/workflow-lifecycle.md` | `tests/tools/test_check_workitem_structure.py` (heading-set comparison against `templates/plan.md`) | Verified |
+| `templates/plan.md` | Add the row-order rule to the `Implementation Target Files` section rules, the `Implementation steps` note, and the `Dependencies` bullet note in `Scope`; text-only edit inside existing sections. | The table lacks any row-order statement, yet downstream phases derive order from it. | `REQ-001`; `AC-1`, `AC-3` | `templates/plan.md` 12596 B, ceiling 20480 B, headroom 7884 B (`tools/check_skill_size.py --headroom`); no row-order statement found by grep over `templates/plan.md`, `skills/issue-to-plan/`, `skills/code-implementation/workflow.md`, `rules/workflow-lifecycle.md` | `tests/tools/test_check_workitem_structure.py` (heading-set comparison against `templates/plan.md`) | Verified |
 | `skills/issue-to-plan/workflow.md` | Add one Step 8a row-order check bullet to the Step 8 validation list; text-only edit. | Step 8 validates paths, overlaps, evidence, and structure but not row order, so an out-of-order table can be frozen. | `REQ-002`; `AC-2`, `AC-3` | Step 8 validation bullet list in `skills/issue-to-plan/workflow.md`; file 42152 B, ceiling 42533 B (`tools/check_skill_size_baseline.txt`), headroom 381 B | `tests/tools/test_check_workitem_structure.py` | Verified |
 
 ## Reference Files
@@ -44,7 +44,7 @@ Medium
 | `skills/issue-to-plan/workflow-edge.md` | Overflow destination if the Step 8a bullet does not fit the headroom (Step 9 fallout path). | `REQ-002`, `REQ-003` |
 
 ## Acceptance Criteria
-- `AC-1` (`REQ-001`): `templates/plan.md` states the row-order rule, the row-order-citation note in `Implementation steps`, and the `Dependencies` deferral; heading set unchanged.
+- `AC-1` (`REQ-001`): `templates/plan.md` states the row-order rule, the row-order-citation note in `Implementation steps`, and the `Dependencies` bullet deferral in `Scope`; heading set unchanged.
 - `AC-2` (`REQ-002`): `skills/issue-to-plan/workflow.md` Step 8 contains a row-order check bullet that rejects out-of-order `Frozen` tables.
 - `AC-3` (`REQ-003`): after the edits, `uv run python tools/check_skill_size.py --headroom templates/plan.md skills/issue-to-plan/workflow.md` reports both files under ceiling, `uv run python tools/check_skills_references.py` reports 0 missing references, `uv run python tools/check_skills_heading_cycles.py` passes, and `uv run python tools/check_workitem_structure.py --related templates/plan.md` passes.
 
@@ -58,7 +58,7 @@ N/A: no `docs/*.md` change. The edits are instruction text in `templates/` and `
 ## Assumptions
 - The 381 B headroom of `skills/issue-to-plan/workflow.md` fits one short Step 8a bullet (~150-250 B); if the measured growth exceeds it, the implementation phase moves the explanation into `skills/issue-to-plan/workflow-edge.md` (Step 9 skill-size fallout) rather than raising the baseline.
 - Enforcement stays AI-executed (the Step 8a workflow bullet); no new checker tool, per the Issue Constraints ("Do not add a checker in this issue").
-- `deploy/` is unaffected: `deploy/deploy.sh` rsyncs `scripts/` only, so `templates/` and `skills/` changes need no deploy.sh row.
+- `deploy/` is unaffected: `deploy/deploy.sh` rsyncs `scripts/`, `registry/`, `tests/`, and `docs/`, never `templates/` or `skills/`, so `templates/` and `skills/` changes need no deploy.sh row.
 
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
@@ -112,8 +112,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the row-order rule text (`templates/plan.md`) | Pending | — | — |  |
-| 2 | Add the Step 8a row-order check (`skills/issue-to-plan/workflow.md`) | Pending | — | — |  |
+| 1 | Add the row-order rule text (`templates/plan.md`) | In Progress | — | — |  |
+| 2 | Add the Step 8a row-order check (`skills/issue-to-plan/workflow.md`) | In Progress | — | — |  |
 | 3 | Run gate tools, related tests, and full suite; deployment N/A | Pending | — | — |  |
 
 ### Blocker Log
@@ -124,7 +124,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261128-161650_01_templates_plan.md.md | 1 | Procedure | Pending | — | — |
+| implementations/20261128-161650_02_skills_issue-to-plan_workflow.md.md | 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -146,3 +147,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-002 | `## Problem`; `## Requirements` | `skills/issue-to-plan/workflow.md` | 2 | AC-2 | `tools/check_skill_size.py` | Planned |
 | REQ-003 | `## Constraints` | `templates/plan.md` | 1,3 | AC-3 | `tools/check_skill_size.py`; `tests/tools/test_check_workitem_structure.py` | Planned |
 | REQ-003 | `## Constraints` | `skills/issue-to-plan/workflow.md` | 2,3 | AC-3 | `tools/check_skill_size.py` | Planned |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261128-161650 -->
