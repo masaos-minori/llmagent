@@ -92,8 +92,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the Step 8a row-order check bullet per Procedure/Method/Details | Pending | — | — | Size overflow fallback: move text to `workflow-edge.md` |
-| 2 | Run the documentation checkers (`check_skill_size.py`, `check_skills_references.py`, `check_skills_heading_cycles.py`) | Pending | — | — | |
+| 1 | Add the Step 8a row-order check bullet per Procedure/Method/Details | Completed | 20261128-163531 | 20261128-163531 | Size overflow fallback: move text to `workflow-edge.md` Step 8a row-order check paragraph inserted after Affected areas; 42351 B <= 42533 B; overflow branch not triggered |
+| 2 | Run the documentation checkers (`check_skill_size.py`, `check_skills_references.py`, `check_skills_heading_cycles.py`) | Completed | 20261128-163531 | 20261128-163531 | check_skill_size exit 0; check_skills_references: no issues; check_skills_heading_cycles: no issues |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

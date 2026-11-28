@@ -112,8 +112,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the row-order rule text (`templates/plan.md`) | In Progress | — | — |  |
-| 2 | Add the Step 8a row-order check (`skills/issue-to-plan/workflow.md`) | In Progress | — | — |  |
+| 1 | Add the row-order rule text (`templates/plan.md`) | Completed | — | 20261128-170414 |  |
+| 2 | Add the Step 8a row-order check (`skills/issue-to-plan/workflow.md`) | Completed | — | 20261128-170414 |  |
 | 3 | Run gate tools, related tests, and full suite; deployment N/A | Pending | — | — |  |
 
 ### Blocker Log
@@ -124,8 +124,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261128-161650_01_templates_plan.md.md | 1 | Procedure | Pending | — | — |
-| implementations/20261128-161650_02_skills_issue-to-plan_workflow.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261128-161650_01_templates_plan.md.md | 1 | Procedure | Completed | — | — |
+| implementations/20261128-161650_02_skills_issue-to-plan_workflow.md.md | 2 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
