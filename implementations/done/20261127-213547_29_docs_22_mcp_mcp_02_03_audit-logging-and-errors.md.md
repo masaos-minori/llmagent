@@ -32,6 +32,8 @@ Record MDQ under the single lowercase-snake error-code vocabulary and remove the
 
 ### Details
 - The existing rule that persistent output carries no raw query text and no absolute path stays as written; seq 03 and seq 10 implement it for MDQ.
+- Step 3b correction (20261128): verified against current source — the statement to remove is line 68, not line 64 (line 64 is the "Approval correlation" heading); the recorded line number was stale by four lines. It was replaced with the single-emission-boundary statement.
+- Step 3b correction (20261128): the doc has no Error Type Vocabulary section as the Assumptions state, so MDQ is recorded under the closed vocabulary inside the same paragraph as the emission boundary, naming the eight codes and the `target` redaction rule. The CI/CD row's content for this file is unchanged, so the two edits stay compatible.
 
 ## Compatibility considerations
 - N/A: documentation only.
@@ -58,8 +60,8 @@ Record MDQ under the single lowercase-snake error-code vocabulary and remove the
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the documentation checker named in `rules/tool-gates.md` | Pending | — | — | `uv run python tools/check_docs_content_policy.py` |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261128-093658 | 20261128-093658 | line 68 replaced with the single-emission-boundary statement plus the closed code vocabulary and the target redaction rule |
+| 3 | Run the documentation checker named in `rules/tool-gates.md` | Completed | 20261128-093658 | 20261128-093658 | `uv run python tools/check_docs_content_policy.py` 20261128: all four documentation checkers Pass, as recorded in seq 27's gates row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

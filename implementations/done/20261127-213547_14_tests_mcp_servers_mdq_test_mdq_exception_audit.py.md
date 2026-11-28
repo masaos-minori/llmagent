@@ -28,9 +28,14 @@ Create the exactly-one-audit tests for success and for every error class, includ
 
 ### Method
 - Records are read from the audit sink the emission boundary writes to, not from a patched `_audit_log()` mock, so the double-emission is observable.
+- Step 3b correction (20261128): the sink is the server module's `logger` replaced with a recorder, and non-record info lines are skipped, because `call_tool()` also logs a non-JSON `fmt_kvlog` line; counting every info call would count that line as a record.
+- Step 3b correction (20261128): the `ExecutionContextError` trigger is a header claim that disagrees with the resolved mode — `X-Execution-Mode: preview` for `search_docs`, which resolves to `applied` (`scripts/mcp_servers/execution_context.py` lines 111-118). A claim equal to the resolved mode raises nothing.
 
 ### Details
 - The refused-tool path must also emit exactly one record, so the refusal is covered by the same counting assertion.
+- Step 3b correction (20261128): the count assertion alone passes for the wrong reason today, because no refusal happens at all and the executed handler emits one record. The test also asserts `is_error=true`, which is what makes the missing refusal observable. The refusal itself (code `tool_disabled`, `outcome` `rejected`) is pinned by seq 13, so this file does not restate it.
+- Step 3b correction (20261128): "the tests fail first because the module emits from two sites" is not a per-call observation. Per call only one site executes today, so 8 of the 10 tests already pass and serve as the behavior lock; the failures today are the two paths that emit nothing — the malformed-execution-context path and the refused-tool path. The handler-emission assertion is seq 01's companion's, not this file's.
+- Step 3b correction: the transport statuses asserted per class are the ones the handlers return today (`mdq_server.py` lines 139-190): 400 validation, 403 authorization, 404 not found, 503 index-not-ready, 503 database, 500 consistency, 500 service. The four classes caught inside `call_tool()` stay tool-level with HTTP 200, so the test branches on that.
 
 ## Compatibility considerations
 - `tests/mcp_servers/mdq/test_mdq_exception_handlers.py` (companion of seq 01) asserts the handler no longer emits; the two files must not duplicate the same assertion.
@@ -56,8 +61,8 @@ Create the exactly-one-audit tests for success and for every error class, includ
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261128 | 20261128 | `tests/mcp_servers/mdq/test_mdq_exception_audit.py` created (10 tests: success, 7 error classes, malformed context, refusal) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261128-093658 | 20261128-093658 | Targeted run 20261128: 2 failed as designed (the paths that emit nothing today), 8 passed as the behavior lock. ruff format/check Pass. Validation completes at the end of the release unit, after seq 01 lands end-of-unit gate 20261128 as recorded in seq 01's gates row; the two failing-first assertions pass after seq 01 landed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

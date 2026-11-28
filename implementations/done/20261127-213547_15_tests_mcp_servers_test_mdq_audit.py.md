@@ -28,9 +28,17 @@ Add redaction tests with customer names, secrets, regexes, and absolute paths ag
 
 ### Method
 - Values are asserted as hashed or root-relative forms produced by `scripts/mcp_servers/mdq/audit_target.py` (seq 03) and the helper in `scripts/mcp_servers/audit.py` (seq 10).
+- Step 3b correction (20261128): the expected values are computed by calling `hash_query_value()` and `path_identifier()` from the shared helper, so the test does not re-implement the redaction policy; it asserts that the persisted record matches what the helper produces.
+- Step 3b correction (20261128): records are read from the server module's `logger` sink, not from a patched `_audit_log`. `AuditEmission.emit()` calls `audit.py`'s own module-level `_audit_log`, so patching the attribute in `mdq_server` would miss a record written through the boundary. Non-record info lines are skipped because `call_tool()` also logs a non-JSON line.
 
 ### Details
 - The file lives under `tests/mcp_servers/`, not `tests/mcp_servers/mdq/`, so it is the shared-audit view of MDQ; the redaction assertions must not depend on MDQ-only fixtures.
+- Step 3b correction (20261128): the redaction assertions use the shared helpers in `scripts/mcp_servers/audit.py` for the expected values; the fixtures that drive a call through the MDQ app are MDQ-specific by nature of this file and cannot be avoided.
+- Step 3b correction (20261128): "keep the existing metadata-sourcing assertions unchanged" conflicts with AC-4 in one place. `TestAuditDetailIndependentOfOutputText.test_concurrent_requests_do_not_leak_metadata` selects each call's record by the raw query in `target`, which stops working once seq 03 hashes the target. The selection is changed to the hashed form; the assertion itself (one record per call, per-query `result_count`) is unchanged.
+- Step 3b correction (20261128): the five redaction tests fail against current source as intended — `extract_audit_target()` returns the raw query, pattern, chunk id, and absolute path truncated to 80 characters. The changed selection in the concurrency test also fails today for the same reason. Recorded as the pinned disagreement; all six pass after seq 03 lands.
+- Step 3b correction: a path inside an authorized root is asserted as the root-relative identifier, not as a redacted absolute path, per the plan's Path redaction design; the absence assertion is on the absolute root itself.
+- Step 3b correction (20261128): the file-level `mock_audit` fixture is migrated to the same logger-sink reader the redaction tests use, because `mdq_server` no longer has a module-level `_audit_log` once seq 01 lands and the patched attribute raises `AttributeError` at fixture setup. The assertions keep their meaning: each reads the single persisted record rather than the mock's call arguments.
+- Step 3b correction (20261128): `TestValidationErrorAudit` asserts the code, not the exception-class name, and the refusal case now records `error_type="tool_disabled"` with `outcome="rejected"` because seq 01's availability gate refuses `grep_docs` before the service runs. `TestAuthorizationErrorAudit` asserts `authorization_error` for the same reason. The detail assertion stays: a refusal does not repeat its kind in `detail`.
 
 ## Compatibility considerations
 - `tests/mcp_servers/test_audit_redaction.py` is the shared behavior lock and is run unchanged.
@@ -57,8 +65,8 @@ Add redaction tests with customer names, secrets, regexes, and absolute paths ag
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261128 | 20261128 | `TestRedactedTargets` (5 tests) added to `tests/mcp_servers/test_mdq_audit.py`; the concurrency test's record selection changed to the hashed form (see Step 3b correction) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261128-093658 | 20261128-093658 | Targeted run 20261128: 6 failed as designed (the pinned raw-value behavior), 51 passed including the unchanged shared behavior lock. ruff format/check Pass. Validation completes at the end of the release unit, after seq 03 lands end-of-unit gate 20261128 as recorded in seq 01's gates row; the six failing-first assertions pass after seq 03 landed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

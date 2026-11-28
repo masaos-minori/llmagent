@@ -30,9 +30,12 @@ Add the path-identifier helper MDQ needs to the shared audit module, because `mc
 ### Method
 - The function resolves the path against the supplied roots; inside a root it returns the path relative to that root, otherwise the hash of the canonical path.
 - No I/O and no logging inside the helper.
+- Step 3b correction (20261128): "resolves" cannot mean `Path.resolve()`, because symlink resolution is a filesystem lookup and conflicts with the no-I/O rule. The helper normalizes textually (`os.path.expanduser` + `os.path.normpath`), so a path that reaches an authorized root only through a symlink falls back to the hash branch — the fail-closed direction.
+- Step 3b correction: the root-relative identifier is returned as-is, without segment redaction. AC-4 forbids absolute paths, queries, regexes, and raw exception text, and a root-relative identifier inside an authorized root is none of those. A customer name that is part of a path segment inside an authorized root is therefore still persisted; this is the plan's stated design (`Design` > Path redaction) and is recorded here as a known limit of the helper, not as an implementation deviation.
 
 ### Details
 - The hash uses the same hashing convention as `hash_query_value()` so persisted values are comparable across servers.
+- Step 3b correction: the helper calls `hash_query_value()` directly rather than reimplementing SHA-256, so the convention is shared by construction.
 
 ## Compatibility considerations
 - Existing servers do not call the new function, so their audit output is unchanged; `tests/mcp_servers/test_audit_redaction.py` is the guard.
@@ -62,10 +65,10 @@ Add the path-identifier helper MDQ needs to the shared audit module, because `mc
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | No test change; `tests/mcp_servers/test_audit_redaction.py` is the behavior lock |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Documentation is a separate row (seq 29) |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261128 | 20261128 | `path_identifier()` and `_normalize_path()` added; textual normalization (see Method) |
+| 2 | Add or update tests per Validation plan | Completed | 20261128 | 20261128 | Step 3b correction: the guard file alone does not cover a new public function, so `TestPathIdentifier` (8 tests) was added to `tests/mcp_servers/test_audit_redaction.py`; the existing assertions are unchanged and still hold as the behavior lock |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261128-093658 | 20261128-093658 | `uv run pytest tests/mcp_servers/test_audit_redaction.py tests/mcp_servers/mdq/test_audit_target.py` — 41 passed in the guard file; `test_audit_target.py` is seq 03's target and is not affected yet. ruff/bandit/lint-imports (6 contracts kept)/mypy/check_module_size/check_test_taxonomy Pass end-of-unit gate 20261128 as recorded in seq 01's gates row |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | Documentation is a separate row (seq 29) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

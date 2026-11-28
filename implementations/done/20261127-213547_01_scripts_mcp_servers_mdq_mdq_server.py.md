@@ -32,6 +32,12 @@ Make MDQ's HTTP surface answer tool availability from one per-tool function used
 - Replace the two `_audit_log()` calls in `call_tool()` (lines 426 and 444) with one `AuditEmission` emitted from a single `finally`.
 - Remove the `_audit_log()` call from `_mdq_error_handler()` (line 125).
 - Read the shared startup configuration result from `scripts/mcp_servers/mdq/startup_config.py` instead of `_load_auth_token()` (line 77).
+- Step 3b correction: the gate is placed inside `_dispatch_mdq_tool()`, not as a separate check in `call_tool()` before the call. `call_tool()` is the HTTP entry only; `tests/mcp_servers/mdq/test_mdq_disabled_tools.py` (seq 13) asserts the programmatic entry also refuses, so evaluating in the shared dispatch entry satisfies AC-1 for both paths. `call_tool()` reads the returned `MdqDispatchResult`, whose `outcome` is `rejected` for a refusal.
+- Step 3b correction (response shape, user decision 20261128): `CallToolResponse` has no code field, so a tool-level failure returns `result=code` and the transport handler returns `{"detail": code}`. This requires one assertion change in `tests/mcp_servers/mdq/test_mdq_authentication.py` line 90, a file not in the plan's Target Files table: the authorization test now asserts `body["result"] == "authorization_error"` instead of the exception text.
+- Step 3b correction: `_mdq_tool_availability()` reads `allowed_dirs` and `enable_grep` from the `MdqService` instance rather than a config mapping, because the Phase 1 test files patch only `mdq_server._service`. All seven MDQ tools serve content under the authorized roots, so an empty allowlist disables every tool; `grep_docs` is additionally disabled when `enable_grep` is false.
+- Step 3b correction: `call_tool()` catches `MdqServiceError` broadly and re-raises the classes that keep a transport status (400/403/404/503/503/500/500), so the single `finally` is the only emission site; the four tool-level classes are answered at HTTP 200 from inside `call_tool()` and never reach the handlers.
+- Step 3b correction: `load_startup_config()` is called at import, so a missing production configuration is a pre-bind failure. The two startup assertions in `tests/mcp_servers/mdq/test_mdq_authentication.py` still pass: the field-path message `_reject_empty()` builds contains `auth_token is empty`, and the unset-variable message names `MCP_MDQ_AUTH_TOKEN`.
+- Step 3b correction: `test_mdq_exception_handlers.py` is rewritten to read records from the module logger sink rather than patching `mdq_server._audit_log`, which no longer exists in the module, and its `error_type` assertions now name codes rather than exception-class names.
 
 ### Method
 - The emission boundary is created before the dispatch call so the `ExecutionContextError` branch (line 412), which emits nothing today, is covered by the same `finally`.
@@ -78,10 +84,10 @@ Make MDQ's HTTP surface answer tool availability from one per-tool function used
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Companion test file is covered by this document |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Documentation is a separate row (seq 27) |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261128 | 20261128 | gate moved into `_dispatch_mdq_tool()`; one `AuditEmission` in `call_tool()`'s `finally`; handlers transport-only; responses carry codes; `load_startup_config()` replaces `_load_auth_token()` |
+| 2 | Add or update tests per Validation plan | Completed | 20261128 | 20261128 | `test_mdq_exception_handlers.py` rewritten on the logger sink; `test_mdq_authentication.py:90` asserts the code; `test_mdq_disabled_tools.py` programmatic test patches the module singleton; 16 passed in the four targeted files, `test_mdq_authentication.py` 13 passed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261128-093658 | 20261128-093658 | ruff / mypy / `lint-imports` / `check_module_size` Pass; the full suite runs once at the end of the release unit (`boundary-characterization-tests`) end-of-unit gate 20261128: full suite 16357 passed / 4 skipped / 6 failed; the 6 are pre-existing failures in tests/mcp_servers/git/ and tests/mcp_servers/file/ files not in this unit's diff. Batch coverage over the unit's changed files: 98% (>=90). ruff/bandit/pre-commit Pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | Documentation is a separate row (seq 27) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

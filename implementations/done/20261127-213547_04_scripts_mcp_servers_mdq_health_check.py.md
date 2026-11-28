@@ -10,6 +10,7 @@ Remove the absolute database path, database-wide counts and timestamps, and the 
 - Health body consumers read only the shared contract fields (`liveness`, `ready`, `degraded_reasons`, `capabilities`, `reason`); the removed `details` keys have no production consumer, only test assertions.
 - The readiness codes come from `CAPABILITY_STATES` and `HEALTH_DEGRADED_REASON_CODES` in `scripts/shared/mcp_health_contract.py`; this document uses them and does not extend them.
 - The configuration input is the shared startup result (seq 09), so the config exception message that embeds the configuration path is no longer produced inside this module.
+- Step 3b correction (20261128): execution order is seq 05 before seq 04. `check_health()` hands the shared result to `build_mdq_posture()`, whose view reads token presence from the result's token field; the values mapping excludes the secret key, so a config dict cannot serve as the posture input once health stops reading configuration.
 - Cross-plan overlap on `docs/22_mcp/mcp_04_04_mdq.md` is a documentation-sequencing dependency, not a conflict.
 
 ## Design decisions
@@ -37,13 +38,19 @@ Remove the absolute database path, database-wide counts and timestamps, and the 
 ### Details
 - `_collect_dependencies()` currently returns seven values, five of which feed `build_mdq_posture()`; the `deps`/`details` return stays for the health body, so the signature change is limited to the value types, not the shape.
 - `test_mdq_health_endpoint.py` line 335 asserts `"database" in details`; that assertion is replaced by the companion test change.
+- Step 3b correction (20261128): verified against current source (209 lines). The three leakage points are at lines 146, 153, and 166 as stated, and `DEFAULT_DB_PATH` is line 31. `last_indexed` is also dropped from `_collect_index_stats()`: it was only used by the health body and is a database-wide timestamp, so the return keeps the four counts the posture's index check judges.
+- Step 3b correction (20261128): the `deps["config"]` branch (line 178) is removed rather than replaced by a reason code. The module no longer reads configuration, so a configuration error cannot be observed by a request; a missing production configuration is a pre-bind failure (AC-6). No configuration dependency remains in the body. The consequence is recorded in `tests/mcp_servers/mdq/test_mdq_config_error_degradation.py`, seq 09's companion, where the two pre-change characterization tests are replaced.
+- Step 3b correction (20261128): `_degraded_response()` is removed. Both branches compose through `make_health_response()` in one place, so the ready path and the degraded path cannot diverge; `check_health()` takes `extra_details` so the handler passes the read-only dedup block instead of building the body itself.
+- Step 3b correction (20261128): readiness is reported through the `mdq.corpus` capability block, the name `config/tool_catalog.toml` gives this server, with `HEALTH_REASON_SERVER_UNAVAILABLE` as the reason code; `degraded_reasons` is derived from the capability state. The closed vocabulary has no per-element code, so the schema probe returns the `(dependency_key, reason_code)` pair and the per-table names the tests asserted are no longer reported.
 
 ### Companion test files
 - `tests/mcp_servers/mdq/test_mdq_health.py`
   - Procedure: replace the global-count assertions in `test_deny_all_reports_zero_count_and_true` and `test_non_empty_allowed_dirs_reports_count_and_false` with non-sensitive state-code expectations; keep `test_raw_allowed_dirs_paths_not_exposed` as the leakage test.
+  - Step 3b correction (20261128): the two named tests assert the authorized-root count, which is already non-sensitive, so their assertions stay. The change is the input: patching `health_check.ConfigLoader` is replaced by supplying the startup result to the server module, because this module performs no configuration read. New tests pin the state-code side: the ready body reports `mdq.corpus` as `ok`, `details` holds only `service`/`allowed_dirs_count`/`deny_all` plus the read-only dedup block, and no database-wide count, timestamp, or absolute path reaches the response.
   - Validation: `uv run pytest tests/mcp_servers/mdq/test_mdq_health.py`
 - `tests/mcp_servers/mdq/test_mdq_health_endpoint.py`
   - Procedure: update the body assertions that pin `details["database"]` (line 335) and the schema-error text that carries the path; the fixture classes' `deps` messages become reason codes.
+  - Step 3b correction (20261128): the per-element names (`documents`, `chunks`, `chunks_fts`, `chunks_ai`) in the dependency values cannot survive, because the closed vocabulary has no code naming a missing table; the assertions become `dependencies[<key>] == HEALTH_REASON_SERVER_UNAVAILABLE` and the capability state is `unavailable` with that reason. `TestHealthEndpointStats`' five count assertions are replaced by non-sensitive-body assertions, since the counts no longer appear in the body. The same replacement applies to the fixtures' ConfigLoader patch, which no longer has a target: the tests supply the startup result to the server module.
   - Validation: `uv run pytest tests/mcp_servers/mdq/test_mdq_health_endpoint.py`
 
 ## Compatibility considerations
@@ -73,10 +80,10 @@ Remove the absolute database path, database-wide counts and timestamps, and the 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Two companion test files are covered by this document |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Documentation is a separate row (seq 27) |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261128 | 20261128 | details leakage removed; deps values are reason codes; DEFAULT_DB_PATH, last_indexed and details.update(index_stats) dropped; _degraded_response() replaced by one response builder; check_health() takes extra_details for the dedup block |
+| 2 | Add or update tests per Validation plan | Completed | 20261128 | 20261128 | Two companion test files are covered by this document both companion test files rewritten to the startup result and the state/reason vocabularies |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261128-093658 | 20261128-093658 | targeted run 20261128: 27 passed with test_mdq_health_posture.py; ruff/mypy/bandit/lint-imports/module-size/docstrings Pass. Full sequence runs at the end of the release unit end-of-unit gate 20261128 as recorded in seq 01's gates row |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | Documentation is a separate row (seq 27) out of scope: documentation is seq 27 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

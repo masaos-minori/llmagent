@@ -32,6 +32,10 @@ Create the single module that loads and validates the production configuration o
 ### Method
 - Field-path-only error text comes from `ConfigFieldTypeError` in `scripts/shared/config_field_types.py`, which never echoes the configured value.
 - The configuration path itself must not appear in the message, so the module formats its own message from the field path rather than reusing the loader exception text.
+- Step 3b correction (verified 20261128): `ConfigLoader._load_single()` embeds the resolved filesystem path in every loader exception message (`Config file not found: {path}`, lines 149-156), so "propagate without catching" and AC-6 conflict. Resolved by re-raising the same exception class with a message built from the field path and `from None`, so the path-bearing cause is not carried. The exception type is unchanged, so callers that catch `ConfigMissingError`/`ConfigParseError`/`ConfigReadError` keep working.
+- Step 3b correction: `db_path` and `auth_token` are the two keys outside `MdqConfig`, so they are validated here with `strict_str()`; the `MdqConfig` keys stay with seq 06.
+- Step 3b correction: the secret keys (`auth_token`) are excluded from `values`, because a frozen dataclass `repr()` would otherwise put the token into any log line that prints the result. `auth_token` is also `field(repr=False)`.
+- Step 3b correction: the module holds no module-level result and no cache; `mdq_server.py` (seq 01) calls `load_startup_config()` once at import and passes the result to service construction, health, and the posture gate. A shared cache was rejected by this document's Alternatives, so "loaded once" is a wiring property, not a module property.
 
 ### Details
 - The auth token is read from the same result; the value is never logged.
@@ -41,6 +45,7 @@ Create the single module that loads and validates the production configuration o
 - `tests/mcp_servers/mdq/test_mdq_config_error_degradation.py`
   - Procedure: replace `test_load_auth_token_returns_empty_on_config_missing_error` with the pre-bind failure expectation; `test_collect_dependencies_records_config_error` becomes a field-path-only expectation.
   - Validation: `uv run pytest tests/mcp_servers/mdq/test_mdq_config_error_degradation.py`
+  - Step 3b correction (20261128): the two replacements assert behavior of `mdq_server._load_auth_token()` and `health_check._collect_dependencies()`, which are changed by seq 01 and seq 04. While the new module has no consumer, those two tests still describe current source and cannot be replaced without breaking the behavior lock, so they stay and the replacement is recorded in seq 01 and seq 04. Replacement landed 20261128 when seq 01 and seq 04 consumed the result: the two tests are replaced by `TestConsumersDoNotDegradeAConfigError`, which pins that the server has no empty-token fallback and that the health path reports no `config` dependency, because a missing production configuration raises before bind. What is added here is `TestStartupConfigPreBindFailure` (8 tests) for the module itself: no fallback, field-path-only messages for the three loader errors, one loader call, immutable result, no value echo, and the token absent from `repr()`.
 
 ## Compatibility considerations
 - Startup behavior changes for a deployment that relies on the removed fallbacks; seq 11 states the currently-implicit keys explicitly so the values stay the same.
@@ -69,10 +74,10 @@ Create the single module that loads and validates the production configuration o
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Companion test file is covered by this document |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Documentation is a separate row (seq 27) |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261128 | 20261128 | `load_startup_config()` and `StartupConfig` created; loader errors re-raised with field-path-only messages (see Method); secret keys excluded from `values` |
+| 2 | Add or update tests per Validation plan | Completed | 20261128 | 20261128 | `TestStartupConfigPreBindFailure` added (8 tests); the two existing degradation tests stay until seq 01 and seq 04 consume the module |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261128-093658 | 20261128-093658 | `uv run pytest tests/mcp_servers/mdq/test_mdq_config_error_degradation.py` 9 passed; ruff/bandit/lint-imports/mypy/test-taxonomy Pass end-of-unit gate 20261128 as recorded in seq 01's gates row |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | Documentation is a separate row (seq 27) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -29,9 +29,15 @@ Create the disabled-tool and stale-discovery tests that pin the current disagree
 
 ### Method
 - Both paths must reach the same availability function in `scripts/mcp_servers/mdq/mdq_server.py` (seq 01).
+- Step 3b correction (20261128): the programmatic path is `_dispatch_mdq_tool()` called in-process, so the gate must sit inside that entry, not only inside `call_tool()`. seq 01's Procedure places the refusal in `call_tool()`, which covers the HTTP path only; AC-1 names programmatic dispatch, so the check has to be on the entry both paths reach. Recorded as an implementation constraint on seq 01.
+- Step 3b correction: the handler is recorded through `patch.dict(mdq_server._DISPATCH_TABLE, ...)`, because the table holds the function object bound at import and patching the module attribute would not change the entry.
 
 ### Details
 - The refusal must happen before the handler runs, so the test asserts no handler call and no audit record for the refused call.
+- Step 3b correction (20261128): "no audit record for the refused call" contradicts AC-3 and `docs/22_mcp/mcp_02_03_audit-logging-and-errors.md` line 58, which counts a disabled tool as one of the paths that produce exactly one record (`outcome` `rejected`, `error_type` `tool_disabled`). The assertion is therefore no handler call plus exactly one record from the single boundary, not zero records.
+- Step 3b correction: `CallToolResponse` has no code field (`scripts/mcp_servers/models.py:56`), so the code `tool_disabled` is asserted on the audit record's `error_type`; the response side is asserted on the documented refusal text `Tool disabled: <reason>`.
+- Step 3b correction: `grep_docs` is gated only inside `MdqService.grep_docs()` (`mdq_service.py` line 379), which raises `MdqValidationError`, so the record carries the exception-class name today. The gate must refuse before the handler, which is what the test pins.
+- Step 3b correction (20261128): the four tests fail against current source as intended — the handler runs on both paths for a tool reported disabled, `grep_docs` is not reported disabled by discovery, and dispatch does not re-evaluate after the configuration change. Recorded as the pinned disagreement; they pass after seq 01 lands.
 
 ## Compatibility considerations
 - N/A: new test file.
@@ -58,8 +64,8 @@ Create the disabled-tool and stale-discovery tests that pin the current disagree
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261128 | 20261128 | `tests/mcp_servers/mdq/test_mdq_disabled_tools.py` created (4 tests); each assertion names the disagreement it pins |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261128-093658 | 20261128-093658 | Targeted run 20261128: 4 failed as designed (the pinned disagreement). ruff format/check Pass. Validation completes at the end of the release unit, after seq 01 lands end-of-unit gate 20261128 as recorded in seq 01's gates row; the four failing-first assertions pass after seq 01 landed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -29,9 +29,14 @@ Create the boundary tests that pin one availability function used by both discov
 
 ### Method
 - Use the HTTP fixture in `tests/mcp_servers/_auth_headers.py` for the HTTP path and programmatic dispatch for the second path.
+- Step 3b correction (20261128): "programmatic dispatch" is `_dispatch_mdq_tool()` called in-process, so the gate has to be inside that entry, not only inside `call_tool()`. seq 01's Procedure places the refusal in `call_tool()`, which covers the HTTP path only; AC-1 names programmatic dispatch, so the check must sit in the function both paths reach. Recorded as an implementation constraint on seq 01.
+- Step 3b correction: the handler is replaced with a recorded mock through `patch.dict(mdq_server._DISPATCH_TABLE, ...)`, so a refusal is observable as "the handler never ran" rather than as test work; patching the module attribute would not change the table entry captured at import.
+- Step 3b correction: the per-tool `grep_docs` rule needs the validated `enable_grep` value. The test supplies it on the service instance, so the availability function must read it from the single validated startup result the service consumes (seq 09), not re-read configuration.
 
 ### Details
 - The current code passes `""` as the tool name at `scripts/mcp_servers/mdq/mdq_server.py` line 391, so the disagreement is observable today; the test names that as the behavior being fixed.
+- Step 3b correction: `CallToolResponse` has no code field (`scripts/mcp_servers/models.py:56`), so the code `tool_disabled` is not readable from the response body. The response-side assertion here is on the documented refusal text `Tool disabled: <reason>` (`docs/22_mcp/mcp_04_01_web-search-file-read-github.md` line 62); the code itself is asserted in the audit record's `error_type` by seq 13.
+- Step 3b correction (20261128): the three tests fail against current source as intended — dispatch runs the handler for a tool discovery reports disabled (two tests), and the availability function returns one global answer for every tool name (the per-tool test). Recorded as the pinned disagreement; they pass after seq 01.
 
 ## Compatibility considerations
 - N/A: new test file.
@@ -58,8 +63,8 @@ Create the boundary tests that pin one availability function used by both discov
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261128 | 20261128 | `tests/mcp_servers/mdq/test_mdq_server.py` created (3 tests); each assertion names the disagreement it pins |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261128-093658 | 20261128-093658 | Targeted run 20261128: 3 failed as designed (the pinned disagreement). ruff format/check Pass. Validation completes at the end of the release unit, after seq 01 lands end-of-unit gate 20261128 as recorded in seq 01's gates row; the three failing-first assertions pass after seq 01 landed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

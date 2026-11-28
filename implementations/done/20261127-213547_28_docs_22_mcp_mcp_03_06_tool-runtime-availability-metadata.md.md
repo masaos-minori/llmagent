@@ -29,6 +29,8 @@ Remove the statement that `config_dependent` is `false` for the MDQ tools, so th
 
 ### Details
 - The `false` list currently names the file servers, `mdq`, and `rag_pipeline`; only `mdq` is removed from it.
+- Step 3b correction (20261128): line 25 verified as stated. `mdq` moved to the `true` list and the file servers and `rag_pipeline` statements are unchanged; `scripts/mcp_servers/mdq/mdq_tools.py` declares `config_dependent: True` on all seven MDQ tool entries.
+- Step 3b correction (20261128): the same doc's section 5 dispatch rule said mdq has no `/v1/call_tool` gate and relies on path authorization only. After seq 01 landed, the shared availability rule is evaluated at call time inside mdq's dispatch boundary, so that contradicting sentence was corrected with it; the plan's Documentation Impact names removal of contradictory statements about disabled tools. `tests/mcp_servers/mdq/test_mdq_disabled_tools.py` is the proof for the corrected behavior.
 
 ## Compatibility considerations
 - N/A: documentation only.
@@ -54,8 +56,8 @@ Remove the statement that `config_dependent` is `false` for the MDQ tools, so th
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the documentation checker named in `rules/tool-gates.md` | Pending | — | — | `uv run python tools/check_docs_content_policy.py` |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261128-093658 | 20261128-093658 | mdq moved from the false list to the true list; the contradicting section 5 dispatch-rule sentence corrected to the call-time gate inside the dispatch boundary |
+| 3 | Run the documentation checker named in `rules/tool-gates.md` | Completed | 20261128-093658 | 20261128-093658 | `uv run python tools/check_docs_content_policy.py` 20261128: all four documentation checkers Pass, as recorded in seq 27's gates row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -8,6 +8,7 @@ Create the closed MDQ domain error-code vocabulary and the mapping from the MDQ 
 ## Assumptions
 - Companion test row (SKILL.md conditions 1-4 hold): `tests/mcp_servers/mdq/test_mdq_error_taxonomy.py`.
 - `CONTROL_ERROR_CODES` in `scripts/shared/mcp_call_state_contract.py` is closed to the control API and cannot carry domain codes, so the vocabulary stays in its own module.
+- Step 3b correction (verified 20261128): `CONTROL_ERROR_CODES` (line 34) holds nine control-API codes and no domain code, confirming the assumption.
 - UNK-01 (non-blocking): the plan's default is the documented tool-level policy, so codes are defined without transport status bindings; the classification decision stays with the transport owner.
 - The `timeout` code is defined here but its behavior lands in plan `mdqmcp002`; that is a consumption dependency, not a conflict.
 - Cross-plan overlap on `docs/22_mcp/mcp_04_04_mdq.md` is a documentation-sequencing dependency: the error-code table in that doc is written by seq 27 from this vocabulary.
@@ -32,6 +33,9 @@ Create the closed MDQ domain error-code vocabulary and the mapping from the MDQ 
 
 ### Method
 - The mapping returns a code from the set for every exception the MDQ path can raise; the search path's exception classes are covered by the same mapping (`scripts/mcp_servers/mdq/search.py`).
+- Step 3b correction (verified 20261128 against current source): `search.py` raises only `MdqConsistencyError` (lines 56, 195, 200), so the seven classes in `mdq_models.py` (lines 63-87) are the whole mapping input.
+- Step 3b correction: the closed set has no `index_not_ready` code, so `MdqIndexNotReadyError` resolves to `database_unavailable`, the only remaining code. This is an interpretation forced by the closed vocabulary, not a statement in the plan; `mdq_server.py` currently renders that path as `index_not_ready_error` (line 168) and seq 01 must render it through this mapping.
+- Step 3b correction: the mapping is resolved with `isinstance` in insertion order with `MdqServiceError` last, so a subclass resolves before its base.
 
 ### Details
 - No module-level I/O or logging; the module is import-safe.
@@ -68,10 +72,10 @@ Create the closed MDQ domain error-code vocabulary and the mapping from the MDQ 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Companion test file is covered by this document |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Documentation is a separate row (seq 27) |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261128 | 20261128 | `MDQ_DOMAIN_ERROR_CODES` (8 codes) and `code_for_exception()` created; `MdqIndexNotReadyError` maps to `database_unavailable` (see Method) |
+| 2 | Add or update tests per Validation plan | Completed | 20261128 | 20261128 | `TestClosedErrorCodeVocabulary` added (6 tests); existing hierarchy assertions unchanged |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261128-093658 | 20261128-093658 | `uv run pytest tests/mcp_servers/mdq/test_mdq_error_taxonomy.py` 19 passed; ruff/bandit/lint-imports/mypy/module-size/test-taxonomy all Pass end-of-unit gate 20261128 as recorded in seq 01's gates row |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | Documentation is a separate row (seq 27) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

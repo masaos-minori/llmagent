@@ -29,6 +29,11 @@ Apply the strict configuration type primitives to `MdqConfig` and remove the imp
 ### Method
 - The strict primitives raise `ConfigFieldTypeError` naming the field path only; the model does not catch it.
 - The numeric constraints (`gt=0`, `ge=0`) stay as they are.
+- Step 3b correction (20261128): verified against current source — the defaults are lines 96-119, `enable_grep` at line 118 as stated. Every field becomes required.
+- Step 3b correction (20261128): the strict rule is applied through one `field_validator("*", mode="before")` over a declared rule map, not per-field annotations. A validator that runs after coercion sees the value pydantic already turned into a `bool`, so `"true"` and `1` would pass before any rule could reject them. The raised `ConfigFieldTypeError` is wrapped into `pydantic.ValidationError`, which is what seq 23 asserts, and its message names the field path only (AC-6).
+- Step 3b correction (20261128): the rule path used inside the model is the field name (`enable_grep`), not a dotted config-file path, because the loader already owns the file-qualified message.
+- Step 3b correction (20261128): list fields allow an empty value. Required-ness and emptiness are different rules: an empty `allowed_dirs` is the configured deny-all state, so an empty list must still construct.
+- Step 3b correction (20261128): seq 11 was executed before this row's validation. `mdq_server.py` constructs the service at import from the production configuration, so with the defaults removed a configuration that omits any declared key fails at import; the five keys have to exist before the model tests can run.
 
 ### Details
 - `test_recognized_boolean_tokens_coerce` (line 88) asserts the coercion behavior being removed, so it is replaced by a rejection test in seq 23.
@@ -60,10 +65,10 @@ Apply the strict configuration type primitives to `MdqConfig` and remove the imp
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Covered by seq 23, which is not a companion of this row |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Documentation is a separate row (seq 27) |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261128-093658 | 20261128-093658 | every field required; the strict primitives applied through one field_validator("*", mode="before") over the declared _CONFIG_FIELD_RULES map, because a validator after coercion sees an already-bool value; list fields allow_empty so the deny-all state still constructs |
+| 2 | Add or update tests per Validation plan | Completed | 20261128-093658 | 20261128-093658 | Covered by seq 23, which is not a companion of this row Covered by seq 23, which is not a companion of this row; the two failing-first tests pass now that the strict rules landed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261128-093658 | 20261128-093658 | end-of-unit gate 20261128 as recorded in seq 01's gates row; test_mdq_config.py 36 passed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | Documentation is a separate row (seq 27) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

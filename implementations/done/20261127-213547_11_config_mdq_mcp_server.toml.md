@@ -28,6 +28,8 @@ State explicitly in the deployed configuration the keys that `MdqConfig` current
 
 ### Details
 - The historical-notes comment in the file points to a config-history document that does not exist under `docs/`; the rename note for `max_file_chars` is written by seq 27 in the doc named by the task map, not here.
+- Step 3b correction (20261128): verified against current source. The file carries 13 declared keys plus `auth_token` and `db_path`; the five named keys are absent as stated. They are added in the result-size section, after `max_grep_matches`, with the values the pydantic defaults supplied.
+- Step 3b correction (20261128): this row ran before seq 06's validation. `mdq_server.py` constructs the service at import from the production configuration, so once `MdqConfig` has no defaults, a configuration missing any declared key fails at import — every test module that imports the server collects against this file. All 18 keys must be present before the model tests can pass.
 
 ## Compatibility considerations
 - The deployed configuration gains keys; the values are identical to today's defaults, so no behavior change.
@@ -54,8 +56,8 @@ State explicitly in the deployed configuration the keys that `MdqConfig` current
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Config-only change; no test change |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261128-093658 | 20261128-093658 | the five declared keys added after max_grep_matches with the values the removed defaults supplied; the file now carries all 18 keys and is read through load_startup_config() |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261128-093658 | 20261128-093658 | Config-only change; no test change end-of-unit gate 20261128 as recorded in seq 01's gates row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

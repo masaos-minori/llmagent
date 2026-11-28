@@ -276,13 +276,13 @@ Contradictory statements about disabled tools and exception handling are removed
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: characterization tests first | In Progress | — | — | Tests written before production changes per the issue's instruction |
-| 2 | Phase 2: shared vocabulary modules | In Progress | — | — | Error codes, startup config, audit path helper |
-| 3 | Phase 3: availability and dispatch boundary | In Progress | — | — | Depends on Phase 2 codes |
-| 4 | Phase 4: error rendering and single audit boundary | In Progress | — | — | Handlers render transport only |
-| 5 | Phase 5: authorized stats and non-sensitive health | In Progress | — | — | Root-scoped counts |
-| 6 | Phase 6: configuration startup contract | In Progress | — | — | Pre-bind failure |
-| 7 | Phase 7: documentation and deployment verification | In Progress | — | — | Docs gates and deploy config check |
+| 1 | Phase 1: characterization tests first | Completed | — | — | Tests written before production changes per the issue's instruction characterization tests written first (seq 12, 13, 14, 15, 23); failing-first cases validated at end of unit 20261128 |
+| 2 | Phase 2: shared vocabulary modules | Completed | — | — | Error codes, startup config, audit path helper seq 08, 09, 10 landed; vocabulary closed at 8 codes; audit path helper shared by seq 03 |
+| 3 | Phase 3: availability and dispatch boundary | Completed | — | — | Depends on Phase 2 codes seq 01 gate moved into _dispatch_mdq_tool(); seq 07 entries set true |
+| 4 | Phase 4: error rendering and single audit boundary | Completed | — | — | Handlers render transport only seq 01 single AuditEmission in call_tool() finally; handlers transport-only; seq 03 target redaction; seq 15 logger-sink reader |
+| 5 | Phase 5: authorized stats and non-sensitive health | Completed | — | — | Root-scoped counts seq 02 root-scoped stats and refusal on no roots; seq 04 details leakage removed, reason codes, capability block |
+| 6 | Phase 6: configuration startup contract | Completed | — | — | Pre-bind failure seq 09 pre-bind failure, no fallback; seq 06 required fields and strict primitives; seq 11 config carries all 18 keys |
+| 7 | Phase 7: documentation and deployment verification | Completed | — | — | Docs gates and deploy config check docs rows seq 27, 28, 29 applied 20261128; documentation checkers Pass; end-of-unit full suite 16357 passed / 4 skipped / 6 pre-existing failures outside this unit's diff; batch coverage gate 98% |
 
 Plan Gap: no `Implementation steps` entry modifies `tests/mcp_servers/mdq/test_mdq_health_posture.py`, `tests/mcp_servers/mdq/test_mdq_config.py`, `tests/mcp_servers/mdq/test_mdq_config_error_degradation.py`, `tests/mcp_servers/mdq/test_mdq_exception_handlers.py`, `tests/mcp_servers/mdq/test_mdq_error_taxonomy.py`. Each is covered by this cycle as a companion of the code row that cites it, except `test_mdq_config.py`, which keeps its own document because two code rows cite it.
 
@@ -294,25 +294,25 @@ Plan Gap: no `Implementation steps` entry modifies `tests/mcp_servers/mdq/test_m
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261127-213547_01_scripts_mcp_servers_mdq_mdq_server.py.md` | 3, 4 | Procedure | Pending | — | — |
-| `implementations/20261127-213547_02_scripts_mcp_servers_mdq_mdq_service.py.md` | 5, 6 | Procedure | Pending | — | — |
-| `implementations/20261127-213547_03_scripts_mcp_servers_mdq_audit_target.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261127-213547_04_scripts_mcp_servers_mdq_health_check.py.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261127-213547_05_scripts_mcp_servers_mdq_mdq_security_validation.py.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261127-213547_06_scripts_mcp_servers_mdq_mdq_models.py.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261127-213547_07_scripts_mcp_servers_mdq_mdq_tools.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261127-213547_08_scripts_mcp_servers_mdq_mdq_error_codes.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261127-213547_09_scripts_mcp_servers_mdq_startup_config.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261127-213547_10_scripts_mcp_servers_audit.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261127-213547_11_config_mdq_mcp_server.toml.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261127-213547_12_tests_mcp_servers_mdq_test_mdq_server.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261127-213547_13_tests_mcp_servers_mdq_test_mdq_disabled_tools.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261127-213547_14_tests_mcp_servers_mdq_test_mdq_exception_audit.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261127-213547_15_tests_mcp_servers_test_mdq_audit.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261127-213547_23_tests_mcp_servers_mdq_test_mdq_config.py.md` | — (Plan Gap: no Implementation step modifies this path) | Procedure | Pending | — | — |
-| `implementations/20261127-213547_27_docs_22_mcp_mcp_04_04_mdq.md.md` | 7 | Procedure | Pending | — | — |
-| `implementations/20261127-213547_28_docs_22_mcp_mcp_03_06_tool-runtime-availability-metadata.md.md` | 7 | Procedure | Pending | — | — |
-| `implementations/20261127-213547_29_docs_22_mcp_mcp_02_03_audit-logging-and-errors.md.md` | 7 | Procedure | Pending | — | — |
+| `implementations/20261127-213547_01_scripts_mcp_servers_mdq_mdq_server.py.md` | 3, 4 | Procedure | Completed | — | — |
+| `implementations/20261127-213547_02_scripts_mcp_servers_mdq_mdq_service.py.md` | 5, 6 | Procedure | Completed | — | — |
+| `implementations/20261127-213547_03_scripts_mcp_servers_mdq_audit_target.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261127-213547_04_scripts_mcp_servers_mdq_health_check.py.md` | 5 | Procedure | Completed | — | — |
+| `implementations/20261127-213547_05_scripts_mcp_servers_mdq_mdq_security_validation.py.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261127-213547_06_scripts_mcp_servers_mdq_mdq_models.py.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261127-213547_07_scripts_mcp_servers_mdq_mdq_tools.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261127-213547_08_scripts_mcp_servers_mdq_mdq_error_codes.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261127-213547_09_scripts_mcp_servers_mdq_startup_config.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261127-213547_10_scripts_mcp_servers_audit.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261127-213547_11_config_mdq_mcp_server.toml.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261127-213547_12_tests_mcp_servers_mdq_test_mdq_server.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261127-213547_13_tests_mcp_servers_mdq_test_mdq_disabled_tools.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261127-213547_14_tests_mcp_servers_mdq_test_mdq_exception_audit.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261127-213547_15_tests_mcp_servers_test_mdq_audit.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261127-213547_23_tests_mcp_servers_mdq_test_mdq_config.py.md` | — (Plan Gap: no Implementation step modifies this path) | Procedure | Completed | — | — |
+| `implementations/20261127-213547_27_docs_22_mcp_mcp_04_04_mdq.md.md` | 7 | Procedure | Completed | — | — |
+| `implementations/20261127-213547_28_docs_22_mcp_mcp_03_06_tool-runtime-availability-metadata.md.md` | 7 | Procedure | Completed | — | — |
+| `implementations/20261127-213547_29_docs_22_mcp_mcp_02_03_audit-logging-and-errors.md.md` | 7 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

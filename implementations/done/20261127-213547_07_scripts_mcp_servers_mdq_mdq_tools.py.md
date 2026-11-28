@@ -8,7 +8,7 @@ Set `config_dependent` to `True` for the MDQ tool entries whose availability dep
 ## Assumptions
 - Every MDQ tool entry is set to `True`, because the availability function in seq 01 answers for every tool name and returns disabled when no roots are authorized; `grep_docs` additionally depends on `enable_grep`.
 - `tests/mcp_servers/test_tool_schema.py` is a related test but not a target row, so it is not a companion; it asserts only that the field is present as a boolean.
-- Cross-plan overlap on `docs/22_mcp/mcp_03_06_tool-runtime-availability-metadata.md` with `plans/20261127-203046_mdqmcp010_mdq-release-readiness.md` is compatible: this row corrects the MDQ sentence, that plan does not change the same statement.
+- Cross-plan overlap on `docs/22_mcp/mcp_03_06_tool-runtime-availability-metadata.md` with `plans/20261127-203046_mdqmcp010_mdq-release-readiness.md` is compatible: this row corrects the MDQ sentence, that plan does not change the same statement. Verified 20261128: that plan's row for the same document adds the status vocabulary and the `disabled_reason` fallback, not the `config_dependent` value statement.
 
 ## Design decisions
 - The metadata value is the producer-declared flag and is never derived from `status`; it must match the tool's actual dependency on configuration.
@@ -28,6 +28,9 @@ Set `config_dependent` to `True` for the MDQ tool entries whose availability dep
 
 ### Details
 - N/A: no behavior change beyond the declared metadata value.
+- Step 3b correction (20261128): the seven cited lines are confirmed (`mdq_tools.py` 69, 103, 139, 168, 201, 219, 270) and all seven are the MDQ tool entries, so the change applies to every entry as the Assumptions state.
+- Step 3b correction (20261128): no test pins the declared value for MDQ. `tests/mcp_servers/test_tool_schema.py` asserts only that the field is present as a boolean, so the change is not observable through the test suite; the completion criterion is verified by reading the entries. Recorded as a validation gap, not closed here because adding an assertion is outside this row.
+- Step 3b correction (20261128): `docs/22_mcp/mcp_03_06_tool-runtime-availability-metadata.md` line 25 states `config_dependent` is `false` for `mdq`. After this change the code and the documentation disagree, so seq 28 has to land in the same release unit as this row.
 
 ## Compatibility considerations
 - `tests/mcp_servers/mdq/test_mdq_tool_layer_consistency.py` pins `MDQ_TOOLS == TOOL_LIST` names and is unaffected by the value change.
@@ -55,10 +58,10 @@ Set `config_dependent` to `True` for the MDQ tool entries whose availability dep
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | No test change; existing assertions stay compatible |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Covered by seq 28 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261128 | 20261128 | Seven entries changed to `True` (`mdq_tools.py` 69, 103, 139, 168, 201, 219, 270); no other field touched |
+| 2 | Add or update tests per Validation plan | Completed | 20261128 | 20261128 | No test change; existing assertions stay compatible. Targeted run 20261128: 14 passed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261128-093658 | 20261128-093658 | ruff format/check Pass. Registry and routing tests re-run 20261128: 133 passed. Full sequence runs at the end of the release unit end-of-unit gate 20261128 as recorded in seq 01's gates row |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261128-093658 | 20261128-093658 | Covered by seq 28 Covered by seq 28, which was executed 20261128 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
