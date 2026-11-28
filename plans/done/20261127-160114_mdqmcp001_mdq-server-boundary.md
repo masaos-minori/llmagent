@@ -294,25 +294,25 @@ Plan Gap: no `Implementation steps` entry modifies `tests/mcp_servers/mdq/test_m
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261127-213547_01_scripts_mcp_servers_mdq_mdq_server.py.md` | 3, 4 | Procedure | Completed | — | — |
-| `implementations/20261127-213547_02_scripts_mcp_servers_mdq_mdq_service.py.md` | 5, 6 | Procedure | Completed | — | — |
-| `implementations/20261127-213547_03_scripts_mcp_servers_mdq_audit_target.py.md` | 4 | Procedure | Completed | — | — |
-| `implementations/20261127-213547_04_scripts_mcp_servers_mdq_health_check.py.md` | 5 | Procedure | Completed | — | — |
-| `implementations/20261127-213547_05_scripts_mcp_servers_mdq_mdq_security_validation.py.md` | 6 | Procedure | Completed | — | — |
-| `implementations/20261127-213547_06_scripts_mcp_servers_mdq_mdq_models.py.md` | 6 | Procedure | Completed | — | — |
-| `implementations/20261127-213547_07_scripts_mcp_servers_mdq_mdq_tools.py.md` | 3 | Procedure | Completed | — | — |
-| `implementations/20261127-213547_08_scripts_mcp_servers_mdq_mdq_error_codes.py.md` | 2 | Procedure | Completed | — | — |
-| `implementations/20261127-213547_09_scripts_mcp_servers_mdq_startup_config.py.md` | 2 | Procedure | Completed | — | — |
-| `implementations/20261127-213547_10_scripts_mcp_servers_audit.py.md` | 2 | Procedure | Completed | — | — |
-| `implementations/20261127-213547_11_config_mdq_mcp_server.toml.md` | 6 | Procedure | Completed | — | — |
-| `implementations/20261127-213547_12_tests_mcp_servers_mdq_test_mdq_server.py.md` | 1 | Procedure | Completed | — | — |
-| `implementations/20261127-213547_13_tests_mcp_servers_mdq_test_mdq_disabled_tools.py.md` | 1 | Procedure | Completed | — | — |
-| `implementations/20261127-213547_14_tests_mcp_servers_mdq_test_mdq_exception_audit.py.md` | 1 | Procedure | Completed | — | — |
-| `implementations/20261127-213547_15_tests_mcp_servers_test_mdq_audit.py.md` | 1 | Procedure | Completed | — | — |
-| `implementations/20261127-213547_23_tests_mcp_servers_mdq_test_mdq_config.py.md` | — (Plan Gap: no Implementation step modifies this path) | Procedure | Completed | — | — |
-| `implementations/20261127-213547_27_docs_22_mcp_mcp_04_04_mdq.md.md` | 7 | Procedure | Completed | — | — |
-| `implementations/20261127-213547_28_docs_22_mcp_mcp_03_06_tool-runtime-availability-metadata.md.md` | 7 | Procedure | Completed | — | — |
-| `implementations/20261127-213547_29_docs_22_mcp_mcp_02_03_audit-logging-and-errors.md.md` | 7 | Procedure | Completed | — | — |
+| `implementations/done/20261127-213547_01_scripts_mcp_servers_mdq_mdq_server.py.md` | 3, 4 | Procedure | Completed | — | — |
+| `implementations/done/20261127-213547_02_scripts_mcp_servers_mdq_mdq_service.py.md` | 5, 6 | Procedure | Completed | — | — |
+| `implementations/done/20261127-213547_03_scripts_mcp_servers_mdq_audit_target.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/done/20261127-213547_04_scripts_mcp_servers_mdq_health_check.py.md` | 5 | Procedure | Completed | — | — |
+| `implementations/done/20261127-213547_05_scripts_mcp_servers_mdq_mdq_security_validation.py.md` | 6 | Procedure | Completed | — | — |
+| `implementations/done/20261127-213547_06_scripts_mcp_servers_mdq_mdq_models.py.md` | 6 | Procedure | Completed | — | — |
+| `implementations/done/20261127-213547_07_scripts_mcp_servers_mdq_mdq_tools.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/done/20261127-213547_08_scripts_mcp_servers_mdq_mdq_error_codes.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/done/20261127-213547_09_scripts_mcp_servers_mdq_startup_config.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/done/20261127-213547_10_scripts_mcp_servers_audit.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/done/20261127-213547_11_config_mdq_mcp_server.toml.md` | 6 | Procedure | Completed | — | — |
+| `implementations/done/20261127-213547_12_tests_mcp_servers_mdq_test_mdq_server.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/done/20261127-213547_13_tests_mcp_servers_mdq_test_mdq_disabled_tools.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/done/20261127-213547_14_tests_mcp_servers_mdq_test_mdq_exception_audit.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/done/20261127-213547_15_tests_mcp_servers_test_mdq_audit.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/done/20261127-213547_23_tests_mcp_servers_mdq_test_mdq_config.py.md` | — (Plan Gap: no Implementation step modifies this path) | Procedure | Completed | — | — |
+| `implementations/done/20261127-213547_27_docs_22_mcp_mcp_04_04_mdq.md.md` | 7 | Procedure | Completed | — | — |
+| `implementations/done/20261127-213547_28_docs_22_mcp_mcp_03_06_tool-runtime-availability-metadata.md.md` | 7 | Procedure | Completed | — | — |
+| `implementations/done/20261127-213547_29_docs_22_mcp_mcp_02_03_audit-logging-and-errors.md.md` | 7 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
