@@ -228,7 +228,7 @@ async def _await_with_bounded_drain(
         # Consume the worker's outcome so its exception is never left unretrieved.
         try:
             task.result()
-        except Exception as exc:  # noqa: BLE001 - the caller reports the timeout, not the worker detail
+        except Exception as exc:  # noqa: BLE001 — the caller reports the timeout, not the worker detail
             stopped = isinstance(exc, TimeoutError)
     else:
         task.cancel()
