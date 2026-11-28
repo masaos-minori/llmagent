@@ -18,8 +18,8 @@ errors), REQ-003 (bounded, redacted error text with preserved metadata). Accepta
 - The maximum length is the module constant decided at implementation (UNK-04); the test asserts the
   bound rather than a specific value.
 - The jobs-fetch path keeps its own mapping, where every non-2xx raises `CicdUpstreamError` including 404
-  (`scripts/mcp_servers/cicd/cicd_service_github_actions_job.py` line 164, reference); the divergence is
-  recorded as UNK-03 and is not changed here.
+  (`scripts/mcp_servers/cicd/cicd_service_github_actions_job.py` line 305, reference at the current
+  revision); the divergence is recorded as UNK-03 and is not changed here.
 - The transport cases use the shared `http_boundary` fixture in `tests/mcp_servers/conftest.py`
   (reference), which is committed at the evidence revision (UNK-06 resolved).
 
@@ -42,19 +42,29 @@ errors), REQ-003 (bounded, redacted error text with preserved metadata). Accepta
 `scripts/mcp_servers/cicd/cicd_service_github_actions.py`
 
 ### Procedure
-- Replace the catch-all at lines 78-80 with the status-to-(exception, error-code) mapping: 5xx to
+- Replace the catch-all at lines 172-176 with the status-to-(exception, error-code) mapping: 5xx to
   `CicdUpstreamError`, 429 to `CicdRateLimitError` (new), 409 to `CicdConflictError` (new). Keep the
-  existing 404, 422, and 401/403 branches at lines 71, 73-74, and 76 unchanged.
-- Wrap the request so DNS, TLS, connection, and timeout failures raise `CicdUpstreamError` (REQ-002);
-  raw transport exception text never appears in the error.
-- Bound the message returned by `_parse_error_message` (lines 59-65, which returns the upstream value
-  verbatim) at the models row's maximum, and redact token-shaped content.
+  existing 404, 422, and 401/403 branches at lines 165-166, 167-169, and 170-171 unchanged. The remaining
+  non-2xx statuses (e.g. 400) fall through the table to `CicdUpstreamError` rather than the current
+  `CicdNotFoundError` catch-all, which is the truthful mapping REQ-001 asks for; no test pins those
+  statuses today.
+- Wrap the request so DNS, TLS, connection, and timeout failures raise `CicdUpstreamError` (REQ-002) at
+  the two call sites that propagate raw transport exceptions today (`get_workflow_runs` line 362,
+  `get_workflow_status` line 392); raw transport exception text never appears in the error. The dispatch
+  POST and `_search_runs` keep their existing pinned behaviors (see Method).
+- Bound the message returned by `_parse_error_message` (lines 154-161, which returns the upstream value
+  verbatim) at the models row's maximum (`MAX_ERROR_TEXT_LENGTH`), and redact token-shaped content.
 - Carry `Retry-After` and `X-RateLimit-Reset` as structured fields on the raised exception.
 
 ### Method
-- Lines 68-80 and 82-90 re-verified at revision 431d80ee328ed91f26c43f27638d21a5b6375d3c: the module
-  handles no `httpx` exception, so the transport wrap is added at the request call sites (lines 131, 150,
-  180), not inside `_check_response`.
+- Re-verified at revision da8097e74: `_check_response` is at lines 163-176 and `_parse_error_message` at
+  lines 154-161. The module already handles `httpx.HTTPError` at two call sites — the dispatch POST
+  (line 259, returns `DispatchOutcome(state=OUTCOME_UNKNOWN)`, pinned by
+  `test_response_loss_returns_outcome_unknown` in the companion test file) and `_search_runs` (line 309,
+  returns `None`) — and those behaviors are mcpci002's work, out of this Plan's scope. The transport wrap
+  that raises `CicdUpstreamError` is therefore added only at the two call sites that propagate raw
+  transport exceptions today: `get_workflow_runs` (line 362) and `get_workflow_status` (line 392), not
+  inside `_check_response` and not at the dispatch or `_search_runs` sites.
 - `_raise_auth_error` keeps its 401/403 behavior; only the rate-limit substring test is retired as the
   classification source.
 
@@ -64,13 +74,19 @@ errors), REQ-003 (bounded, redacted error text with preserved metadata). Accepta
 
 ### Companion test files
 - `tests/mcp_servers/cicd/test_cicd_mcp_service.py`
-  - Procedure: reverse `test_500_raises_not_found_error` at line 306 first (Phase 1), then add the 401,
-    403, 404, 409, 422, 429, 500, and 503 cases. Keep the parse-failure fallback pins at lines 45 and 52
-    and the 2xx pass-through pin at line 60.
+  - Procedure: reverse `test_500_raises_not_found_error` at line 602 first (Phase 1), then add the 401,
+    403, 404, 409, 422, 429, 500, and 503 cases. Keep the 2xx pass-through pin at line 609.
+    `test_403_rate_limit_includes_reset_time` at lines 575-585 pins the substring classification that is
+    retired as the classification source: the 403 path becomes the plain `Access denied: <message>` form,
+    so this test is updated in the same cycle to assert that form, and the reset-metadata assertion moves
+    to the 429 status branch as structured fields.
   - Validation: `uv run pytest tests/mcp_servers/cicd/test_cicd_mcp_service.py`.
 - `tests/mcp_servers/cicd/test_service_github_actions_error_edges.py`
-  - Procedure: add the DNS, TLS, connection, and timeout cases, which the file has none of today, and the
-    bounded and redacted error-text cases asserting the bound rather than a specific value.
+  - Procedure: add the DNS, TLS, connection, and timeout cases for the two wrapped call sites, which the
+    file has none of today, and the bounded and redacted error-text cases asserting the bound rather than
+    a specific value. Keep the parse-failure fallback pins at lines 122 and 129 and the dispatch
+    response-loss pin at line 167 (`test_response_loss_returns_outcome_unknown`), which the wrap must not
+    change.
   - Validation: `uv run pytest tests/mcp_servers/cicd/test_service_github_actions_error_edges.py`.
 
 ## Compatibility considerations
@@ -104,15 +120,15 @@ errors), REQ-003 (bounded, redacted error text with preserved metadata). Accepta
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | companion tests are written first (Plan Phase 1) |
-| 2 | Add or update tests per Validation plan (companion test files) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261128 | 20261128 | companion tests are written first (Plan Phase 1); Step 3b correction: line citations updated to revision da8097e74, transport wrap scoped to the two call sites that propagate raw transport exceptions (dispatch POST and `_search_runs` keep their pinned behaviors), remaining non-2xx statuses map to `CicdUpstreamError`, `test_403_rate_limit_includes_reset_time` pin updated |
+| 2 | Add or update tests per Validation plan (companion test files) | Completed | 20261128 | 20261128 | `test_cicd_mcp_service.py`: 500/503 reversed to `CicdUpstreamError`, 401/409/429 structured-field cases added, 403 pin rewritten as `test_403_rate_limit_message_raises_plain_auth_error`; `test_service_github_actions_error_edges.py`: transport-failure cases for the two wrapped call sites plus bounded and redacted cases asserting the bound |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261128 | 20261128 | `run_validation_gates.py` all Pass; mypy clean (632 files); bandit shows only the pre-existing Low B105 at `cicd_server.py`; lint-imports 6 contracts kept; diff coverage 100% for the unit |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | documentation is covered by the Plan's docs rows |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 2 | Allowed red state (release unit, batch mode): targeted tests fail at collection with `ImportError: MAX_ERROR_TEXT_LENGTH` / `CicdConflictError` / `CicdRateLimitError`, attributed to symbols the models row (member seq 02) creates | Yes — resolved when member 02 lands | 20261128 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

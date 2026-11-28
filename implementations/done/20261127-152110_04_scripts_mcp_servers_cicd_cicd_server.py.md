@@ -26,7 +26,8 @@ never propagates). Acceptance criteria: AC-4, AC-5.
   `DispatchResult.outcome` yields only ok or error, so `call_tool()` classifies the rejected categories
   itself (Plan Assumption).
 - The health-details key pin in the companion test file changes only if UNK-02 decides that the CI/CD
-  server exposes `audit_failure_count` in `/health`; the counter itself exists per UNK-01.
+  server exposes `audit_failure_count` in `/health`; the counter itself exists per UNK-01. Decided at
+  implementation: the counter is exposed, matching the pattern the owner's decision referenced.
 
 ## Design decisions
 - **Audit emission seam**: one `AuditEmission` created at the start of `call_tool()` and emitted from a
@@ -57,6 +58,18 @@ never propagates). Acceptance criteria: AC-4, AC-5.
 - Lines 169-192 re-verified at revision 431d80ee328ed91f26c43f27638d21a5b6375d3c: `_audit_log` is called
   after the dispatch at line 183 with no exception handling around the dispatch call, so the `finally`
   block replaces that single call rather than adding a second record path.
+- Step 3b correction: at revision da8097e74 `call_tool()` is at lines 286-315 and `/health` at line 317;
+  the 169-192 citation belongs to the older revision. The `finally` block replaces the single `_audit_log`
+  call at line 304.
+- Step 3b correction, outcome classification: `DispatchResult.outcome` yields only `ok` or `error`, so the
+  server classifies the result itself. The categories that are a failure during the tool's work are
+  `upstream_error`, `unexpected_error`, and `dedup_store_error`; every other error result is a refusal made
+  before the tool's work and is `rejected`. The set is a module-level frozenset in this file.
+- Step 3b correction, target: `canonical_repo_key()` from `scripts/shared/repo_identity.py` (mcpci001,
+  UNK-05 resolved). A slug that cannot be normalized is reported as requested, never rewritten, and a call
+  refused before its arguments are read has no target and reports `"-"`.
+- Step 3b correction, counter: `_audit_failure_count` is module-level and guarded by a `threading.Lock`
+  around the read-modify-write, the same narrow scope `scripts/mcp_servers/git/git_server.py` uses.
 - `extract_request_context` field order is read from `scripts/mcp_servers/server.py` (reference) and stays
   the correlation source.
 
@@ -71,6 +84,10 @@ never propagates). Acceptance criteria: AC-4, AC-5.
   - Procedure: write the exactly-one-record tests for every result category first (Phase 2); today only
     the success path is pinned (`len(records) == 1` at line 245 inside the test starting at line 200).
     Update the health-details key pin at line 303 only if UNK-02 exposes the counter.
+  - Step 3b correction: the pin is at lines 292 and 335 at revision da8097e74, not 303. UNK-02 is decided
+    at implementation: the counter is exposed in `/health` details, following the pattern the owner's
+    never-propagate decision referenced, so both pins are updated in the same unit. The value is
+    process-global, so the pin asserts the key and its type rather than a fixed count.
   - Validation: `uv run pytest tests/mcp_servers/cicd/test_cicd_server_endpoints.py`.
 - `tests/mcp_servers/cicd/test_cicd_audit.py` (new)
   - Procedure: exactly-once emission per category, redaction, absence of tokens and workflow input values,
@@ -109,9 +126,9 @@ never propagates). Acceptance criteria: AC-4, AC-5.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | companion tests are written first (Plan Phase 2); blocked until mcpci001 completes (UNK-05) |
-| 2 | Add or update tests per Validation plan (companion test files) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261128 | 20261128 | `AuditEmission` emitted from `finally`; outcome classified by `_FAILURE_CATEGORIES`; target from `canonical_repo_key()`; never-propagate counter `_audit_failure_count` under a lock; `/health` details expose the counter (UNK-02) |
+| 2 | Add or update tests per Validation plan (companion test files) | Completed | 20261128 | 20261128 | `test_cicd_audit.py` (new): one record per category, normalized target, unresolvable slug reported as requested, no token and no workflow input value, audit-write failure logged and counted; `test_cicd_server_endpoints.py`: disabled-path and validation-path emission tests plus the two health-details pins updated |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261128 | 20261128 | `uv run pytest tests/mcp_servers/cicd/test_cicd_audit.py tests/mcp_servers/cicd/test_cicd_server_endpoints.py` passes (58 with the reference file); gates all Pass; diff coverage 100% for this file |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | documentation is covered by the Plan's docs rows |
 
 ### Blocker Log

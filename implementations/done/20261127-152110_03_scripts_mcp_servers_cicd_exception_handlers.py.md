@@ -41,6 +41,10 @@ Acceptance criterion: AC-3.
 ### Method
 - Lines 30-31 build `{"detail": str(exc)}` with no error code and no metadata (re-verified 20261127); the
   shared handler factory is extended so the existing four codes keep the same `detail` value.
+- Step 3b correction: the citations hold at revision da8097e74. The registrations are driven by a
+  `_HANDLER_STATUS_CODES` mapping so the factory takes the error code as an argument instead of the status
+  code alone; the preserved metadata is read from the exception with `getattr`, since only
+  `CicdRateLimitError` carries `retry_after` and `rate_limit_reset`.
 
 ### Details
 - The handler does not re-derive the status from the message; the code comes from the mapping (REQ-004).
@@ -80,9 +84,9 @@ Acceptance criterion: AC-3.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan (companion test file) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261128 | 20261128 | `_HANDLER_STATUS_CODES` drives the registrations; the factory takes the error code; metadata read with `getattr` |
+| 2 | Add or update tests per Validation plan (companion test file) | Completed | 20261128 | 20261128 | 409 and 429 handler tests added; the exact-body assertions moved to `{"detail": ..., "error_code": ...}` plus the preserved metadata |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261128 | 20261128 | `uv run pytest tests/mcp_servers/cicd/test_cicd_exception_handlers.py` passes (6); gates all Pass |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | documentation is covered by the Plan's docs rows |
 
 ### Blocker Log

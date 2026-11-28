@@ -37,6 +37,11 @@ names the CI/CD codes). Acceptance criteria: AC-6.
 
 ### Method
 - Keep the first assignment at lines 124-125 as the single source of the record field.
+- Step 3b correction: the citations hold at revision da8097e74 (the duplicate block is at 128-129, the
+  first assignment at 124-125). `AuditEmission` starts at line 238, not 236.
+- Step 3b correction: the CI/CD entry names seven codes, including `unexpected_error`, and states that it
+  has no `EXCEPTION_ERROR_CODES` entry because it names the audit category for a failure with no CI/CD
+  exception class.
 
 ### Details
 - N/A: no behavior change beyond the removed duplicate write.
@@ -68,8 +73,8 @@ names the CI/CD codes). Acceptance criteria: AC-6.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | test-only coverage is the reference file, not a modification target |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261128 | 20261128 | duplicate `if requested_target:` block deleted; CI/CD vocabulary added as the third numbered entry, naming the seven codes and the no-mapping note for `unexpected_error` |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261128 | 20261128 | `uv run pytest tests/mcp_servers/test_audit_redaction.py` passes (33); gates all Pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

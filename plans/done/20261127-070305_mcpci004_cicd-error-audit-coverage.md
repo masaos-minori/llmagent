@@ -300,14 +300,14 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Error-mapping tests first (`tests/mcp_servers/cicd/test_cicd_mcp_service.py`, `tests/mcp_servers/cicd/test_service_github_actions_error_edges.py`, `tests/mcp_servers/cicd/test_cicd_exception_handlers.py`) | In Progress | — | — | — |
-| 2 | Audit-coverage tests first (`tests/mcp_servers/cicd/test_cicd_audit.py`, `tests/mcp_servers/cicd/test_cicd_server_endpoints.py`) | In Progress | — | — | — |
-| 3 | Error vocabulary and exception types (`scripts/mcp_servers/cicd/cicd_models.py`, `tests/mcp_servers/cicd/test_cicd_models.py`) | In Progress | — | — | — |
-| 4 | Status and transport mapping in the backend (`scripts/mcp_servers/cicd/cicd_service_github_actions.py`) | In Progress | — | — | — |
-| 5 | Handler mapping (`scripts/mcp_servers/cicd/exception_handlers.py`) | In Progress | — | — | — |
-| 6 | Exactly-once audit emission and the shared helper fix (`scripts/mcp_servers/cicd/cicd_server.py`, `scripts/mcp_servers/audit.py`) | In Progress | — | — | — |
-| 7 | Documentation (`docs/22_mcp/mcp_04_03_rag-pipeline-and-cicd.md`, `docs/22_mcp/mcp_02_03_audit-logging-and-errors.md`) | In Progress | — | — | — |
-| 8 | Deployment & Verification | Pending | — | — | — |
+| 1 | Error-mapping tests first (`tests/mcp_servers/cicd/test_cicd_mcp_service.py`, `tests/mcp_servers/cicd/test_service_github_actions_error_edges.py`, `tests/mcp_servers/cicd/test_cicd_exception_handlers.py`) | Completed | 20261128 | 20261128 | procedures 01 and 03; 403 substring pin rewritten |
+| 2 | Audit-coverage tests first (`tests/mcp_servers/cicd/test_cicd_audit.py`, `tests/mcp_servers/cicd/test_cicd_server_endpoints.py`) | Completed | 20261128 | 20261128 | procedure 04; health-details pins updated for the exposed counter (UNK-02 decided) |
+| 3 | Error vocabulary and exception types (`scripts/mcp_servers/cicd/cicd_models.py`, `tests/mcp_servers/cicd/test_cicd_models.py`) | Completed | 20261128 | 20261128 | procedure 02; UNK-04 decided as `MAX_ERROR_TEXT_LENGTH = 500`; `unexpected_error` added for the audit category |
+| 4 | Status and transport mapping in the backend (`scripts/mcp_servers/cicd/cicd_service_github_actions.py`) | Completed | 20261128 | 20261128 | procedure 01; transport wrap scoped to `get_workflow_runs` and `get_workflow_status`; UNK-06 fixture `http_boundary` used |
+| 5 | Handler mapping (`scripts/mcp_servers/cicd/exception_handlers.py`) | Completed | 20261128 | 20261128 | procedure 03; exact-body assertions moved to the machine-readable shape |
+| 6 | Exactly-once audit emission and the shared helper fix (`scripts/mcp_servers/cicd/cicd_server.py`, `scripts/mcp_servers/audit.py`) | Completed | 20261128 | 20261128 | procedures 04 and 05; UNK-05 resolved (mcpci001 landed); never-propagate policy applied |
+| 7 | Documentation (`docs/22_mcp/mcp_04_03_rag-pipeline-and-cicd.md`, `docs/22_mcp/mcp_02_03_audit-logging-and-errors.md`) | Completed | 20261128 | 20261128 | procedures 12 and 13; doc checkers pass |
+| 8 | Deployment & Verification | Pending | — | — | not executed: deployment was not requested for this batch |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -317,13 +317,13 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261127-152110_01_scripts_mcp_servers_cicd_cicd_service_github_actions.py.md` | 1, 4 | Procedure | Pending | — | — |
-| `implementations/20261127-152110_02_scripts_mcp_servers_cicd_cicd_models.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261127-152110_03_scripts_mcp_servers_cicd_exception_handlers.py.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261127-152110_04_scripts_mcp_servers_cicd_cicd_server.py.md` | 2, 6 | Procedure | Pending | — | — |
-| `implementations/20261127-152110_05_scripts_mcp_servers_audit.py.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261127-152110_12_docs_22_mcp_mcp_04_03_rag-pipeline-and-cicd.md.md` | 7 | Procedure | Pending | — | — |
-| `implementations/20261127-152110_13_docs_22_mcp_mcp_02_03_audit-logging-and-errors.md.md` | 7 | Procedure | Pending | — | — |
+| `implementations/done/20261127-152110_01_scripts_mcp_servers_cicd_cicd_service_github_actions.py.md` | 1, 4 | Procedure | Completed | — | 20261128 |
+| `implementations/done/20261127-152110_02_scripts_mcp_servers_cicd_cicd_models.py.md` | 3 | Procedure | Completed | — | 20261128 |
+| `implementations/done/20261127-152110_03_scripts_mcp_servers_cicd_exception_handlers.py.md` | 5 | Procedure | Completed | — | 20261128 |
+| `implementations/done/20261127-152110_04_scripts_mcp_servers_cicd_cicd_server.py.md` | 2, 6 | Procedure | Completed | — | 20261128 |
+| `implementations/done/20261127-152110_05_scripts_mcp_servers_audit.py.md` | 6 | Procedure | Completed | — | 20261128 |
+| `implementations/done/20261127-152110_12_docs_22_mcp_mcp_04_03_rag-pipeline-and-cicd.md.md` | 7 | Procedure | Completed | — | 20261128 |
+| `implementations/done/20261127-152110_13_docs_22_mcp_mcp_02_03_audit-logging-and-errors.md.md` | 7 | Procedure | Completed | — | 20261128 |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

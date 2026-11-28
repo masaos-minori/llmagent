@@ -40,6 +40,9 @@ statement). Acceptance criterion: AC-7.
 ### Method
 - Update the audit passage at line 74 in place; keep the three-layer naming and the cross-reference to
   `docs/22_mcp/mcp_02_03_audit-logging-and-errors.md` rather than restating the field list.
+- Step 3b correction: at revision da8097e74 the audit passage is at line 79, not 74; line 69 is the Layer2
+  sentence in the server section and is left as it is. The error mapping table is added after the audit
+  passage, and the health paragraph gains the `audit_failure_count` detail that procedure 04 exposes.
 
 ### Details
 - N/A.
@@ -70,8 +73,8 @@ statement). Acceptance criterion: AC-7.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261128 | 20261128 | audit passage corrected at line 79 (citation was stale at 74); error mapping table added after it; health paragraph gains the `audit_failure_count` detail |
+| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Completed | 20261128 | 20261128 | `check_docs_structure.py` and `check_docs_quality.py` pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

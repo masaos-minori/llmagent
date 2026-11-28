@@ -43,6 +43,9 @@ redaction rules). Acceptance criteria: AC-4, AC-7.
 - Update the exactly-once paragraph at line 58 in place so it names the CI/CD server as well as
   web-search-mcp; keep the Common Error Formats table and add the per-server CI/CD mapping reference
   rather than duplicating the table from the CI/CD document.
+- Step 3b correction: the citations hold at revision da8097e74 (line 30, line 58, the table section at 68
+  with the "Server error | 500" row at 75). The reference is one sentence after the table pointing to
+  `mcp_04_03_rag-pipeline-and-cicd.md`; the table itself is unchanged.
 
 ### Details
 - N/A.
@@ -73,8 +76,8 @@ redaction rules). Acceptance criteria: AC-4, AC-7.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261128 | 20261128 | line 30 extended to cover the CI/CD server on every path; line 58 paragraph names cicd-mcp; never-propagate policy recorded with the rejected raise-on-failure alternative; redaction contract restated; one reference sentence added after the Common Error Formats table |
+| 2 | Run the documentation checkers (`rules/tool-gates.md`) | Completed | 20261128 | 20261128 | `check_docs_structure.py` and `check_docs_quality.py` pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
