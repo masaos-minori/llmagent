@@ -7,12 +7,18 @@ Emits one JSON-lines record per MCP tool execution event.
 Error Type Vocabulary
 ---------------------
 The ``error_type`` field carries a short identifier for the failure mode.
-Two vocabularies currently exist:
+Three vocabularies currently exist:
 
 1. ``mdq``: Python exception-class names (e.g., ``"MdqValidationError"``,
    ``"MdqAuthorizationError"``). Source: ``type(exc).__name__``.
 2. ``web_search``: lowercase-snake identifiers (e.g., ``"validation_error"``,
    ``"authorization_error"``, ``"timeout"``). Preferred for new code.
+3. ``cicd``: lowercase-snake identifiers in the style above, defined by
+   ``CICD_ERROR_CODES`` in ``mcp_servers/cicd/cicd_models.py``:
+   ``authorization_error``, ``not_found``, ``validation_error``,
+   ``upstream_error``, ``conflict``, ``rate_limit``, ``unexpected_error``
+   (mcpci004). ``unexpected_error`` names the audit category for a failure with no
+   CI/CD exception class, so it has no entry in ``EXCEPTION_ERROR_CODES``.
 
 Recommendation: Adopt the ``web_search`` style for new MCP servers.
 Rationale: more stable across Python versions, more readable in log queries,
@@ -36,8 +42,10 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import os
 import re
 import time
+from collections.abc import Sequence
 from typing import NotRequired, TypedDict
 from urllib.parse import urlsplit
 
@@ -125,8 +133,6 @@ def _build_audit_record(
         record["requested_target"] = requested_target
     if canonical_target:
         record["canonical_target"] = canonical_target
-    if requested_target:
-        record["requested_target"] = requested_target
     return record
 
 
@@ -233,6 +239,34 @@ def redact_url(url: str) -> str:
         kept.append("...")
     path = "".join(f"/{s}" for s in kept)
     return f"{parts.scheme}://{shown_host}{path}"
+
+
+def path_identifier(path: str, roots: Sequence[str]) -> str:
+    """Return a root-relative identifier for a path inside an authorized root, else a hash.
+
+    `roots` are the currently authorized roots supplied by the caller, so the helper reads
+    no configuration and stays policy-only. The path and each root are normalized
+    textually — no filesystem access — so a path that reaches an authorized root only
+    through a symlink falls back to the hash branch instead of exposing a path.
+
+    Inside a root the result is the path relative to that root; otherwise it is the same
+    16 hexadecimal characters `hash_query_value()` produces, so persisted values stay
+    comparable across servers without exposing an absolute path.
+    """
+    normalized = _normalize_path(path)
+    for root in roots:
+        normalized_root = _normalize_path(root)
+        if normalized == normalized_root:
+            return "."
+        if normalized_root and normalized.startswith(normalized_root + "/"):
+            return normalized.removeprefix(normalized_root + "/")
+    return hash_query_value(normalized)
+
+
+def _normalize_path(value: str) -> str:
+    """Normalize a path textually: expand `~`, collapse `.` and `..`, drop the trailing separator."""
+    normalized = os.path.normpath(os.path.expanduser(value))
+    return normalized.rstrip("/") or "/"
 
 
 class AuditEmission:

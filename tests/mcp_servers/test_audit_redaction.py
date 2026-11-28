@@ -7,11 +7,17 @@ exactly-once guard, the query hash helper, and the URL redaction helper.
 from __future__ import annotations
 
 import logging
+from unittest.mock import patch
 
 import mcp_servers.audit as audit_module
 import orjson
 import pytest
-from mcp_servers.audit import AuditEmission, hash_query_value, redact_url
+from mcp_servers.audit import (
+    AuditEmission,
+    hash_query_value,
+    path_identifier,
+    redact_url,
+)
 
 
 class _Sink:
@@ -174,6 +180,51 @@ class TestRedactUrl:
 
         for secret in secrets:
             assert secret not in out
+
+
+class TestPathIdentifier:
+    """REQ-006: the path-identifier helper added for MDQ. Existing servers do not call
+    it, so the rest of this file is the behavior lock for their unchanged output."""
+
+    def test_a_path_inside_an_authorized_root_is_root_relative(self) -> None:
+        assert (
+            path_identifier("/opt/llm/docs/report.md", ["/opt/llm/docs"]) == "report.md"
+        )
+
+    def test_the_root_itself_is_a_single_dot(self) -> None:
+        assert path_identifier("/opt/llm/docs", ["/opt/llm/docs"]) == "."
+
+    def test_a_path_outside_every_root_is_a_hash(self) -> None:
+        out = path_identifier("/etc/passwd", ["/opt/llm/docs"])
+        assert out == hash_query_value("/etc/passwd")
+        assert len(out) == 16
+        assert "passwd" not in out
+
+    def test_the_hash_branch_uses_the_same_convention_as_the_query_hash(self) -> None:
+        out = path_identifier("/opt/llm/db/mdq.sqlite", ["/opt/llm/docs"])
+        assert out == hash_query_value("/opt/llm/db/mdq.sqlite")
+
+    def test_traversal_out_of_a_root_falls_back_to_the_hash(self) -> None:
+        out = path_identifier("/opt/llm/docs/../private/secret.md", ["/opt/llm/docs"])
+        assert out == hash_query_value("/opt/llm/private/secret.md")
+        assert "secret" not in out
+
+    def test_no_filesystem_access_is_needed_for_the_root_relative_branch(self) -> None:
+        # A path that does not exist still resolves to the root-relative form, which
+        # shows the helper normalizes textually rather than touching the filesystem.
+        assert path_identifier("/opt/llm/docs/nope.md", ["/opt/llm/docs"]) == "nope.md"
+
+    def test_the_roots_are_supplied_and_no_configuration_is_read(self) -> None:
+        # The helper is policy-only: the caller supplies the roots, so a caller with a
+        # shrunk allowlist gets the hash branch for a path under the former root.
+        out = path_identifier("/opt/llm/docs/report.md", ["/opt/llm/docs/team"])
+        assert out == hash_query_value("/opt/llm/docs/report.md")
+
+    def test_the_helper_writes_nothing_to_the_logger(self) -> None:
+        sink = _Sink()
+        with patch.object(audit_module, "_logger", sink):
+            path_identifier("/etc/passwd", ["/opt/llm/docs"])
+        assert sink.messages == []
 
 
 def test_the_module_docstring_has_no_plaintext_query_preview_example() -> None:
