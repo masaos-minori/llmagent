@@ -5,7 +5,12 @@ MDQ's own security self-validation — validate_mdq_security() reports mdq-mcp's
 SecurityCheckResult values, _mdq_config_view() builds the non-secret view the posture fingerprint
 is hashed from, and build_mdq_posture() runs the common stage plus these checks.
 
-Dependency direction: mdq_security_validation → mdq_tools
+Every function reads the shared startup-configuration result (REQ-007), so the posture cannot
+diverge from what the service, authentication, and health read. The checks report state only: the
+view carries the presence and count of a path, never the path itself, and the token is read as a
+presence flag from the field that holds it rather than from the values mapping.
+
+Dependency direction: mdq_security_validation → tools, startup_config
 Import from here:  from mcp_servers.mdq.mdq_security_validation import build_mdq_posture
 """
 
@@ -31,6 +36,7 @@ from shared.security.startup_flow import (
 )
 
 from mcp_servers.mdq.mdq_tools import TOOL_LIST
+from mcp_servers.mdq.startup_config import StartupConfig
 
 MDQ_SERVER_KEY = "mdq"
 MDQ_OWN_CONFIG_FILE = "mdq_mcp_server.toml"
@@ -49,13 +55,13 @@ _MDQ_SCALAR_SETTINGS: tuple[str, ...] = (
 )
 
 
-def configured_allowed_dirs(mdq_cfg: Mapping[str, object]) -> list[object]:
+def configured_allowed_dirs(startup: StartupConfig) -> list[object]:
     """The configured allowed directories as a list: empty when absent or not a list.
 
     check_health() reports the count and validate_mdq_security() judges the entries, so both read
-    the same narrowed value.
+    the same narrowed value from the one shared result.
     """
-    value = mdq_cfg.get("allowed_dirs")
+    value = startup.values.get("allowed_dirs")
     if isinstance(value, (list, tuple)):
         return list(value)
     return []
@@ -67,30 +73,31 @@ def _count(stats: Mapping[str, object], key: str) -> int:
     return int(value) if isinstance(value, (int, float)) else 0
 
 
-def _mdq_config_view(mdq_cfg: Mapping[str, object]) -> dict[str, object]:
+def _mdq_config_view(startup: StartupConfig) -> dict[str, object]:
     """Build the non-secret view the posture fingerprint is computed from.
 
     db_path and the allowed directories are sensitive paths, and compute_config_fingerprint()
     rejects an absolute path, so the view carries their state (present, count) instead of their
-    values. auth_token is never carried by value.
+    values. auth_token is never carried by value: the shared result keeps it out of `values`, so
+    presence is read from the field that holds it.
     """
-    allowed_dirs = configured_allowed_dirs(mdq_cfg)
+    allowed_dirs = configured_allowed_dirs(startup)
     view: dict[str, object] = {
         OWN_CONFIG_FILE_VIEW_KEY: MDQ_OWN_CONFIG_FILE,
-        "auth_token_present": bool(mdq_cfg.get("auth_token")),
-        "db_path_present": bool(mdq_cfg.get("db_path")),
+        "auth_token_present": bool(startup.auth_token),
+        "db_path_present": bool(startup.db_path),
         "allowed_dirs_count": len(allowed_dirs),
-        "enable_grep": bool(mdq_cfg.get("enable_grep", True)),
+        "enable_grep": bool(startup.values.get("enable_grep", True)),
     }
     for key in _MDQ_SCALAR_SETTINGS:
-        value = mdq_cfg.get(key)
+        value = startup.values.get(key)
         if isinstance(value, (bool, int, float)):
             view[key] = value
     return view
 
 
 def validate_mdq_security(
-    mdq_cfg: Mapping[str, object],
+    startup: StartupConfig,
     *,
     db_file_present: bool,
     schema_error: tuple[str, str] | None,
@@ -104,19 +111,17 @@ def validate_mdq_security(
     carries a database or directory path.
     """
     return [
-        _allowed_dirs_configured_check(mdq_cfg),
-        _allowed_dirs_exist_check(mdq_cfg),
-        _db_path_check(mdq_cfg, db_file_present),
+        _allowed_dirs_configured_check(startup),
+        _allowed_dirs_exist_check(startup),
+        _db_path_check(startup, db_file_present),
         _schema_check(schema_error, schema_checked),
         _index_check(index_stats),
     ]
 
 
-def _allowed_dirs_configured_check(
-    mdq_cfg: Mapping[str, object],
-) -> SecurityCheckResult:
+def _allowed_dirs_configured_check(startup: StartupConfig) -> SecurityCheckResult:
     """A deny-all mdq-mcp can serve no document, so it is not Ready."""
-    allowed_dirs = configured_allowed_dirs(mdq_cfg)
+    allowed_dirs = configured_allowed_dirs(startup)
     if not allowed_dirs:
         return SecurityCheckResult(
             check_id="server.allowed_dirs_configured",
@@ -132,9 +137,9 @@ def _allowed_dirs_configured_check(
     )
 
 
-def _allowed_dirs_exist_check(mdq_cfg: Mapping[str, object]) -> SecurityCheckResult:
+def _allowed_dirs_exist_check(startup: StartupConfig) -> SecurityCheckResult:
     """A configured directory that does not exist authorizes nothing."""
-    allowed_dirs = configured_allowed_dirs(mdq_cfg)
+    allowed_dirs = configured_allowed_dirs(startup)
     if not allowed_dirs:
         return SecurityCheckResult(
             check_id="server.allowed_dirs_exist",
@@ -161,10 +166,10 @@ def _allowed_dirs_exist_check(mdq_cfg: Mapping[str, object]) -> SecurityCheckRes
 
 
 def _db_path_check(
-    mdq_cfg: Mapping[str, object], db_file_present: bool
+    startup: StartupConfig, db_file_present: bool
 ) -> SecurityCheckResult:
     """Mirrors the existing db_file dependency entry without repeating the path."""
-    if not mdq_cfg.get("db_path"):
+    if not startup.db_path:
         return SecurityCheckResult(
             check_id="server.db_path_valid",
             status=SecurityCheckStatus.FAILED,
@@ -240,7 +245,7 @@ def _index_check(index_stats: Mapping[str, object] | None) -> SecurityCheckResul
 
 
 def build_mdq_posture(
-    mdq_cfg: Mapping[str, object],
+    startup: StartupConfig,
     db_file_present: bool,
     schema_error: tuple[str, str] | None,
     schema_checked: bool,
@@ -255,11 +260,11 @@ def build_mdq_posture(
     return run_startup_validation(
         MDQ_SERVER_KEY,
         own_config_file=MDQ_OWN_CONFIG_FILE,
-        config_view=_mdq_config_view(mdq_cfg),
-        auth_token=str(mdq_cfg.get("auth_token") or ""),
+        config_view=_mdq_config_view(startup),
+        auth_token=startup.auth_token,
         declared_tools=tuple(tool["name"] for tool in TOOL_LIST),
         server_checks=lambda: validate_mdq_security(
-            mdq_cfg,
+            startup,
             db_file_present=db_file_present,
             schema_error=schema_error,
             schema_checked=schema_checked,

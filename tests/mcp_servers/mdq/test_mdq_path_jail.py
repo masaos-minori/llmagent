@@ -22,6 +22,8 @@ from mcp_servers.mdq.mdq_models import (
 )
 from mcp_servers.mdq.mdq_service import MdqService
 
+from tests.mcp_servers.mdq._startup import make_startup
+
 # ── fixtures ──────────────────────────────────────────────────────────────────
 
 
@@ -30,7 +32,7 @@ def allowed_service(tmp_path: Path) -> MdqService:
     """MdqService with tmp_path in allowed_dirs."""
     fd, db = mkstemp(suffix=".db", dir=str(tmp_path))
     os.close(fd)
-    svc = MdqService(db_path=db)
+    svc = MdqService(make_startup(db))
     svc._allowed_dirs = [str(tmp_path)]
     return svc
 
@@ -40,7 +42,7 @@ def denied_service(tmp_path: Path) -> MdqService:
     """MdqService with empty allowed_dirs (deny-all)."""
     fd, db = mkstemp(suffix=".db", dir=str(tmp_path))
     os.close(fd)
-    svc = MdqService(db_path=db)
+    svc = MdqService(make_startup(db))
     svc._allowed_dirs = []
     return svc
 
@@ -88,7 +90,7 @@ class TestIndexPathsAuthorization:
         allowed_subdir.mkdir()
         fd, db = mkstemp(suffix=".db", dir=str(tmp_path))
         os.close(fd)
-        svc = MdqService(db_path=db)
+        svc = MdqService(make_startup(db))
         svc._allowed_dirs = [str(allowed_subdir)]
 
         traversal = str(allowed_subdir / ".." / "doc.md")
@@ -102,7 +104,7 @@ class TestIndexPathsAuthorization:
         allowed_subdir.mkdir()
         fd, db = mkstemp(suffix=".db", dir=str(tmp_path))
         os.close(fd)
-        svc = MdqService(db_path=db)
+        svc = MdqService(make_startup(db))
         svc._allowed_dirs = [str(allowed_subdir)]
 
         link = allowed_subdir / "escape.md"

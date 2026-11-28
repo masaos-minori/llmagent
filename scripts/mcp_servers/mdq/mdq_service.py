@@ -47,6 +47,7 @@ from mcp_servers.mdq.mdq_models import (
     is_stale,
 )
 from mcp_servers.mdq.search import search_docs
+from mcp_servers.mdq.startup_config import StartupConfig
 
 logger = logging.getLogger(__name__)
 
@@ -54,17 +55,18 @@ logger = logging.getLogger(__name__)
 class MdqService:
     """Main service class for Mdq functionality."""
 
-    def __init__(self, db_path: str | None = None):
-        """Initialize the MDQ service with database path and configuration from TOML file."""
-        try:
-            from shared.config_loader import ConfigLoader
+    def __init__(self, startup: StartupConfig):
+        """Initialize the MDQ service from the validated startup-configuration result.
 
-            mdq_cfg = ConfigLoader().load("mdq_mcp_server.toml")
-        except (FileNotFoundError, KeyError, TypeError):
-            mdq_cfg = {}
-
-        cfg = MdqConfig(**mdq_cfg)  # raises pydantic.ValidationError on invalid values
-        self.db_path = db_path or mdq_cfg.get("db_path", "/opt/llm/db/mdq.sqlite")
+        There is no configuration read and no fallback here: a missing or wrong-typed
+        production configuration is a failure the caller sees before the server binds
+        (REQ-007), and the database path comes from the result rather than a literal
+        default. `MdqConfig` stays the shape holder for the declared keys.
+        """
+        cfg = MdqConfig.model_validate(
+            dict(startup.values)
+        )  # raises pydantic.ValidationError on invalid values
+        self.db_path = startup.db_path
         self._allowed_dirs = cfg.allowed_dirs
         self.include_globs = cfg.include_globs
         self.exclude_globs = cfg.exclude_globs
@@ -327,27 +329,43 @@ class MdqService:
         ]
 
     async def stats(self, req: StatsRequest) -> str:
-        """Return document/chunk count and index metadata."""
+        """Return counts scoped to the currently authorized roots (REQ-002).
+
+        The raw `index_state` metadata dict is not part of the response. The refusal for
+        an empty allowlist happens before any query, so a caller with no authorized roots
+        gets "no access" rather than a database-wide zero.
+        """
+        roots = [Path(root).resolve().as_posix() for root in self._allowed_dirs]
+        if not roots:
+            raise MdqAuthorizationError(
+                "stats is scoped to the authorized roots and none are configured"
+            )
+
+        clauses = []
+        params: list[object] = []
+        for root in roots:
+            # `source_path` is stored canonical (`path.resolve().as_posix()` at index time),
+            # so the predicate compares canonical values without a LIKE metacharacter risk.
+            clauses.append("(source_path = ? OR substr(source_path, 1, ?) = ?)")
+            params.extend([root, len(root) + 1, f"{root}/"])
+        where = " OR ".join(clauses)
+
         conn = self._get_db_connection()
         try:
-            chunk_count = conn.execute("SELECT COUNT(*) as cnt FROM chunks").fetchone()[
-                "cnt"
-            ]
-            doc_count = conn.execute(
-                "SELECT COUNT(*) as cnt FROM documents"
-            ).fetchone()["cnt"]
-            fts_count = conn.execute(
-                "SELECT COUNT(*) as cnt FROM chunks_fts"
-            ).fetchone()["cnt"]
+            counts: dict[str, int] = {}
+            for table in ("documents", "chunks", "chunks_fts"):
+                row = conn.execute(
+                    f"SELECT COUNT(*) as cnt FROM {table} WHERE {where}",  # nosec B608 — table names are fixed constants, roots are bound parameters
+                    params,
+                ).fetchone()
+                counts[table] = row["cnt"]
             stale_count = conn.execute(
-                f"SELECT COUNT(*) as cnt FROM documents WHERE {STALE_SQL_CONDITION}"  # nosec B608 — STALE_SQL_CONDITION is a fixed string constant
+                f"SELECT COUNT(*) as cnt FROM documents WHERE {STALE_SQL_CONDITION} AND ({where})",  # nosec B608 — STALE_SQL_CONDITION is a fixed string constant, table names are fixed, roots are bound parameters
+                params,
             ).fetchone()["cnt"]
-            rows = conn.execute("SELECT key, value FROM index_state").fetchall()
-            index_metadata = dict((row["key"], row["value"]) for row in rows)
             return (
-                f"Documents: {doc_count}, Chunks: {chunk_count},"
-                f" FTS rows: {fts_count}, Stale: {stale_count},"
-                f" Metadata: {index_metadata}"
+                f"Documents: {counts['documents']}, Chunks: {counts['chunks']},"
+                f" FTS rows: {counts['chunks_fts']}, Stale: {stale_count}"
             )
         finally:
             conn.close()

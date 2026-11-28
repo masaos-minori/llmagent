@@ -9,8 +9,10 @@ grep_docs) rather than inferred by parsing the tool's formatted output text.
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import uuid
+from collections.abc import Callable
 from pathlib import Path
 from tempfile import mkstemp
 from unittest.mock import AsyncMock, MagicMock
@@ -18,11 +20,13 @@ from unittest.mock import AsyncMock, MagicMock
 import httpx
 import mcp_servers.mdq.mdq_server as mdq_server_module
 import pytest
+from mcp_servers.audit import hash_query_value, path_identifier
 from mcp_servers.mdq.indexer import index_paths
 from mcp_servers.mdq.mdq_models import IndexPathsRequest
 from mcp_servers.mdq.mdq_service import MdqService
 
 from tests.mcp_servers._auth_headers import MCP_TEST_AUTH_HEADERS
+from tests.mcp_servers.mdq._startup import make_startup
 
 # ── fixtures ──────────────────────────────────────────────────────────────────
 
@@ -32,7 +36,7 @@ def service(tmp_path: Path) -> MdqService:
     """MdqService with a temp DB path and tmp_path in allowed_dirs."""
     fd, db = mkstemp(suffix=".db", dir=str(tmp_path))
     try:
-        svc = MdqService(db_path=db)
+        svc = MdqService(make_startup(db))
         svc._allowed_dirs = [str(tmp_path)]
         return svc
     finally:
@@ -45,15 +49,6 @@ def md_file(tmp_path: Path) -> Path:
     f = tmp_path / "test.md"
     f.write_text("# Title\n\nContent here.", encoding="utf-8")
     return f
-
-
-@pytest.fixture
-def mock_audit(monkeypatch: pytest.MonkeyPatch, service: MdqService) -> MagicMock:
-    """Patch mdq_server's _audit_log and _service, returning the audit mock."""
-    mock = MagicMock()
-    monkeypatch.setattr(mdq_server_module, "_audit_log", mock)
-    monkeypatch.setattr(mdq_server_module, "_service", service)
-    return mock
 
 
 @pytest.fixture
@@ -72,7 +67,7 @@ class TestSearchDocsAudit:
         self,
         service: MdqService,
         md_file: Path,
-        mock_audit: MagicMock,
+        persisted_records: Callable[[], list[dict[str, object]]],
         client: httpx.Client,
     ) -> None:
         asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(md_file)])))
@@ -80,7 +75,7 @@ class TestSearchDocsAudit:
             "/v1/call_tool", json={"name": "search_docs", "args": {"query": "Content"}}
         )
         assert response.status_code == 200
-        detail = mock_audit.call_args.kwargs["detail"]
+        detail = _only_record(persisted_records)["detail"]
         assert "result_count=1" in detail
         assert "shown_count=1" in detail
 
@@ -88,7 +83,7 @@ class TestSearchDocsAudit:
         self,
         service: MdqService,
         tmp_path: Path,
-        mock_audit: MagicMock,
+        persisted_records: Callable[[], list[dict[str, object]]],
         client: httpx.Client,
     ) -> None:
         for i in range(5):
@@ -100,7 +95,7 @@ class TestSearchDocsAudit:
             "/v1/call_tool", json={"name": "search_docs", "args": {"query": "Keyword"}}
         )
         assert response.status_code == 200
-        detail = mock_audit.call_args.kwargs["detail"]
+        detail = _only_record(persisted_records)["detail"]
         assert "truncated=true" in detail
 
 
@@ -112,7 +107,7 @@ class TestIndexPathsAudit:
         self,
         service: MdqService,
         tmp_path: Path,
-        mock_audit: MagicMock,
+        persisted_records: Callable[[], list[dict[str, object]]],
         client: httpx.Client,
     ) -> None:
         valid_md = tmp_path / "valid.md"
@@ -130,7 +125,7 @@ class TestIndexPathsAudit:
             headers={"x-idempotency-key": str(uuid.uuid4())},
         )
         assert response.status_code == 200
-        detail = mock_audit.call_args.kwargs["detail"]
+        detail = _only_record(persisted_records)["detail"]
         assert "indexed_count=1" in detail
         assert "skipped_count=2" in detail
         assert "failed_count=0" in detail
@@ -144,7 +139,7 @@ class TestRefreshIndexAudit:
         self,
         service: MdqService,
         md_file: Path,
-        mock_audit: MagicMock,
+        persisted_records: Callable[[], list[dict[str, object]]],
         client: httpx.Client,
     ) -> None:
         response = client.post(
@@ -153,7 +148,7 @@ class TestRefreshIndexAudit:
             headers={"x-idempotency-key": str(uuid.uuid4())},
         )
         assert response.status_code == 200
-        detail = mock_audit.call_args.kwargs["detail"]
+        detail = _only_record(persisted_records)["detail"]
         assert "indexed_count=1" in detail
         assert "skipped_count=0" in detail
         assert "deleted_count=0" in detail
@@ -168,7 +163,7 @@ class TestGrepDocsAudit:
         self,
         service: MdqService,
         tmp_path: Path,
-        mock_audit: MagicMock,
+        persisted_records: Callable[[], list[dict[str, object]]],
         client: httpx.Client,
     ) -> None:
         f = tmp_path / "grep_target.md"
@@ -180,14 +175,14 @@ class TestGrepDocsAudit:
             json={"name": "grep_docs", "args": {"pattern": "find_me_pattern"}},
         )
         assert response.status_code == 200
-        detail = mock_audit.call_args.kwargs["detail"]
+        detail = _only_record(persisted_records)["detail"]
         assert "match_count=1" in detail
 
     def test_truncated_flag_present_when_matches_capped(
         self,
         service: MdqService,
         tmp_path: Path,
-        mock_audit: MagicMock,
+        persisted_records: Callable[[], list[dict[str, object]]],
         client: httpx.Client,
     ) -> None:
         for i in range(5):
@@ -201,7 +196,7 @@ class TestGrepDocsAudit:
             json={"name": "grep_docs", "args": {"pattern": "find_me"}},
         )
         assert response.status_code == 200
-        detail = mock_audit.call_args.kwargs["detail"]
+        detail = _only_record(persisted_records)["detail"]
         assert "truncated=true" in detail
 
 
@@ -212,7 +207,7 @@ class TestAuthorizationErrorAudit:
     def test_error_type_used_not_embedded_in_detail(
         self,
         service: MdqService,
-        mock_audit: MagicMock,
+        persisted_records: Callable[[], list[dict[str, object]]],
         client: httpx.Client,
     ) -> None:
         response = client.post(
@@ -220,16 +215,16 @@ class TestAuthorizationErrorAudit:
             json={"name": "outline", "args": {"path": "/etc/passwd"}},
         )
         assert response.status_code == 200
-        call_kwargs = mock_audit.call_args.kwargs
-        assert call_kwargs["error_type"] == "MdqAuthorizationError"
-        assert "error_kind=" not in call_kwargs["detail"]
+        record = _only_record(persisted_records)
+        assert record["error_type"] == "authorization_error"
+        assert "error_kind=" not in record["detail"]
 
 
 class TestValidationErrorAudit:
     def test_error_type_used_not_embedded_in_detail(
         self,
         service: MdqService,
-        mock_audit: MagicMock,
+        persisted_records: Callable[[], list[dict[str, object]]],
         client: httpx.Client,
     ) -> None:
         service.enable_grep = False
@@ -238,9 +233,13 @@ class TestValidationErrorAudit:
             json={"name": "grep_docs", "args": {"pattern": "test"}},
         )
         assert response.status_code == 200
-        call_kwargs = mock_audit.call_args.kwargs
-        assert call_kwargs["error_type"] == "MdqValidationError"
-        assert "error_kind=" not in call_kwargs["detail"]
+        record = _only_record(persisted_records)
+        # Step 3b correction (20261128): the availability gate refuses `grep_docs` before the
+        # service runs, so the record names the refusal by code rather than the exception class
+        # or the class-derived name.
+        assert record["error_type"] == "tool_disabled"
+        assert record["outcome"] == "rejected"
+        assert "error_kind=" not in record["detail"]
 
 
 # ── core regression: audit detail independent of output text wording ─────────
@@ -250,7 +249,7 @@ class TestAuditDetailIndependentOfOutputText:
     def test_result_count_sourced_from_metadata_not_text(
         self,
         service: MdqService,
-        mock_audit: MagicMock,
+        persisted_records: Callable[[], list[dict[str, object]]],
         client: httpx.Client,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
@@ -277,7 +276,7 @@ class TestAuditDetailIndependentOfOutputText:
         )
         assert response.status_code == 200
         assert response.json()["result"] == rephrased_text
-        detail = mock_audit.call_args.kwargs["detail"]
+        detail = _only_record(persisted_records)["detail"]
         assert "result_count=1" in detail
         assert "shown_count=1" in detail
 
@@ -290,7 +289,7 @@ class TestConcurrentAuditIsolation:
         self,
         service: MdqService,
         tmp_path: Path,
-        mock_audit: MagicMock,
+        persisted_records: Callable[[], list[dict[str, object]]],
     ) -> None:
         """Two concurrent search_docs calls with different queries and
         different expected result counts must each produce an audit record
@@ -335,16 +334,23 @@ class TestConcurrentAuditIsolation:
         responses = asyncio.run(_run_both())
         assert all(r.status_code == 200 for r in responses)
 
+        # Step 3b correction (20261128): the target is hashed by seq 03, so the calls are
+        # selected by the hashed form of each query. Selecting by the raw query would fail
+        # for the reason this file guards against, not for the reason this test checks.
         alpha_calls = [
-            c for c in mock_audit.call_args_list if "AlphaKeyword" in c.kwargs["target"]
+            c
+            for c in persisted_records()
+            if hash_query_value("AlphaKeyword") in c["target"]
         ]
         beta_calls = [
-            c for c in mock_audit.call_args_list if "BetaKeyword" in c.kwargs["target"]
+            c
+            for c in persisted_records()
+            if hash_query_value("BetaKeyword") in c["target"]
         ]
         assert len(alpha_calls) == 1
         assert len(beta_calls) == 1
-        assert "result_count=2" in alpha_calls[0].kwargs["detail"]
-        assert "result_count=4" in beta_calls[0].kwargs["detail"]
+        assert "result_count=2" in alpha_calls[0]["detail"]
+        assert "result_count=4" in beta_calls[0]["detail"]
 
 
 # ── MdqMCPServer.dispatch() ────────────────────────────────────────────────────
@@ -366,3 +372,135 @@ class TestMdqMCPServerDispatch:
         assert type(result) is DispatchResult
         assert result.is_error is False
         assert "Documents:" in result.output
+
+
+# ── redaction (AC-4): no raw value reaches a persisted record ───────────────────
+
+CUSTOMER_NAME = "Acme-Corp"
+SECRET_VALUE = "sk-live-9f2c1a7b4d8e"
+OUTSIDE_ROOT = "/etc/passwd"
+
+
+@pytest.fixture
+def persisted_records(
+    monkeypatch: pytest.MonkeyPatch, service: MdqService
+) -> Callable[[], list[dict[str, object]]]:
+    """Read the records the emission boundary writes.
+
+    The logger is replaced rather than `_audit_log`, because the boundary writes
+    through the logger it is given; patching the module-level `_audit_log` would miss
+    a record written through `AuditEmission`. Non-record info lines are skipped, so
+    the count is the count of audit records.
+    """
+    sink = MagicMock()
+    monkeypatch.setattr(mdq_server_module, "logger", sink)
+    monkeypatch.setattr(mdq_server_module, "_service", service)
+
+    def records() -> list[dict[str, object]]:
+        parsed: list[dict[str, object]] = []
+        for call in sink.info.call_args_list:
+            try:
+                parsed.append(json.loads(call.args[0]))
+            except (json.JSONDecodeError, IndexError):
+                continue
+        return parsed
+
+    return records
+
+
+def _only_record(
+    records: Callable[[], list[dict[str, object]]],
+) -> dict[str, object]:
+    """AC-3: one authenticated call writes exactly one record."""
+    emitted = records()
+    assert len(emitted) == 1, "one authenticated call must write exactly one record"
+    return emitted[0]
+
+
+class TestRedactedTargets:
+    """AC-4: the persisted record holds a hashed or root-relative value, never the raw one."""
+
+    def test_query_value_is_persisted_as_a_hash(
+        self,
+        service: MdqService,
+        persisted_records: Callable[[], list[dict[str, object]]],
+        client: httpx.Client,
+    ) -> None:
+        query = f"{CUSTOMER_NAME} {SECRET_VALUE}"
+        client.post(
+            "/v1/call_tool", json={"name": "search_docs", "args": {"query": query}}
+        )
+
+        record = _only_record(persisted_records)
+        assert record["target"] == hash_query_value(query)
+        persisted = json.dumps(record)
+        assert CUSTOMER_NAME not in persisted
+        assert SECRET_VALUE not in persisted
+
+    def test_regex_pattern_is_persisted_as_a_hash(
+        self,
+        service: MdqService,
+        persisted_records: Callable[[], list[dict[str, object]]],
+        client: httpx.Client,
+    ) -> None:
+        pattern = f"{SECRET_VALUE}.*{CUSTOMER_NAME}"
+        client.post(
+            "/v1/call_tool", json={"name": "grep_docs", "args": {"pattern": pattern}}
+        )
+
+        record = _only_record(persisted_records)
+        assert record["target"] == hash_query_value(pattern)
+        persisted = json.dumps(record)
+        assert SECRET_VALUE not in persisted
+        assert CUSTOMER_NAME not in persisted
+
+    def test_path_inside_an_authorized_root_is_a_root_relative_identifier(
+        self,
+        service: MdqService,
+        md_file: Path,
+        tmp_path: Path,
+        persisted_records: Callable[[], list[dict[str, object]]],
+        client: httpx.Client,
+    ) -> None:
+        client.post(
+            "/v1/call_tool",
+            json={"name": "index_paths", "args": {"paths": [str(md_file)]}},
+            headers={"x-idempotency-key": str(uuid.uuid4())},
+        )
+
+        record = _only_record(persisted_records)
+        assert record["target"] == path_identifier(str(md_file), [str(tmp_path)])
+        assert str(tmp_path) not in json.dumps(record), (
+            "the absolute root is persisted, so the record still exposes an absolute path"
+        )
+
+    def test_path_outside_an_authorized_root_is_hashed(
+        self,
+        service: MdqService,
+        persisted_records: Callable[[], list[dict[str, object]]],
+        client: httpx.Client,
+    ) -> None:
+        client.post(
+            "/v1/call_tool", json={"name": "outline", "args": {"path": OUTSIDE_ROOT}}
+        )
+
+        record = _only_record(persisted_records)
+        assert record["target"] == path_identifier(
+            OUTSIDE_ROOT, [str(service.allowed_dirs[0])]
+        )
+        assert OUTSIDE_ROOT not in json.dumps(record)
+
+    def test_chunk_id_is_persisted_as_a_hash(
+        self,
+        service: MdqService,
+        persisted_records: Callable[[], list[dict[str, object]]],
+        client: httpx.Client,
+    ) -> None:
+        chunk_id = SECRET_VALUE + "-chunk"
+        client.post(
+            "/v1/call_tool", json={"name": "get_chunk", "args": {"chunk_id": chunk_id}}
+        )
+
+        record = _only_record(persisted_records)
+        assert record["target"] == hash_query_value(chunk_id)
+        assert chunk_id not in json.dumps(record)

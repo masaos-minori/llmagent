@@ -59,13 +59,39 @@ All tools receiving paths enforce fail-closed authorization via `allowed_dirs`. 
 - `..` traversal and symbolic-link escapes are blocked by `Path.resolve()` within `authorize_path()` (`scripts/mcp_servers/mdq/auth.py`).
 - Empty `allowed_dirs = []` (default) denies all path access (fail-closed).
 
+### Availability and execution contract
+
+One availability function answers both discovery and dispatch, and it is evaluated per tool name at call time inside the dispatch boundary before the handler runs, so `GET /v1/tools` and `POST /v1/call_tool` never report different states for the same call. `config_dependent` is `true` for every mdq tool entry (see `mcp_03_06_tool-runtime-availability-metadata.md`).
+
+- A tool is disabled when no authorized root is configured, because every tool serves content under `allowed_dirs`.
+- `grep_docs` is additionally disabled when `enable_grep` is `false`.
+- A disabled tool is refused before the handler runs with the code `tool_disabled`, and the refusal is recorded as `outcome="rejected"`.
+
+### Health surface
+
+The health body carries only non-sensitive state: the service name, the size of the authorized-root list, the deny-all flag, and the read-only dedup metrics. Dependency values are reason codes from the closed health-reason vocabulary, so no absolute database path, no database-wide count, no database-wide timestamp, and no configuration path appears in the response. Readiness is reported through the `mdq.corpus` capability block, the capability name the tool catalog declares for mdq: the state is `unavailable` with the availability reason code when a dependency fails and `ok` otherwise. A missing production configuration is a pre-bind failure, so no configuration dependency remains for a health request to report.
+
+### Stats surface
+
+`stats` reports counts scoped to the currently authorized roots. With no authorized root configured the call is refused rather than returning database-wide zero counts, so "no access" and "nothing indexed" stay distinguishable. The raw `index_state` metadata dictionary is not part of the response.
+
+### Administrator diagnostics
+
+Administrator diagnostics stay on the existing runtime-availability diagnostics surface — the declared `config_dependent`, `enabled`, and `disabled_reason` metadata plus the Security Posture checks — rather than a new surface. mdq publishes the posture built at startup; its checks cover the configured allowlist, allowlist entries that exist, the database path, schema and FTS health, and index availability.
+
+### Error codes
+
+The error vocabulary is one closed set of lowercase-snake codes, recorded in `mcp_02_03_audit-logging-and-errors.md`: `validation_error`, `authorization_error`, `tool_disabled`, `not_found`, `database_unavailable`, `consistency_error`, `timeout`, and `unexpected_error`. `timeout` is reserved for the search path, which reports a timeout as `consistency_error` today, and `unexpected_error` covers a failure with no mdq exception class. A code never carries exception text, SQLite detail, or a path, and `error_type` in an audit record is one of these codes rather than an exception class name.
+
+Tool-domain failures return HTTP 200 with `is_error=true` and the code, per `mcp_02_01_endpoints-and-transport.md`, so they count as transport successes in the health registry and are not retried; retry classification applies only to transport failures (see `mcp_03_03_transport-and-health.md`). The exception handlers render the transport response only.
+
 ### Guard and postcondition coverage
 
 - **Agent approval:** not applicable server-side; mdq enforces only its own technical constraints (Bearer token, `allowed_dirs`).
 - **Common guard:** the Path Control table is the common guard and the traversal- and symlink-containment reference implementation the cross-cutting policy measures the other high-risk servers against.
-- **Command-specific guard:** per-tool `authorize_path()` on every path-bearing tool. Read tools re-check the stored `source_path` of each chunk at read time, so a chunk that left `allowed_dirs` is excluded or rejected at read time rather than at index time. The stale-document check (`is_stale()`, `mtime_ns > int(indexed_at * 1e9)` in `scripts/mcp_servers/mdq/mdq_models.py`) is a reporting guard only: `outline` returns a `stale_warning` and `/health` reports `stale_document_count`; neither rejects the call. Proven by `tests/mcp_servers/mdq/test_mdq_stale_detection.py` (`test_stale_one_nanosecond_past_boundary`, `test_sql_condition_agrees_with_python_predicate`).
+- **Command-specific guard:** per-tool `authorize_path()` on every path-bearing tool. Read tools re-check the stored `source_path` of each chunk at read time, so a chunk that left `allowed_dirs` is excluded or rejected at read time rather than at index time. The stale-document check (`is_stale()`, `mtime_ns > int(indexed_at * 1e9)` in `scripts/mcp_servers/mdq/mdq_models.py`) is a reporting guard only: `outline` returns a `stale_warning`, and the stale count is input to the Security Posture index check rather than a field of the health body; neither rejects the call. `stats()` reports a stale count scoped to the authorized roots. Proven by `tests/mcp_servers/mdq/test_mdq_stale_detection.py` (`test_stale_one_nanosecond_past_boundary`, `test_sql_condition_agrees_with_python_predicate`).
 - **Postcondition verification:** not applicable per operation, and no resulting-state verification exists. Two reporting mechanisms exist: `refresh_paths()` records per-path failures, continues the batch, and returns indexed, skipped, deleted, and failed counts; the Security Posture check `server.index_available` warns when documents exist while the FTS index holds no rows. Neither compares a resulting state with an expected state or gates the refresh.
-- **Audit:** `call_tool` writes one shared `mcp_tool_exec` record per call (a tool-level exception records `outcome="error"` with `error_type`; a dispatched call records the dispatch outcome), with `target` from `extract_audit_target()` truncated to 80 characters and `server_key="mdq"`. No dedicated audit log; before/after state snapshots are not applicable.
+- **Audit:** Exactly one `mcp_tool_exec` record per authenticated call, emitted from the single audit boundary in `call_tool()` rather than from an exception handler. `target` is the redacted target from `extract_audit_target()`: a query or pattern hash, a root-relative path identifier, or a hash when the path is outside the authorized roots; no raw query text, regex, chunk identifier, or absolute path is stored. `outcome` is `ok`, `error`, or `rejected` (a call refused before the tool's work is `rejected`, a failure during it is `error`), `error_type` is a code from the closed vocabulary above, and `server_key` is `mdq`. No dedicated audit log; before/after state snapshots are not applicable.
 
 ### Markdown Compatibility Scope
 
@@ -91,9 +117,9 @@ All tools receiving paths enforce fail-closed authorization via `allowed_dirs`. 
 
 ### Audit `detail` Metadata
 
-The audit `detail` field is built from structured metadata (a `(text, metadata)` tuple) returned by each `MdqService` method, not by parsing output text, so audit values stay consistent when output wording changes. It carries result, shown, indexed, skipped, deleted, and failed counts and a `truncated=true` flag where applicable; for `get_chunk`, `truncated=true` is derived from the `"[Truncated"` marker in the output text.
+The audit `detail` field is built from structured metadata (a `(text, metadata)` tuple) returned by each `MdqService` method, not by parsing output text, so audit values stay consistent when output wording changes. It carries result, shown, indexed, skipped, deleted, and failed counts and a `truncated=true` flag where applicable; for `get_chunk`, `truncated=true` is derived from the `"[Truncated"` marker in the output text. For the indexing tools it also carries the request's own path count and the authorized root as a hash, because the metadata carries counts only and the root path itself must not reach the record.
 
-Tool-level exceptions (`MdqValidationError` / `MdqAuthorizationError` / `MdqNotFoundError` / `MdqIndexNotReadyError`) and FastAPI exception handlers (`MdqDatabaseError` / `MdqConsistencyError` / `MdqServiceError`) are not embedded in `detail`; the error type is passed as `error_type=` to `_audit_log()`.
+`detail` carries no exception-class names and `error_type` carries a code from the closed error-code vocabulary above, not an exception class name. The record is emitted from the single audit boundary in `call_tool()`, not from an exception handler.
 
 ---
 

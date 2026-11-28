@@ -33,6 +33,8 @@ from mcp_servers.mdq.mdq_service import MdqService
 from mcp_servers.mdq.parser import parse_markdown
 from mcp_servers.mdq.search import search_docs
 
+from tests.mcp_servers.mdq._startup import make_startup
+
 # ── fixtures ──────────────────────────────────────────────────────────────────
 
 
@@ -41,7 +43,7 @@ def service(tmp_path: Path) -> MdqService:
     """MdqService with a temp DB path and tmp_path in allowed_dirs."""
     fd, db = mkstemp(suffix=".db", dir=str(tmp_path))
     try:
-        svc = MdqService(db_path=db)
+        svc = MdqService(make_startup(db))
         svc._allowed_dirs = [str(tmp_path)]
         return svc
     finally:
@@ -761,9 +763,11 @@ class TestMdqService:
         result = asyncio.run(service.stats(req))
         assert "Documents:" in result
         assert "Chunks:" in result
+        # The raw index_state dict is not part of the response (REQ-002).
+        assert "Metadata" not in result
 
     def test_stats_includes_fts_count(self, service: MdqService, md_dir: Path) -> None:
-        """stats() includes FTS row count after indexing."""
+        """stats() includes FTS row count for the authorized roots after indexing."""
         asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(md_dir)])))
         result = asyncio.run(service.stats(StatsRequest()))
         assert "FTS rows:" in result
@@ -775,7 +779,28 @@ class TestMdqService:
         asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(md_dir)])))
         result = asyncio.run(service.stats(StatsRequest()))
         assert "Stale:" in result
-        assert "Stale: 0," in result
+        assert "Stale: 0" in result
+
+    def test_stats_counts_exclude_paths_outside_the_authorized_roots(
+        self, service: MdqService, md_dir: Path, tmp_path: Path
+    ) -> None:
+        """A row stored under a path outside the authorized roots is not counted (AC-2)."""
+        asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(md_dir)])))
+        conn = service._get_db_connection()
+        try:
+            conn.execute(
+                "INSERT INTO documents (doc_id, source_path, mtime_ns, size_bytes, content_hash, indexed_at) VALUES (?, ?, ?, ?, ?, ?)",
+                ("outside", "/outside/x.md", 1, 1, "h", 1.0),
+            )
+            conn.execute(
+                "INSERT INTO chunks (chunk_id, doc_id, source_path, heading, content, start_line, end_line, content_hash, indexed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                ("outside-chunk", "outside", "/outside/x.md", "H", "x", 1, 1, "h", 1.0),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        result = asyncio.run(service.stats(StatsRequest()))
+        assert "Documents: 2, Chunks: 2" in result
 
     def test_grep_docs_returns_matches_after_indexing(
         self, service: MdqService, md_file: Path
@@ -821,7 +846,7 @@ class TestMdqService:
 
         fd, db = mkstemp(suffix=".db")
         try:
-            svc = MdqService(db_path=db)
+            svc = MdqService(make_startup(db))
             assert svc.db_path == db
         finally:
             import os

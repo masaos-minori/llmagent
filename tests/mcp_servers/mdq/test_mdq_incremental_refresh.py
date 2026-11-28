@@ -25,6 +25,8 @@ from mcp_servers.mdq.mdq_models import (
 )
 from mcp_servers.mdq.mdq_service import MdqService
 
+from tests.mcp_servers.mdq._startup import make_startup
+
 
 @pytest.fixture()
 def md_file(tmp_path: Path) -> Path:
@@ -39,7 +41,7 @@ class TestIncrementalRefresh:
     @pytest.fixture()
     def service(self, tmp_path: Path) -> MdqService:
         db = tmp_path / "mdq.sqlite"
-        svc = MdqService(db_path=str(db))
+        svc = MdqService(make_startup(str(db)))
         svc._allowed_dirs = [str(tmp_path)]
         return svc
 
@@ -215,7 +217,7 @@ class TestIncrementalRefresh:
 
 def _fresh_service(tmp_path: Path) -> MdqService:
     """An MdqService with a private database, jailed to tmp_path."""
-    service = MdqService(db_path=str(tmp_path / "mdq.sqlite"))
+    service = MdqService(make_startup(str(tmp_path / "mdq.sqlite")))
     service._allowed_dirs = [str(tmp_path)]
     return service
 

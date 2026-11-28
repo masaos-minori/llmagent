@@ -87,7 +87,8 @@ class TestAuthenticationBeforeAuthorization:
         assert resp.status_code == 200
         body = resp.json()
         assert body["is_error"] is True
-        assert "outside allowed directories" in body["result"]
+        # The response carries the code from the closed vocabulary, not the exception text.
+        assert body["result"] == "authorization_error"
 
 
 class TestStartupRequiresToken:

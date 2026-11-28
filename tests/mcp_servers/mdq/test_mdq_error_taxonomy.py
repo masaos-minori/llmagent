@@ -8,12 +8,18 @@ from pathlib import Path
 
 import pytest
 from mcp_servers.mdq.indexer import index_paths
+from mcp_servers.mdq.mdq_error_codes import (
+    EXCEPTION_ERROR_CODES,
+    MDQ_DOMAIN_ERROR_CODES,
+    code_for_exception,
+)
 from mcp_servers.mdq.mdq_models import (
     GrepDocsRequest,
     IndexPathsRequest,
     MdqAuthorizationError,
     MdqConsistencyError,
     MdqDatabaseError,
+    MdqIndexNotReadyError,
     MdqNotFoundError,
     MdqServiceError,
     MdqValidationError,
@@ -21,12 +27,13 @@ from mcp_servers.mdq.mdq_models import (
 from mcp_servers.mdq.mdq_service import MdqService
 
 from tests.mcp_servers._auth_headers import MCP_TEST_AUTH_HEADERS
+from tests.mcp_servers.mdq._startup import make_startup
 
 
 @pytest.fixture()
 def service(tmp_path: Path) -> MdqService:
     db = tmp_path / "mdq.sqlite"
-    svc = MdqService(db_path=str(db))
+    svc = MdqService(make_startup(str(db)))
     svc._allowed_dirs = [str(tmp_path)]
     return svc
 
@@ -48,6 +55,59 @@ class TestErrorHierarchy:
 
     def test_mdq_consistency_error_inherits_from_service_error(self) -> None:
         assert issubclass(MdqConsistencyError, MdqServiceError)
+
+
+class TestClosedErrorCodeVocabulary:
+    """Test the closed domain code vocabulary and the exception-to-code mapping
+    (REQ-004, AC-5)."""
+
+    def test_vocabulary_is_closed(self) -> None:
+        assert MDQ_DOMAIN_ERROR_CODES == frozenset(
+            {
+                "validation_error",
+                "authorization_error",
+                "tool_disabled",
+                "not_found",
+                "database_unavailable",
+                "consistency_error",
+                "timeout",
+                "unexpected_error",
+            }
+        )
+
+    def test_every_mapped_code_is_in_the_closed_set(self) -> None:
+        for code in EXCEPTION_ERROR_CODES.values():
+            assert code in MDQ_DOMAIN_ERROR_CODES
+
+    def test_mapping_covers_every_mdq_exception_class(self) -> None:
+        subclasses = {
+            MdqValidationError,
+            MdqAuthorizationError,
+            MdqNotFoundError,
+            MdqIndexNotReadyError,
+            MdqDatabaseError,
+            MdqConsistencyError,
+            MdqServiceError,
+        }
+        assert subclasses == set(EXCEPTION_ERROR_CODES)
+
+    def test_subclass_resolves_to_its_own_code(self) -> None:
+        # A subclass must resolve before MdqServiceError, which is the fallback.
+        assert code_for_exception(MdqValidationError("bad input")) == "validation_error"
+
+    def test_non_mdq_exception_resolves_to_unexpected(self) -> None:
+        assert (
+            code_for_exception(ValueError("not an mdq exception")) == "unexpected_error"
+        )
+
+    def test_code_never_carries_exception_text_or_path(self) -> None:
+        exc = MdqDatabaseError(
+            "attempt to write a readonly database /opt/llm/db/x.sqlite"
+        )
+        code = code_for_exception(exc)
+        assert code == "database_unavailable"
+        assert "sqlite" not in code
+        assert "/opt" not in code
 
 
 class TestValidationError:
@@ -162,7 +222,9 @@ class TestCallToolDomainExceptionHandling:
         assert response.status_code == 200
         body = response.json()
         assert body.get("is_error") is True
-        assert "bad input" in (body.get("result") or "")
+        # Step 3b correction (20261128): the response carries the code from the closed
+        # vocabulary, not the exception text, so `CallToolResponse` has nothing else to show.
+        assert body.get("result") == "validation_error"
 
     def test_call_tool_returns_is_error_for_not_found_exception(
         self, tmp_path: Path

@@ -46,6 +46,19 @@ max_outline_items = 500
 # Maximum grep match results returned by grep_docs (default: 200).
 max_grep_matches = 200
 
+# Maximum number of characters per grep match (default: 500).
+max_chars_per_match = 500
+
+# Lines of context around a grep match (default: 2 each).
+context_before = 2
+context_after = 2
+
+# Maximum outline depth returned by the outline tool (default: 6).
+max_outline_depth = 6
+
+# Milliseconds to wait for a locked SQLite write (default: 5000).
+sqlite_busy_timeout = 5000
+
 # Maximum number of seconds to wait for a search operation
 search_timeout_sec = 30
 

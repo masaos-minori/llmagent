@@ -22,7 +22,7 @@ related:
 
 # Tool Runtime Availability Metadata: `config_dependent`, `enabled`, `disabled_reason`
 
-> `config_dependent` is the value the producer declares on the tool entry and is carried to `RuntimeTool` unchanged; it is never derived from `status`. It is `true` for every tool of `git`, `github`, `cicd`, and `shell`, and for `browser_fetch` of `web_search`; it is `false` for the file servers, `mdq`, and `rag_pipeline` tools. `enabled`/`disabled_reason` are carried into `RuntimeToolRegistry` by `_dedupe_and_build()` in `mcp_tool_discovery_registry.py`. See `mcp_03_01_dispatch-and-routing.md` for details.
+> `config_dependent` is the value the producer declares on the tool entry and is carried to `RuntimeTool` unchanged; it is never derived from `status`. It is `true` for every tool of `git`, `github`, `cicd`, `shell`, and `mdq`, and for `browser_fetch` of `web_search`; it is `false` for the file servers and `rag_pipeline` tools. `enabled`/`disabled_reason` are carried into `RuntimeToolRegistry` by `_dedupe_and_build()` in `mcp_tool_discovery_registry.py`. See `mcp_03_01_dispatch-and-routing.md` for details.
 
 ## 1. `config_dependent` (static)
 
@@ -76,7 +76,7 @@ The degraded-capability map and the posture gate reach this module as plain name
 
 ## 5. Dispatch rule
 
-Every server except `mdq` rejects disabled tools at `/v1/call_tool` before reaching the dispatch table (server-side gate). The response shape is `CallToolResponse(result="Tool disabled: <reason>", is_error=True)`. `mdq` only reports `enabled`/`disabled_reason` in `/v1/tools`; its `/v1/call_tool` has no such gate and relies on the per-path `allowed_dirs` authorization (`MdqAuthorizationError`) instead.
+Every server rejects disabled tools at `/v1/call_tool` before reaching the dispatch table (server-side gate). The response shape is `CallToolResponse(result="Tool disabled: <reason>", is_error=True)`. `mdq` evaluates the same availability rule at call time inside its dispatch boundary, so the HTTP endpoint and the programmatic entry share one decision, and a refusal is recorded with `error_type` `tool_disabled`.
 
 ## Design decisions
 

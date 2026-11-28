@@ -2,8 +2,8 @@
 
 Security Posture HTTP bind gate for scripts/mcp_servers/mdq/mdq_server.py (REQ-004, AC-004).
 
-The posture is built once at module import from the already loaded config, so the gate is
-startup-only and no later /health probe re-validates it (ADR-003 Static Availability).
+The posture is built once at module import from the shared startup-configuration result, so the
+gate is startup-only and no later /health probe re-validates it (ADR-003 Static Availability).
 tests/conftest.py sets MCP_MDQ_AUTH_TOKEN to a non-empty dummy value, so the shipped posture
 carries every check as OK and stays validated.
 """
@@ -11,15 +11,25 @@ carries every check as OK and stays validated.
 from __future__ import annotations
 
 import logging
+from types import MappingProxyType
 
 import pytest
 from mcp_servers.mdq import mdq_server
 from mcp_servers.mdq.mdq_security_validation import build_mdq_posture
+from mcp_servers.mdq.startup_config import StartupConfig
+from shared.mcp_health_contract import HEALTH_REASON_SERVER_UNAVAILABLE
 
 
 def _let_the_module_log(monkeypatch: pytest.MonkeyPatch) -> None:
     """Re-enable propagation so caplog sees the dedicated logger shared.logger disables."""
     monkeypatch.setattr(logging.getLogger(mdq_server.__name__), "propagate", True)
+
+
+def _unvalidated_startup() -> StartupConfig:
+    """The startup result as it looks when nothing about the deployment is usable."""
+    return StartupConfig(
+        values=MappingProxyType({}), db_path="", auth_token="test-token"
+    )
 
 
 class TestBindGate:
@@ -31,10 +41,12 @@ class TestBindGate:
     def test_gate_refuses_bind_and_logs_reason_codes(
         self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
     ) -> None:
+        # The failure is carried as the field-path dependency key plus the contract reason code,
+        # the shape check_health() produces, so the gate logs the same pair the body reports.
         posture = build_mdq_posture(
-            mdq_cfg={},
+            _unvalidated_startup(),
             db_file_present=False,
-            schema_error=("db_file", "database not found"),
+            schema_error=("db_file", HEALTH_REASON_SERVER_UNAVAILABLE),
             schema_checked=True,
             index_stats=None,
         )

@@ -15,25 +15,24 @@ from __future__ import annotations
 
 import contextvars
 import time
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, cast
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from shared.config_errors import ConfigMissingError, ConfigParseError, ConfigReadError
-from shared.config_loader import ConfigLoader
-from shared.config_utils import get_str
 from shared.formatters import fmt_kvlog
 from shared.logger import Logger
 from shared.security.posture_contract import SecurityPosture
 from shared.security.result_dto import SecurityCheckStatus
 
-from mcp_servers.audit import _audit_log
+from mcp_servers.audit import AuditEmission, hash_query_value
 from mcp_servers.dispatch import DispatchResult, _to_call_tool_response, dispatch_tool
 from mcp_servers.execution_context import ExecutionContext, ExecutionContextError
-from mcp_servers.health_response import dedup_health_details, make_health_response
+from mcp_servers.health_response import dedup_health_details
 from mcp_servers.mdq.audit_target import extract_audit_target
-from mcp_servers.mdq.health_check import _collect_dependencies, _degraded_response
+from mcp_servers.mdq.health_check import _collect_dependencies, check_health
+from mcp_servers.mdq.mdq_error_codes import TOOL_DISABLED, code_for_exception
 from mcp_servers.mdq.mdq_models import (
     GetChunkRequest,
     GrepDocsRequest,
@@ -53,6 +52,7 @@ from mcp_servers.mdq.mdq_models import (
 from mcp_servers.mdq.mdq_security_validation import build_mdq_posture
 from mcp_servers.mdq.mdq_service import MdqService
 from mcp_servers.mdq.mdq_tools import TOOL_LIST
+from mcp_servers.mdq.startup_config import StartupConfig, load_startup_config
 from mcp_servers.models import CallToolRequest, CallToolResponse, McpTool
 from mcp_servers.server import (
     MCPServer,
@@ -74,66 +74,51 @@ app = FastAPI(
 )
 
 
-def _load_auth_token() -> str:
-    """Return the server Bearer token from mdq_mcp_server.toml.
+_cfg: StartupConfig = load_startup_config()
+_service: MdqService = MdqService(_cfg)
 
-    Falls back to an empty config view (-> "" token, fail-closed startup) on
-    ConfigMissingError / ConfigParseError / ConfigReadError, KeyError, or TypeError.
-    """
-    try:
-        cfg = ConfigLoader().load("mdq_mcp_server.toml")
-    except (ConfigMissingError, ConfigParseError, ConfigReadError, KeyError, TypeError):
-        cfg = {}
-    return get_str(cfg, "auth_token")
-
-
-_AUTH_TOKEN: str = _load_auth_token()
-_service: MdqService = MdqService()
-
-# Build the MDQ security posture once at import. `_collect_dependencies()`
-# records config-read errors (ConfigMissingError / ConfigParseError / ConfigReadError)
-# and probe-side PermissionError / KeyError / TypeError under deps["config"] and
-# returns an empty config view; it swallows no other exceptions. The gate below fails
-# closed at startup when the resulting posture is not validated.
+# Build the MDQ security posture once at import from the shared startup result (REQ-007).
+# `_collect_dependencies()` supplies the probe facts the posture judges, so the gate and the
+# /health body read the same probe result and cannot disagree. The gate fails closed at startup
+# when the posture is not validated.
 (
     _deps,
     _details,
-    _mdq_cfg,
+    _startup,
     _db_file_present,
     _schema_error,
     _schema_checked,
     _index_stats,
-) = _collect_dependencies()
+) = _collect_dependencies(_cfg)
 _security_posture: SecurityPosture = build_mdq_posture(
-    _mdq_cfg, _db_file_present, _schema_error, _schema_checked, _index_stats
+    _cfg, _db_file_present, _schema_error, _schema_checked, _index_stats
 )
 
 
-def _mdq_tool_availability(allowed_dirs: list[str], tool_name: str) -> tuple[bool, str]:
-    """Return (enabled, disabled_reason) for a single mdq tool by name."""
-    if not allowed_dirs:
+def _mdq_tool_availability(tool_name: str) -> tuple[bool, str]:
+    """Return (enabled, disabled_reason) for one mdq tool by name (REQ-001).
+
+    Every MDQ tool serves content under the authorized roots, so no authorized root means
+    no tool runs; `grep_docs` is additionally disabled when grep is configured off. The
+    rule is evaluated per tool name so one tool can be disabled while another runs.
+    """
+    if not _service.allowed_dirs:
         return False, "allowed_dirs is empty"
+    if tool_name == "grep_docs" and not _service.enable_grep:
+        return False, "enable_grep is false"
     return True, ""
 
 
-def _mdq_error_handler(
-    request: Request, exc: Exception, status_code: int, error_kind: str
-) -> JSONResponse:
-    """Format an MDQ error into a JSONResponse with consistent structure."""
-    logger.info("MDQ %s error: %s", error_kind, exc)
-    session_id, request_id, _ = extract_request_context(request)
-    _audit_log(
-        logger,
-        session_id=session_id,
-        request_id=request_id,
-        action="call_tool",
-        target="",
-        outcome="error",
-        detail="",
-        server_key="mdq",
-        error_type=error_kind,
-    )
-    return JSONResponse({"detail": str(exc)}, status_code=status_code)
+def _mdq_error_handler(exc: Exception, status_code: int) -> JSONResponse:
+    """Render the transport response for a domain exception (REQ-005).
+
+    The handler does not audit: the call's single record is written by `call_tool()`'s
+    emission boundary. Only the code is logged, so exception text, SQLite detail, and paths
+    reach neither a persistent log nor the client (AC-4, AC-5).
+    """
+    code = code_for_exception(exc)
+    logger.info(fmt_kvlog("mdq_error", code=code, status=str(status_code)))
+    return JSONResponse({"detail": code}, status_code=status_code)
 
 
 @app.exception_handler(MdqValidationError)
@@ -141,7 +126,7 @@ async def _on_mdq_validation_error(
     request: Request, exc: MdqValidationError
 ) -> JSONResponse:
     """Handle validation errors with HTTP 400 response."""
-    return _mdq_error_handler(request, exc, 400, "validation_error")
+    return _mdq_error_handler(exc, 400)
 
 
 @app.exception_handler(MdqAuthorizationError)
@@ -149,7 +134,7 @@ async def _on_mdq_authorization_error(
     request: Request, exc: MdqAuthorizationError
 ) -> JSONResponse:
     """Handle authorization errors with HTTP 403 response."""
-    return _mdq_error_handler(request, exc, 403, "authorization_error")
+    return _mdq_error_handler(exc, 403)
 
 
 @app.exception_handler(MdqNotFoundError)
@@ -157,7 +142,7 @@ async def _on_mdq_not_found_error(
     request: Request, exc: MdqNotFoundError
 ) -> JSONResponse:
     """Handle not found errors with HTTP 404 response."""
-    return _mdq_error_handler(request, exc, 404, "not_found_error")
+    return _mdq_error_handler(exc, 404)
 
 
 @app.exception_handler(MdqIndexNotReadyError)
@@ -165,7 +150,7 @@ async def _on_mdq_index_not_ready_error(
     request: Request, exc: MdqIndexNotReadyError
 ) -> JSONResponse:
     """Handle index-not-ready errors with HTTP 503 response."""
-    return _mdq_error_handler(request, exc, 503, "index_not_ready_error")
+    return _mdq_error_handler(exc, 503)
 
 
 @app.exception_handler(MdqDatabaseError)
@@ -173,7 +158,7 @@ async def _on_mdq_database_error(
     request: Request, exc: MdqDatabaseError
 ) -> JSONResponse:
     """Handle database errors with HTTP 503 response."""
-    return _mdq_error_handler(request, exc, 503, "database_error")
+    return _mdq_error_handler(exc, 503)
 
 
 @app.exception_handler(MdqConsistencyError)
@@ -181,13 +166,13 @@ async def _on_mdq_consistency_error(
     request: Request, exc: MdqConsistencyError
 ) -> JSONResponse:
     """Handle consistency errors with HTTP 500 response."""
-    return _mdq_error_handler(request, exc, 500, "consistency_error")
+    return _mdq_error_handler(exc, 500)
 
 
 @app.exception_handler(MdqServiceError)
 async def _on_mdq_service_error(request: Request, exc: MdqServiceError) -> JSONResponse:
     """Handle generic service errors with HTTP 500 response."""
-    return _mdq_error_handler(request, exc, 500, "service_error")
+    return _mdq_error_handler(exc, 500)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -213,10 +198,14 @@ class MdqDispatchResult:
     execution_mode: str = ""
     side_effect_applied: bool = False
     dedup_state: str = ""
+    error_type: str = ""
+    refused: bool = False
 
     @property
     def outcome(self) -> str:
-        """Return 'error' if is_error, otherwise 'ok'."""
+        """Return 'rejected' for a refusal before the handler, 'error' for a failure, else 'ok'."""
+        if self.refused:
+            return "rejected"
         return "error" if self.is_error else "ok"
 
 
@@ -315,10 +304,24 @@ async def _dispatch_mdq_tool(
 ) -> MdqDispatchResult:
     """Route a tool call through the shared dispatch mechanism, capturing mdq-local metadata.
 
+    Availability is re-evaluated here at call time (REQ-001), so the HTTP endpoint and this
+    programmatic entry share one decision and a disabled tool is refused before any handler
+    runs. A refusal carries no metadata and no execution mode, since nothing ran.
+
     The ContextVar lifecycle: set() at the start of each request, get() after
     dispatch, reset() in finally. A guard around set() prevents corruption if
     set() raises before the try block.
     """
+    enabled, reason = _mdq_tool_availability(name)
+    if not enabled:
+        return MdqDispatchResult(
+            output=f"Tool disabled: {reason}",
+            is_error=True,
+            metadata={},
+            execution_mode="no_op",
+            error_type=TOOL_DISABLED,
+            refused=True,
+        )
     try:
         token = _mdq_metadata_var.set({})
     except Exception:  # noqa: BLE001 — set() failure must not corrupt state
@@ -335,21 +338,36 @@ async def _dispatch_mdq_tool(
         execution_mode=result.execution_mode,
         side_effect_applied=result.side_effect_applied,
         dedup_state=result.dedup_state,
+        error_type=result.error_type or "",
     )
 
 
+def _root_identity(roots: Sequence[str]) -> str:
+    """The authorized root as a hash, so the persisted record names the root without its path."""
+    return hash_query_value(roots[0]) if roots else ""
+
+
 def _build_call_tool_audit_detail(
-    name: str, r: MdqDispatchResult, ms: float
+    name: str,
+    r: MdqDispatchResult,
+    ms: float,
+    args: dict[str, Any],
+    roots: Sequence[str] = (),
 ) -> list[str]:
     """Build the per-tool audit detail parts for a completed (non-raising) dispatch result.
 
     Sourced from structured metadata returned by MdqService's methods (or,
     for get_chunk, from its own output text), never inferred from other
-    tools' output text.
+    tools' output text. For the indexing tools the request's own path count is persisted
+    together with the hashed root identity, because the metadata carries counts only and
+    the root path itself must not reach the record (REQ-006).
     """
     detail_parts: list[str] = [f"duration_ms={ms:.0f}"]
     if r.is_error:
-        detail_parts.append("error_kind=tool_error")
+        # A refusal names itself through `error_type`, so `detail` does not repeat it; a
+        # dispatch-level error result carries the category here instead.
+        if not r.refused:
+            detail_parts.append("error_kind=tool_error")
     elif name == "search_docs":
         md = r.metadata
         detail_parts.append(f"result_count={md.get('result_count', 0)}")
@@ -366,11 +384,15 @@ def _build_call_tool_audit_detail(
             detail_parts.append("truncated=true")
     elif name == "index_paths":
         md = r.metadata
+        detail_parts.append(f"paths_count={len(args.get('paths', []))}")
+        detail_parts.append(f"root_identity={_root_identity(roots)}")
         detail_parts.append(f"indexed_count={md.get('indexed_count', 0)}")
         detail_parts.append(f"skipped_count={md.get('skipped_count', 0)}")
         detail_parts.append(f"failed_count={md.get('failed_count', 0)}")
     elif name == "refresh_index":
         md = r.metadata
+        detail_parts.append(f"paths_count={len(args.get('paths', []))}")
+        detail_parts.append(f"root_identity={_root_identity(roots)}")
         detail_parts.append(f"indexed_count={md.get('indexed_count', 0)}")
         detail_parts.append(f"skipped_count={md.get('skipped_count', 0)}")
         detail_parts.append(f"deleted_count={md.get('deleted_count', 0)}")
@@ -388,10 +410,10 @@ async def list_tools(
     include_disabled: bool = False, disabled_code: str | None = None
 ) -> dict[str, Any]:
     """Return the MCP tool list with schema_version and server_key appended."""
-    enabled, reason = _mdq_tool_availability(_service.allowed_dirs, "")
-    annotated = [
-        {**t, "enabled": enabled, "disabled_reason": reason} for t in TOOL_LIST
-    ]
+    annotated: list[dict[str, Any]] = []
+    for tool in TOOL_LIST:
+        enabled, reason = _mdq_tool_availability(tool["name"])
+        annotated.append({**tool, "enabled": enabled, "disabled_reason": reason})
     return build_tools_response(
         cast("list[McpTool]", annotated),
         "mdq",
@@ -400,91 +422,91 @@ async def list_tools(
     )
 
 
+def _elapsed_ms(t0: float) -> float:
+    """Elapsed milliseconds since the start of the call."""
+    return (time.perf_counter() - t0) * 1000
+
+
+# The classes answered at HTTP 200 with `is_error=true` (MCP spec). The remaining MDQ classes
+# keep their handler's transport status, so the boundary records them and re-raises.
+_TOOL_LEVEL_ERRORS: tuple[type[MdqServiceError], ...] = (
+    MdqValidationError,
+    MdqAuthorizationError,
+    MdqNotFoundError,
+    MdqIndexNotReadyError,
+)
+
+
 @app.post("/v1/call_tool", response_model=CallToolResponse)
 async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
-    """Handle MCP call_tool requests with audit logging and error handling."""
-    t0 = time.perf_counter()
+    """Handle MCP call_tool requests through one audit boundary (REQ-005).
+
+    One record per authenticated call is written from the single `finally`, so the refusal
+    path and the malformed-execution-context path are covered too. A refused call is
+    `rejected`, a failure during the tool's work is `error`. Responses carry the stable code,
+    never exception text, SQLite detail, or a path (AC-4, AC-5).
+    """
     session_id, request_id = extract_request_context(request)[:2]
-    target = extract_audit_target(req.name, req.args)
-
-    try:
-        exec_ctx = extract_execution_context(request, req.name, req.args)
-    except ExecutionContextError as exc:
-        return CallToolResponse(result=f"Validation error: {exc}", is_error=True)
-
-    try:
-        r = await _dispatch_mdq_tool(req.name, req.args, context=exec_ctx)
-    except (
-        MdqValidationError,
-        MdqAuthorizationError,
-        MdqNotFoundError,
-        MdqIndexNotReadyError,
-    ) as exc:
-        # Tool-level error → is_error=True, HTTP 200 (MCP spec)
-        ms = (time.perf_counter() - t0) * 1000
-        error_kind = type(exc).__name__
-        _audit_log(
-            logger,
-            session_id=session_id,
-            request_id=request_id,
-            action=req.name,
-            target=target[:80],
-            outcome="error",
-            detail=f"duration_ms={ms:.0f}",
-            server_key="mdq",
-            error_type=error_kind,
-        )
-        return CallToolResponse(result=str(exc), is_error=True)
-
-    ms = (time.perf_counter() - t0) * 1000
-    logger.info(fmt_kvlog("call_tool", tool=req.name, ms=f"{ms:.0f}"))
-
-    detail_parts = _build_call_tool_audit_detail(req.name, r, ms)
-
-    _audit_log(
+    emission = AuditEmission(
         logger,
         session_id=session_id,
         request_id=request_id,
         action=req.name,
-        target=target[:80],
-        outcome=r.outcome,
-        detail=", ".join(detail_parts),
         server_key="mdq",
     )
-    return _to_call_tool_response(
-        DispatchResult(
-            output=r.output,
-            is_error=r.is_error,
-            dedup_state=r.dedup_state,
-            execution_mode=r.execution_mode,
-            side_effect_applied=r.side_effect_applied,
+    target = extract_audit_target(req.name, req.args, _service.allowed_dirs)
+    t0 = time.perf_counter()
+    outcome = "ok"
+    error_type = ""
+    detail = ""
+    try:
+        try:
+            exec_ctx = extract_execution_context(request, req.name, req.args)
+        except ExecutionContextError:
+            # Refused before dispatch, so no durable state is created.
+            outcome = "rejected"
+            error_type = "validation_error"
+            detail = f"duration_ms={_elapsed_ms(t0):.0f}"
+            return CallToolResponse(result=error_type, is_error=True)
+
+        r = await _dispatch_mdq_tool(req.name, req.args, context=exec_ctx)
+        outcome = r.outcome
+        error_type = r.error_type
+        ms = _elapsed_ms(t0)
+        detail = ", ".join(
+            _build_call_tool_audit_detail(
+                req.name, r, ms, req.args, _service.allowed_dirs
+            )
         )
-    )
+        logger.info(fmt_kvlog("call_tool", tool=req.name, ms=f"{ms:.0f}"))
+        return _to_call_tool_response(
+            DispatchResult(
+                output=r.output,
+                is_error=r.is_error,
+                dedup_state=r.dedup_state,
+                execution_mode=r.execution_mode,
+                side_effect_applied=r.side_effect_applied,
+            )
+        )
+    except MdqServiceError as exc:
+        outcome = "error"
+        error_type = code_for_exception(exc)
+        detail = f"duration_ms={_elapsed_ms(t0):.0f}"
+        if isinstance(exc, _TOOL_LEVEL_ERRORS):
+            return CallToolResponse(result=error_type, is_error=True)
+        raise
+    finally:
+        emission.emit(
+            target=target, outcome=outcome, error_type=error_type, detail=detail
+        )
 
 
 @app.get("/health")
 async def health() -> JSONResponse:
     """Return health check status."""
-    # The handler composes the response itself from the parts check_health() uses, so it owns
-    # details and can merge the read-only dedup block into it. The branches are the same as
-    # check_health()'s, so the payload is otherwise identical.
-    (
-        deps,
-        details,
-        mdq_cfg,
-        db_file_present,
-        schema_error,
-        schema_checked,
-        index_stats,
-    ) = _collect_dependencies()
-    details.update(dedup_health_details())
-    posture = build_mdq_posture(
-        mdq_cfg, db_file_present, schema_error, schema_checked, index_stats
-    )
-    if deps:
-        return _degraded_response(deps, details, posture)
-    result: JSONResponse = make_health_response(deps, details, security=posture)
-    return result
+    # The response is composed in `check_health()`, which reads the same startup result the rest
+    # of the server does; the handler only adds the read-only dedup block to the details.
+    return check_health(_cfg, extra_details=dedup_health_details())
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -530,8 +552,8 @@ class MdqMCPServer(MCPServer):
 
 # Attach the common Bearer authentication middleware. allowed_dirs path authorization
 # is applied afterwards, inside the service, and does not replace authentication.
-require_auth_token("mdq-mcp", "MCP_MDQ_AUTH_TOKEN", _AUTH_TOKEN)
-attach_auth_middleware(cast(_FastAPIApp, app), _AUTH_TOKEN)
+require_auth_token("mdq-mcp", "MCP_MDQ_AUTH_TOKEN", _cfg.auth_token)
+attach_auth_middleware(cast(_FastAPIApp, app), _cfg.auth_token)
 
 
 def _enforce_posture_gate() -> None:

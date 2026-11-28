@@ -1,10 +1,10 @@
 """tests/mcp_servers/mdq/test_mdq_security_validation.py
 
 Tests for scripts/mcp_servers/mdq/mdq_security_validation.py and health_check.py:
-validate_mdq_security() reports mdq-mcp's own configuration as a Security Posture, the config view
-carries no Secret and no value a fingerprint may not hash, the published posture carries the common
-checks the Agent-side validator requires, and no database path, allowed-directory path, or token
-value is echoed.
+validate_mdq_security() reports mdq-mcp's own configuration as a Security Posture from the shared
+startup-configuration result, the config view carries no Secret and no value a fingerprint may not
+hash, the published posture carries the common checks the Agent-side validator requires, and no
+database path, allowed-directory path, or token value is echoed.
 """
 
 from __future__ import annotations
@@ -12,17 +12,19 @@ from __future__ import annotations
 import re
 import sqlite3
 from pathlib import Path
+from types import MappingProxyType
 from unittest.mock import patch
 
 from fastapi.responses import JSONResponse
 from httpx import ASGITransport, AsyncClient
+from mcp_servers.mdq import mdq_server
 from mcp_servers.mdq.mdq_security_validation import (
     MDQ_OWN_CONFIG_FILE,
     _mdq_config_view,
     build_mdq_posture,
     validate_mdq_security,
 )
-from mcp_servers.mdq.mdq_server import app
+from mcp_servers.mdq.startup_config import StartupConfig
 from shared.security.posture_contract import (
     COMMON_CHECK_IDS,
     REQUIRED_CHECK_IDS,
@@ -89,23 +91,38 @@ def _create_db(tmp_path: Path) -> str:
     return path
 
 
-def _cfg(tmp_path: Path, **overrides: object) -> dict[str, object]:
-    """A config with only the keys a test cares about overridden."""
-    cfg: dict[str, object] = {
-        "db_path": str(tmp_path / "mdq.sqlite"),
+def _startup(
+    tmp_path: Path,
+    *,
+    db_path: str | None = None,
+    auth_token: str = "test-token",
+    drop: tuple[str, ...] = (),
+    **values: object,
+) -> StartupConfig:
+    """The shared startup result, with only the keys a test cares about overridden or dropped.
+
+    `auth_token` is not a `values` key in the real result, so it is supplied as the field that
+    holds it, and the tests never depend on a host path.
+    """
+    merged: dict[str, object] = {
         "allowed_dirs": [str(tmp_path)],
-        "auth_token": "test-token",
         "enable_grep": True,
         "max_results_limit": 100,
     }
-    cfg.update(overrides)
-    return cfg
+    merged.update(values)
+    for key in drop:
+        merged.pop(key, None)
+    return StartupConfig(
+        values=MappingProxyType(merged),
+        db_path=db_path if db_path is not None else str(tmp_path / "mdq.sqlite"),
+        auth_token=auth_token,
+    )
 
 
 def _results(
     tmp_path: Path,
     *,
-    cfg: dict[str, object] | None = None,
+    startup: StartupConfig | None = None,
     db_file_present: bool = True,
     schema_error: tuple[str, str] | None = None,
     schema_checked: bool = True,
@@ -113,7 +130,7 @@ def _results(
 ) -> dict[str, SecurityCheckResult]:
     """The MDQ check results keyed by check id."""
     checks = validate_mdq_security(
-        cfg if cfg is not None else _cfg(tmp_path),
+        startup if startup is not None else _startup(tmp_path),
         db_file_present=db_file_present,
         schema_error=schema_error,
         schema_checked=schema_checked,
@@ -125,7 +142,7 @@ def _results(
 def _posture(
     tmp_path: Path,
     *,
-    cfg: dict[str, object] | None = None,
+    startup: StartupConfig | None = None,
     db_file_present: bool = True,
     schema_error: tuple[str, str] | None = None,
     schema_checked: bool = True,
@@ -133,7 +150,7 @@ def _posture(
 ) -> SecurityPosture:
     """The posture check_health() publishes, built the way the server builds it."""
     return build_mdq_posture(
-        cfg if cfg is not None else _cfg(tmp_path),
+        startup if startup is not None else _startup(tmp_path),
         db_file_present,
         schema_error,
         schema_checked,
@@ -153,7 +170,7 @@ class TestCheckSet:
         assert set(results) == set(server_ids)
 
     def test_deny_all_still_reports_every_check(self, tmp_path: Path) -> None:
-        results = _results(tmp_path, cfg=_cfg(tmp_path, allowed_dirs=[]))
+        results = _results(tmp_path, startup=_startup(tmp_path, allowed_dirs=[]))
         assert len(results) == len(MDQ_CHECK_IDS)
 
     def test_posture_carries_the_common_checks_too(self, tmp_path: Path) -> None:
@@ -167,23 +184,23 @@ class TestAllowedDirsConfigured:
     """A deny-all mdq-mcp can serve no document, so it is not Ready."""
 
     def test_empty_allowlist_is_failed(self, tmp_path: Path) -> None:
-        result = _results(tmp_path, cfg=_cfg(tmp_path, allowed_dirs=[]))[
+        result = _results(tmp_path, startup=_startup(tmp_path, allowed_dirs=[]))[
             "server.allowed_dirs_configured"
         ]
         assert result.status is SecurityCheckStatus.FAILED
         assert result.reason_code == REASON_ALLOWLIST_EMPTY
 
     def test_missing_key_is_failed(self, tmp_path: Path) -> None:
-        cfg = _cfg(tmp_path)
-        del cfg["allowed_dirs"]
-        result = _results(tmp_path, cfg=cfg)["server.allowed_dirs_configured"]
+        result = _results(tmp_path, startup=_startup(tmp_path, drop=("allowed_dirs",)))[
+            "server.allowed_dirs_configured"
+        ]
         assert result.status is SecurityCheckStatus.FAILED
         assert result.reason_code == REASON_ALLOWLIST_EMPTY
 
     def test_non_empty_allowlist_is_ok_with_a_count_only(self, tmp_path: Path) -> None:
-        result = _results(tmp_path, cfg=_cfg(tmp_path, allowed_dirs=[SECRET_DIR]))[
-            "server.allowed_dirs_configured"
-        ]
+        result = _results(
+            tmp_path, startup=_startup(tmp_path, allowed_dirs=[SECRET_DIR])
+        )["server.allowed_dirs_configured"]
         assert result.status is SecurityCheckStatus.OK
         assert SECRET_DIR not in result.message
 
@@ -192,7 +209,7 @@ class TestAllowedDirsExist:
     """A configured directory that does not exist authorizes nothing."""
 
     def test_empty_allowlist_is_not_applicable(self, tmp_path: Path) -> None:
-        result = _results(tmp_path, cfg=_cfg(tmp_path, allowed_dirs=[]))[
+        result = _results(tmp_path, startup=_startup(tmp_path, allowed_dirs=[]))[
             "server.allowed_dirs_exist"
         ]
         assert result.status is SecurityCheckStatus.NOT_APPLICABLE
@@ -200,7 +217,7 @@ class TestAllowedDirsExist:
 
     def test_missing_directory_is_failed(self, tmp_path: Path) -> None:
         missing = str(tmp_path / "no-such-dir")
-        result = _results(tmp_path, cfg=_cfg(tmp_path, allowed_dirs=[missing]))[
+        result = _results(tmp_path, startup=_startup(tmp_path, allowed_dirs=[missing]))[
             "server.allowed_dirs_exist"
         ]
         assert result.status is SecurityCheckStatus.FAILED
@@ -208,7 +225,7 @@ class TestAllowedDirsExist:
         assert missing not in result.message
 
     def test_empty_entry_is_failed(self, tmp_path: Path) -> None:
-        result = _results(tmp_path, cfg=_cfg(tmp_path, allowed_dirs=[""]))[
+        result = _results(tmp_path, startup=_startup(tmp_path, allowed_dirs=[""]))[
             "server.allowed_dirs_exist"
         ]
         assert result.status is SecurityCheckStatus.FAILED
@@ -223,7 +240,7 @@ class TestDbPathValid:
     """The db file state mirrors the existing db_file dependency entry, without the path."""
 
     def test_empty_db_path_is_failed(self, tmp_path: Path) -> None:
-        result = _results(tmp_path, cfg=_cfg(tmp_path, db_path=""))[
+        result = _results(tmp_path, startup=_startup(tmp_path, db_path=""))[
             "server.db_path_valid"
         ]
         assert result.status is SecurityCheckStatus.FAILED
@@ -294,28 +311,28 @@ class TestConfigView:
     """The view is the fingerprint input, so it must be hashable and carry no Secret."""
 
     def test_carries_the_own_config_file_key(self, tmp_path: Path) -> None:
-        view = _mdq_config_view(_cfg(tmp_path))
+        view = _mdq_config_view(_startup(tmp_path))
         assert MDQ_OWN_CONFIG_FILE == "mdq_mcp_server.toml"
         assert view[OWN_CONFIG_FILE_VIEW_KEY] == MDQ_OWN_CONFIG_FILE
 
     def test_is_hashable_with_the_deployed_shape(self, tmp_path: Path) -> None:
-        cfg = _cfg(
+        startup = _startup(
             tmp_path,
             db_path=SECRET_DB_PATH,
             allowed_dirs=[SECRET_DIR, "/opt/llm/docs"],
             auth_token=SECRET_TOKEN,
         )
-        digest = compute_config_fingerprint(_mdq_config_view(cfg))
+        digest = compute_config_fingerprint(_mdq_config_view(startup))
         assert re.fullmatch(r"[0-9a-f]{64}", digest)
 
     def test_carries_no_path_or_token_value(self, tmp_path: Path) -> None:
-        cfg = _cfg(
+        startup = _startup(
             tmp_path,
             db_path=SECRET_DB_PATH,
             allowed_dirs=[SECRET_DIR],
             auth_token=SECRET_TOKEN,
         )
-        view = _mdq_config_view(cfg)
+        view = _mdq_config_view(startup)
         values = list(view.values())
         assert SECRET_DB_PATH not in values
         assert SECRET_DIR not in values
@@ -325,7 +342,7 @@ class TestConfigView:
         assert view["allowed_dirs_count"] == 1
 
     def test_skips_a_value_a_fingerprint_may_not_hash(self, tmp_path: Path) -> None:
-        view = _mdq_config_view(_cfg(tmp_path, max_results_limit=SECRET_DB_PATH))
+        view = _mdq_config_view(_startup(tmp_path, max_results_limit=SECRET_DB_PATH))
         assert "max_results_limit" not in view
         assert compute_config_fingerprint(view)
 
@@ -340,7 +357,7 @@ class TestPostureOutcome:
         assert posture.server_key == "mdq"
 
     def test_deny_all_is_not_ready(self, tmp_path: Path) -> None:
-        posture = _posture(tmp_path, cfg=_cfg(tmp_path, allowed_dirs=[]))
+        posture = _posture(tmp_path, startup=_startup(tmp_path, allowed_dirs=[]))
         assert posture.validated is False
         assert posture.ready is False
 
@@ -352,13 +369,13 @@ class TestPostureOutcome:
         assert posture.ready is True
 
     def test_no_message_carries_a_secret_value(self, tmp_path: Path) -> None:
-        cfg = _cfg(
+        startup = _startup(
             tmp_path,
             db_path=SECRET_DB_PATH,
             allowed_dirs=[SECRET_DIR],
             auth_token=SECRET_TOKEN,
         )
-        posture = _posture(tmp_path, cfg=cfg, db_file_present=False)
+        posture = _posture(tmp_path, startup=startup, db_file_present=False)
         text = " ".join(check.message for check in posture.checks)
         for secret in (SECRET_DB_PATH, SECRET_DIR, SECRET_TOKEN):
             assert secret not in text
@@ -367,19 +384,20 @@ class TestPostureOutcome:
 class TestHealthEndpointPosture:
     """check_health() publishes the posture on /health without changing the other keys."""
 
-    async def _get_health(self, tmp_path: Path, cfg: dict[str, object]) -> JSONResponse:
-        with patch("mcp_servers.mdq.health_check.ConfigLoader") as mock_config:
-            mock_config.return_value.load.return_value = cfg
+    async def _get_health(self, startup: StartupConfig) -> JSONResponse:
+        # The server reads the one startup result at import, so the test supplies that result
+        # rather than a second configuration read.
+        with patch.object(mdq_server, "_cfg", startup):
             async with AsyncClient(
-                transport=ASGITransport(app=app),
+                transport=ASGITransport(app=mdq_server.app),
                 base_url="http://test",
                 headers=MCP_TEST_AUTH_HEADERS,
             ) as client:
                 return await client.get("/health")
 
     async def test_ready_body_carries_the_security_block(self, tmp_path: Path) -> None:
-        cfg = _cfg(tmp_path, db_path=_create_db(tmp_path))
-        resp = await self._get_health(tmp_path, cfg)
+        startup = _startup(tmp_path, db_path=_create_db(tmp_path))
+        resp = await self._get_health(startup)
         assert resp.status_code == 200
         security = resp.json()["security"]
         assert security["server_key"] == "mdq"
@@ -391,8 +409,8 @@ class TestHealthEndpointPosture:
         )
 
     async def test_deny_all_body_reports_not_ready(self, tmp_path: Path) -> None:
-        cfg = _cfg(tmp_path, db_path=_create_db(tmp_path), allowed_dirs=[])
-        resp = await self._get_health(tmp_path, cfg)
+        startup = _startup(tmp_path, db_path=_create_db(tmp_path), allowed_dirs=[])
+        resp = await self._get_health(startup)
         assert resp.status_code == 503
         body = resp.json()
         assert body["ready"] is False
@@ -403,8 +421,10 @@ class TestHealthEndpointPosture:
     async def test_security_block_carries_no_configured_path(
         self, tmp_path: Path
     ) -> None:
-        cfg = _cfg(tmp_path, db_path=_create_db(tmp_path), allowed_dirs=[SECRET_DIR])
-        resp = await self._get_health(tmp_path, cfg)
+        startup = _startup(
+            tmp_path, db_path=_create_db(tmp_path), allowed_dirs=[SECRET_DIR]
+        )
+        resp = await self._get_health(startup)
         assert resp.status_code == 503
         assert SECRET_DIR not in str(resp.json()["security"])
 
@@ -418,15 +438,17 @@ class TestPathSymlinkGuard:
     def test_broken_symlink_is_rejected(self, tmp_path: Path) -> None:
         link = tmp_path / "broken_link"
         link.symlink_to(tmp_path / "missing-target")
-        result = _results(tmp_path, cfg=_cfg(tmp_path, allowed_dirs=[str(link)]))[
-            "server.allowed_dirs_exist"
-        ]
+        result = _results(
+            tmp_path, startup=_startup(tmp_path, allowed_dirs=[str(link)])
+        )["server.allowed_dirs_exist"]
         assert result.status is SecurityCheckStatus.FAILED
         assert result.reason_code == REASON_ALLOWED_DIR_INVALID
         assert "missing-target" not in result.message
 
     def test_existing_directory_validates_all_checks(self, tmp_path: Path) -> None:
-        results = _results(tmp_path, cfg=_cfg(tmp_path, allowed_dirs=[str(tmp_path)]))
+        results = _results(
+            tmp_path, startup=_startup(tmp_path, allowed_dirs=[str(tmp_path)])
+        )
         assert results["server.allowed_dirs_exist"].status is SecurityCheckStatus.OK
         assert all(
             result.status is SecurityCheckStatus.OK for result in results.values()

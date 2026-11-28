@@ -20,13 +20,15 @@ from mcp_servers.mdq.mdq_models import ParseMarkdownRequest
 from mcp_servers.mdq.mdq_service import MdqService
 from mcp_servers.mdq.parser import parse_markdown
 
+from tests.mcp_servers.mdq._startup import make_startup
+
 
 @pytest.fixture
 def service(tmp_path: Path) -> MdqService:
     """MdqService with a temp DB path and tmp_path in allowed_dirs."""
     fd, db = mkstemp(suffix=".db", dir=str(tmp_path))
     try:
-        svc = MdqService(db_path=db)
+        svc = MdqService(make_startup(db))
         svc._allowed_dirs = [str(tmp_path)]
         return svc
     finally:

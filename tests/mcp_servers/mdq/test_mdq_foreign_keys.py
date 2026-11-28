@@ -25,6 +25,8 @@ from mcp_servers.mdq.index_write import write_document_chunks
 from mcp_servers.mdq.mdq_models import ParsedSection
 from mcp_servers.mdq.mdq_service import MdqService
 
+from tests.mcp_servers.mdq._startup import make_startup
+
 _SECTION: ParsedSection = {
     "heading": "H1",
     "heading_level": 1,
@@ -41,7 +43,7 @@ _SECTION: ParsedSection = {
 def service(tmp_path: Path) -> MdqService:
     """MdqService on a tmp DB, tables created through the production DDL path."""
     db_path = tmp_path / "mdq.sqlite"
-    svc = MdqService(db_path=str(db_path))
+    svc = MdqService(make_startup(str(db_path)))
     conn = sqlite3.connect(db_path)
     try:
         create_production_tables(conn, str(db_path), sqlite_busy_timeout=5000)

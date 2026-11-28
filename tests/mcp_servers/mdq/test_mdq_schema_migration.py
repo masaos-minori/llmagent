@@ -4,11 +4,16 @@ Unit tests for mdq-mcp document/chunks schema migration.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import sqlite3
 from pathlib import Path
 
 import pytest
+from mcp_servers.mdq.mdq_models import StatsRequest
+from mcp_servers.mdq.mdq_service import MdqService
+
+from tests.mcp_servers.mdq._startup import make_startup
 
 
 @pytest.fixture
@@ -137,6 +142,17 @@ def _insert_document_and_chunk(
         conn.close()
 
 
+def _stats_service(tmp_path: Path, roots: list[str]) -> MdqService:
+    """A service on a database with the canonical schema, so `stats()` can run.
+
+    The `db_path` fixture's trigger stubs are not the canonical schema, so the service's
+    fingerprint check would refuse them; `stats()` needs a schema-valid database.
+    """
+    return MdqService(
+        make_startup(str(tmp_path / "mdq_stats.sqlite"), allowed_dirs=roots)
+    )
+
+
 class TestDocumentIndexing:
     """Verify indexing writes to documents/chunks tables."""
 
@@ -199,48 +215,52 @@ class TestDocumentIndexing:
         finally:
             conn.close()
 
-    def test_chunk_count_in_stats(self, db_path: str) -> None:
-        """stats() returns correct chunk count."""
-        _insert_document_and_chunk(db_path, "/test/file1.md", "content1")
-        _insert_document_and_chunk(db_path, "/test/file2.md", "content2")
-        conn = sqlite3.connect(db_path)
-        try:
-            conn.row_factory = sqlite3.Row
-            result = conn.execute("SELECT COUNT(*) as cnt FROM chunks").fetchone()
-            assert result["cnt"] == 2
-        finally:
-            conn.close()
+    def test_chunk_count_in_stats(self, tmp_path: Path) -> None:
+        """stats() counts chunks stored under an authorized root."""
+        root = tmp_path / "authorized"
+        root.mkdir()
+        service = _stats_service(tmp_path, [str(root)])
+        _insert_document_and_chunk(service.db_path, str(root / "file1.md"), "content1")
+        _insert_document_and_chunk(service.db_path, str(root / "file2.md"), "content2")
+        # A row outside the authorized roots is not counted (REQ-002).
+        _insert_document_and_chunk(
+            service.db_path, str(tmp_path / "outside.md"), "content3"
+        )
 
-    def test_document_count_in_stats(self, db_path: str) -> None:
-        """stats() returns correct document count."""
-        _insert_document_and_chunk(db_path, "/test/file1.md", "content1")
-        _insert_document_and_chunk(db_path, "/test/file2.md", "content2")
-        conn = sqlite3.connect(db_path)
-        try:
-            conn.row_factory = sqlite3.Row
-            result = conn.execute("SELECT COUNT(*) as cnt FROM documents").fetchone()
-            assert result["cnt"] == 2
-        finally:
-            conn.close()
+        result = asyncio.run(service.stats(StatsRequest()))
+        assert "Chunks: 2" in result
 
-    def test_index_metadata_from_index_state(self, db_path: str) -> None:
-        """stats() returns index metadata from index_state table."""
-        conn = sqlite3.connect(db_path)
+    def test_document_count_in_stats(self, tmp_path: Path) -> None:
+        """stats() counts documents stored under an authorized root."""
+        root = tmp_path / "authorized"
+        root.mkdir()
+        service = _stats_service(tmp_path, [str(root)])
+        _insert_document_and_chunk(service.db_path, str(root / "file1.md"), "content1")
+        _insert_document_and_chunk(service.db_path, str(root / "file2.md"), "content2")
+        _insert_document_and_chunk(
+            service.db_path, str(tmp_path / "outside.md"), "content3"
+        )
+
+        result = asyncio.run(service.stats(StatsRequest()))
+        assert "Documents: 2" in result
+
+    def test_index_metadata_dict_is_not_in_stats(self, tmp_path: Path) -> None:
+        """The raw `index_state` dict is not part of the response (REQ-002)."""
+        root = tmp_path / "authorized"
+        root.mkdir()
+        service = _stats_service(tmp_path, [str(root)])
+        conn = sqlite3.connect(service.db_path)
         try:
-            conn.row_factory = sqlite3.Row
             conn.execute(
                 "INSERT INTO index_state (key, value) VALUES (?, ?)", ("version", "1.0")
             )
-            conn.execute(
-                "INSERT INTO index_state (key, value) VALUES (?, ?)",
-                ("indexed_at", "2026-01-01"),
-            )
-            rows = conn.execute("SELECT key, value FROM index_state").fetchall()
-            metadata = dict((row["key"], row["value"]) for row in rows)
-            assert metadata["version"] == "1.0"
-            assert metadata["indexed_at"] == "2026-01-01"
+            conn.commit()
         finally:
             conn.close()
+
+        result = asyncio.run(service.stats(StatsRequest()))
+        assert "Metadata" not in result
+        assert "1.0" not in result
 
     def test_get_chunk_by_id(self, db_path: str) -> None:
         """get_chunk() returns chunk by ID."""

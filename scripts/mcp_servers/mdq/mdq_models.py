@@ -6,9 +6,16 @@ Pydantic models, and domain exceptions for mdq-mcp.
 
 from __future__ import annotations
 
-from typing import Literal, TypedDict
+from typing import ClassVar, Literal, TypedDict
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationInfo, field_validator
+from shared.config_field_types import (
+    RULE_BOOL,
+    RULE_INT,
+    RULE_STR_LIST,
+    FieldRule,
+    apply_field_rule,
+)
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Parsing TypedDicts
@@ -98,26 +105,71 @@ class MdqConfig(BaseModel):
 
     `db_path` is deliberately excluded — it has no meaningful range/type
     constraint beyond being a string and is handled separately by the caller.
+
+    Every key is required: no field has an implicit default, so a payload that omits
+    one is a validation failure rather than a silent fallback (REQ-007).
     """
 
-    allowed_dirs: list[str] = []
-    include_globs: list[str] = ["*.md"]
-    exclude_globs: list[str] = [".git/**", "__pycache__/**"]
-    max_snippet_chars: int = Field(default=500, gt=0)
-    max_chunk_chars: int = Field(default=10000, gt=0)
-    max_file_chars: int = Field(default=100000, gt=0)
-    search_timeout_sec: int = Field(default=30, gt=0)
-    max_results_limit: int = Field(default=100, gt=0)
-    max_chars_per_chunk: int = Field(default=10000, gt=0)
-    max_total_result_chars: int = Field(default=100000, gt=0)
-    max_outline_items: int = Field(default=500, gt=0)
-    max_grep_matches: int = Field(default=200, gt=0)
-    max_chars_per_match: int = Field(default=500, gt=0)
-    context_before: int = Field(default=2, ge=0)
-    context_after: int = Field(default=2, ge=0)
-    enable_grep: bool = True
-    max_outline_depth: int = Field(default=6, gt=0)
-    sqlite_busy_timeout: int = Field(default=5000, gt=0)
+    # Declared rule per key, so the model applies the same rule the startup loader uses
+    # (REQ-001). The rule runs before pydantic's own coercion, so a recognized boolean
+    # token is refused instead of coerced, and the error names the field path only (AC-6).
+    _CONFIG_FIELD_RULES: ClassVar[dict[str, FieldRule]] = {
+        "allowed_dirs": RULE_STR_LIST,
+        "include_globs": RULE_STR_LIST,
+        "exclude_globs": RULE_STR_LIST,
+        "max_snippet_chars": RULE_INT,
+        "max_chunk_chars": RULE_INT,
+        "max_file_chars": RULE_INT,
+        "search_timeout_sec": RULE_INT,
+        "max_results_limit": RULE_INT,
+        "max_chars_per_chunk": RULE_INT,
+        "max_total_result_chars": RULE_INT,
+        "max_outline_items": RULE_INT,
+        "max_grep_matches": RULE_INT,
+        "max_chars_per_match": RULE_INT,
+        "context_before": RULE_INT,
+        "context_after": RULE_INT,
+        "enable_grep": RULE_BOOL,
+        "max_outline_depth": RULE_INT,
+        "sqlite_busy_timeout": RULE_INT,
+    }
+
+    allowed_dirs: list[str]
+    include_globs: list[str]
+    exclude_globs: list[str]
+    max_snippet_chars: int = Field(gt=0)
+    max_chunk_chars: int = Field(gt=0)
+    max_file_chars: int = Field(gt=0)
+    search_timeout_sec: int = Field(gt=0)
+    max_results_limit: int = Field(gt=0)
+    max_chars_per_chunk: int = Field(gt=0)
+    max_total_result_chars: int = Field(gt=0)
+    max_outline_items: int = Field(gt=0)
+    max_grep_matches: int = Field(gt=0)
+    max_chars_per_match: int = Field(gt=0)
+    context_before: int = Field(ge=0)
+    context_after: int = Field(ge=0)
+    enable_grep: bool
+    max_outline_depth: int = Field(gt=0)
+    sqlite_busy_timeout: int = Field(gt=0)
+
+    @field_validator("*", mode="before")
+    @classmethod
+    def _apply_declared_rule(cls, value: object, info: ValidationInfo) -> object:
+        """Run the declared rule for the field before any coercion.
+
+        Emptiness is not a type violation here: an empty `allowed_dirs` is the configured
+        deny-all state, so the caller decides what an empty list means.
+        """
+        field_name = info.field_name
+        if field_name is None:
+            return value
+        return apply_field_rule(
+            cls._CONFIG_FIELD_RULES[field_name],
+            value,
+            field_name,
+            allow_empty=True,
+        )
 
 
 # ──────────────────────────────────────────────────────────────────────────────

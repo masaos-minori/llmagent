@@ -18,9 +18,12 @@ from mcp_servers.mdq.mdq_models import (
     IndexPathsRequest,
     MdqAuthorizationError,
     SearchDocsRequest,
+    StatsRequest,
 )
 from mcp_servers.mdq.mdq_service import MdqService
 from mcp_servers.mdq.search import search_docs
+
+from tests.mcp_servers.mdq._startup import make_startup
 
 
 @pytest.fixture
@@ -28,7 +31,7 @@ def service(tmp_path: Path) -> MdqService:
     """MdqService with a temp DB path and tmp_path in allowed_dirs."""
     fd, db = mkstemp(suffix=".db", dir=str(tmp_path))
     try:
-        svc = MdqService(db_path=db)
+        svc = MdqService(make_startup(db))
         svc._allowed_dirs = [str(tmp_path)]
         return svc
     finally:
@@ -149,3 +152,38 @@ class TestGrepDocsReadTimeAuthorization:
             GrepDocsRequest(pattern="find_me_pattern", paths=None)
         )
         assert text == "No matches found."
+
+
+class TestStatsReadTimeAuthorization:
+    """stats() describes only the roots authorized when the call runs (REQ-002)."""
+
+    async def test_stats_refused_when_no_roots_are_authorized(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        f = tmp_path / "stats_target.md"
+        f.write_text("# Title\n\nBody content.", encoding="utf-8")
+        await index_paths(service, IndexPathsRequest(paths=[str(f)]))
+
+        service._allowed_dirs = []
+
+        # A refusal, not zero counts: "no access" and "nothing indexed" stay distinguishable.
+        with pytest.raises(MdqAuthorizationError):
+            await service.stats(StatsRequest())
+
+    async def test_shrunk_allowlist_removes_prior_root_counts(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        f = tmp_path / "stats_target.md"
+        f.write_text("# Title\n\nBody content.", encoding="utf-8")
+        await index_paths(service, IndexPathsRequest(paths=[str(f)]))
+
+        result = await service.stats(StatsRequest())
+        assert "Documents: 1, Chunks: 1, FTS rows: 1, Stale: 0" in result
+
+        other_dir = tmp_path / "other-unrelated-dir"
+        other_dir.mkdir()
+        service._allowed_dirs = [str(other_dir)]
+
+        result = await service.stats(StatsRequest())
+        assert "Documents: 0, Chunks: 0, FTS rows: 0, Stale: 0" in result
+        assert "Metadata" not in result
