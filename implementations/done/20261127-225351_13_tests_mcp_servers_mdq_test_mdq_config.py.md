@@ -36,9 +36,14 @@ Rename the key in the default assertion and in the parametrized field list.
 Assertion-level changes only.
 
 ### Details
-- Line 27: `assert cfg.max_file_chars == 100000` becomes the assertion for `max_file_bytes` (new),
+Re-verified 20261128 against `git show HEAD:tests/mcp_servers/mdq/test_mdq_config.py`: the recorded
+Lines 27 and 48 were stale; the rename landed on three sites —
+- Line 40: the explicit-values payload key `max_file_chars` becomes `max_file_bytes` (new), same
+  value 100000 (the procedure's "Line 27" default assertion sits at Line 68 in HEAD).
+- Line 68: `assert cfg.max_file_chars == 100000` becomes the assertion for `max_file_bytes` (new),
   with the same expected default.
-- Line 48: the parametrized field-list entry `max_file_chars` becomes `max_file_bytes` (new).
+- Line 103: the parametrized field-list entry `max_file_chars` becomes `max_file_bytes` (new)
+  (the procedure's "Line 48").
 
 ## Compatibility considerations
 - The test changes in the same commit as the model field, the validated key list, the config file, and
@@ -53,6 +58,8 @@ Assertion-level changes only.
 ## Validation plan
 - `uv run pytest tests/mcp_servers/mdq/test_mdq_config.py` — the renamed default and the field list.
 - Baseline before any change: 159 passed for the five-file subset (re-run 20261127).
+- As-run 20261128: `test_mdq_config.py` = 36 passed; whole `tests/mcp_servers/mdq/` +
+  `tests/mcp_servers/test_mdq_audit.py` = 537 passed; gates clean.
 
 ## Completion criteria
 - The renamed key is asserted as the default and appears in the validated field list.
@@ -66,8 +73,8 @@ Assertion-level changes only.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rename the key in the default assertion and the field list | Pending | — | — | REQ-004, AC-3, Phase 4 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Rename the key in the default assertion and the field list | Completed | 2026-11-28 | 2026-11-28 | Landed with the batch rename cycle on three sites (Lines 40, 68, 103 of HEAD; procedure recorded 27/48, stale). The missing-key test covers the renamed key through the model field list. |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-28 | 2026-11-28 | test_mdq_config.py 36 passed; whole mdq run 537 passed; toolchain gates clean. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

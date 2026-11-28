@@ -18,6 +18,13 @@ Requirement implemented: REQ-005 (scan semantics are deterministic). Acceptance 
   behavior in the documentation instead of changing it.
 - On the project's POSIX runtime `fnmatch.fnmatch()` is already case-sensitive, so the change makes
   the behavior explicit rather than altering it.
+- The plan's Assumptions keep `index_scan.py` free of authorization, so re-authorization and re-stat
+  between scan and read are applied in `scripts/mcp_servers/mdq/indexer.py` (seq 02), not here. The
+  re-authorization part of REQ-005 is therefore implemented by seq 02; this document covers matching,
+  case behavior, and canonical deduplication only. `tests/mcp_servers/mdq/test_mdq_scan_semantics.py`
+  covers `index_scan.py` alone and cannot pin the re-authorization behavior, so that case belongs to
+  `scripts/mcp_servers/mdq/indexer.py`'s companion `tests/mcp_servers/mdq/test_mdq_index_internal_failures.py`
+  (seq 02), which is where the file-disappearance case is already listed.
 
 ## Design decisions
 - Matching is performed on the normalized root-relative POSIX path with `fnmatch.fnmatchcase()`, so
@@ -92,10 +99,10 @@ Two expression-level changes in existing functions; no new function and no new d
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the scan-semantics tests (companion) | Pending | — | — | REQ-005, AC-4 |
-| 2 | Switch to `fnmatch.fnmatchcase()` and canonical deduplication | Pending | — | — | REQ-005, Phase 4 |
-| 3 | State the symlink-directory behavior in the module docstring | Pending | — | — | REQ-005, AC-4 |
-| 4 | Run the validation sequence (`rules/toolchain.md`) and the contract check | Pending | — | — | |
+| 1 | Add the scan-semantics tests (companion) | Completed | 2026-11-28 | 2026-11-28 | tests/mcp_servers/mdq/test_mdq_scan_semantics.py (new): 6 cases - nested exclude at any depth, case-sensitive exclude and include, duplicate include patterns, symlinked file collapses to one canonical entry, symlinked directory not traversed. |
+| 2 | Switch to `fnmatch.fnmatchcase()` and canonical deduplication | Completed | 2026-11-28 | 2026-11-28 | fnmatch.fnmatchcase() at the suffix loop; matched keyed by f.resolve().as_posix(). Per-suffix loop kept unchanged. |
+| 3 | State the symlink-directory behavior in the module docstring | Completed | 2026-11-28 | 2026-11-28 | Module docstring states rglob does not traverse symlinked directories and that a discovered symlinked file is judged later by authorize_path() in the indexer. |
+| 4 | Run the validation sequence (`rules/toolchain.md`) and the contract check | Completed | 2026-11-28 | 2026-11-28 | Gates pass: ruff format/check, mypy (20 files), lint-imports 6 kept 0 broken (index_scan still TYPE_CHECKING-only MdqService), bandit clean, check_module_size OK. Targeted: 6 passed. Whole tests/mcp_servers/mdq/ + test_mdq_audit.py: 517 passed. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

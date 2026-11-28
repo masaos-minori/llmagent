@@ -5,6 +5,13 @@ Grep operations for MdqService.
 
 Dependency direction: db_grep → models
 Import from here:  from mcp_servers.mdq.db_grep import find_grep_match, grep_docs
+
+Reported line semantics (REQ-006, UNK-03): `line_number` is the source-file line of
+the first stored content line, computed as `start_line + 1 + k` where k is the match's
+line index within the stored content; the synthetic heading line stands at `start_line`.
+Regex semantics are stated, not changed: `re.compile` is called with no flags, so `.`
+does not cross lines, `^` and `$` anchor only at the ends of the chunk text, and every
+match is reported at the line where it starts.
 """
 
 from __future__ import annotations
@@ -21,12 +28,23 @@ def find_grep_match(
     max_chars: int,
     ctx_before: int,
     ctx_after: int,
-) -> GrepDocMatch | None:
-    """Find a grep match in a chunk row."""
+) -> list[GrepDocMatch]:
+    """Produce every pattern hit in one chunk row, with context and reported line.
+
+    A chunk contributes all of its hits (REQ-006); the collector's cap is applied on
+    the collected list. `line_number` is `start_line + 1 + k` (UNK-03): k is the
+    match's line index within the stored content, so a match on the synthetic heading
+    line reports the row's `start_line`. `max_chars` bounds the context-inclusive text
+    — the match text plus the returned context lines, counted as their joined length —
+    so context is what shrinks when the limit is tight: the match text is exact within
+    `max_chars` itself, and each returned line is a whole line, taken nearest the match
+    first and alternating sides. An empty context request returns empty lists.
+    """
     full_text = f"{row['heading']}\n{row['content']}"
+    lines = full_text.split("\n")
+    matches: list[GrepDocMatch] = []
     for re_match in compiled.finditer(full_text):
         match_start = re_match.start()
-        lines = full_text.split("\n")
         match_line = 0
         line_offset = 0
         for i, line in enumerate(lines):
@@ -34,18 +52,41 @@ def find_grep_match(
                 match_line = i
                 break
             line_offset += len(line) + 1
-        start_idx = max(0, match_line - ctx_before)
-        end_idx = min(len(lines), match_line + ctx_after + 1)
-        _context_lines = lines[start_idx:end_idx]
+
         match_text = re_match.group()[:max_chars]
-        return GrepDocMatch(
-            chunk_id=row["chunk_id"],
-            source_path=row["source_path"],
-            heading_path=row["heading_path"],
-            match_text=match_text,
-            line_number=start_idx + 1,
+        # Lines are whole or absent, nearest the match first, alternating sides, until
+        # the match text plus the returned lines reach `max_chars` joined (REQ-006).
+        budget = max_chars - len(match_text)
+        before_pool = lines[max(0, match_line - ctx_before) : match_line][::-1]
+        after_pool = lines[match_line + 1 : min(len(lines), match_line + 1 + ctx_after)]
+        context_before: list[str] = []
+        context_after: list[str] = []
+        while before_pool or after_pool:
+            added = False
+            if before_pool and budget >= len(before_pool[0]) + 1:
+                budget -= len(before_pool[0]) + 1
+                context_before.append(before_pool.pop(0))
+                added = True
+            if after_pool and budget >= len(after_pool[0]) + 1:
+                budget -= len(after_pool[0]) + 1
+                context_after.append(after_pool.pop(0))
+                added = True
+            if not added:
+                break
+        context_before.reverse()
+
+        matches.append(
+            GrepDocMatch(
+                chunk_id=row["chunk_id"],
+                source_path=row["source_path"],
+                heading_path=row["heading_path"],
+                match_text=match_text,
+                line_number=row["start_line"] + match_line,
+                context_before_lines=context_before,
+                context_after_lines=context_after,
+            )
         )
-    return None
+    return matches
 
 
 def _build_path_where_clause(req_paths: list[str]) -> tuple[str, list]:
@@ -81,14 +122,16 @@ def _collect_grep_matches(
     ctx_after: int,
     max_matches: int,
 ) -> tuple[list[GrepDocMatch], bool]:
-    """Scan `rows` for matches, stopping once `max_matches` is reached."""
+    """Scan `rows` for matches, stopping once `max_matches` is reached.
+
+    A row can yield several matches, so the cap is applied to the collected list, not
+    per row (REQ-006).
+    """
     matches: list[GrepDocMatch] = []
     for row in rows:
-        match = find_grep_match(row, compiled, max_chars, ctx_before, ctx_after)
-        if match is None:
-            continue
-        matches.append(match)
+        matches.extend(find_grep_match(row, compiled, max_chars, ctx_before, ctx_after))
         if len(matches) >= max_matches:
+            matches = matches[:max_matches]
             break
 
     truncated = len(matches) >= max_matches
@@ -106,7 +149,9 @@ def _format_grep_matches(
         if m.heading_path:
             parts.append(f"Heading: {m.heading_path}")
         parts.append(f"Line: {m.line_number}")
+        parts.extend(f"  {line}" for line in m.context_before_lines)
         parts.append(f"Match: {m.match_text}")
+        parts.extend(f"  {line}" for line in m.context_after_lines)
         parts.append("---")
 
     result = "\n".join(parts)

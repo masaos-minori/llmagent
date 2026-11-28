@@ -13,7 +13,10 @@ Supported Markdown features:
 - Repeated heading names (distinct chunk identities via ordinal)
 - Nested heading hierarchy (heading_path includes ancestors)
 - Optional YAML frontmatter (parsed, stripped from sections, and its `tags` field
-  extracted as document-level tags)
+  extracted as document-level tags). Frontmatter whose YAML fails to parse stays
+  non-blocking (empty tags, parsing continues) and is reported as a structured
+  warning record: the codes and counts returned by `parse_markdown`. The record
+  carries no path at all, so no absolute path can enter it.
 - Malformed headings (ignored)
 
 Unsupported Markdown features:
@@ -35,7 +38,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import yaml
 
@@ -49,15 +52,22 @@ logger = logging.getLogger(__name__)
 
 async def parse_markdown(
     service: MdqService, req: ParseMarkdownRequest
-) -> tuple[list[ParsedSection], list[str]]:
-    """Parse a Markdown file and return its sections and document-level tags.
+) -> tuple[list[ParsedSection], list[str], dict[str, Any]]:
+    """Parse a Markdown file and return its sections, tags, and warning record.
 
-    Returns a tuple of `(sections, tags)`. Each section dict has keys: heading,
-    heading_level, heading_path, content, start_line, end_line, ordinal,
-    parent_heading. `tags` is the normalized `list[str]` extracted from the
-    optional YAML frontmatter's `tags` field (accepting either a YAML list or
-    a comma-separated string); it is an empty list when there is no
-    frontmatter, no `tags` field, or the frontmatter/tags value is malformed.
+    Returns a tuple of `(sections, tags, frontmatter_warning)`. Each section dict has
+    keys: heading, heading_level, heading_path, content, start_line, end_line, ordinal,
+    parent_heading. `tags` is the normalized `list[str]` extracted from the optional
+    YAML frontmatter's `tags` field (accepting either a YAML list or a comma-separated
+    string); it is an empty list when there is no frontmatter, no `tags` field, or the
+    frontmatter/tags value is malformed.
+
+    `frontmatter_warning` is the record the indexer copies into a FileOutcome:
+    `warning_codes` (empty unless the frontmatter YAML failed to parse, in which case
+    it carries `invalid_frontmatter`), `warning_count`, and `char_count` — the decoded
+    characters read from the file, kept distinct from the byte gate measured in
+    `scripts/mcp_servers/mdq/indexer.py` (REQ-004). The record carries codes and counts
+    only, never a path.
     """
     logger.info("Parsing Markdown file: %s", req.path)
     path = Path(req.path)
@@ -69,6 +79,7 @@ async def parse_markdown(
 
     sections: list[ParsedSection] = []
     frontmatter_tags: list[str] = []
+    frontmatter_warning_codes: list[str] = []
     in_fence = False
     fence_char = ""
     current_section: dict | None = None
@@ -102,7 +113,13 @@ async def parse_markdown(
         if i == 0 and stripped == "---":
             frontmatter_result = _try_parse_frontmatter(lines, i)
             if frontmatter_result is not None:
-                frontmatter_tags, i = frontmatter_result
+                frontmatter_tags, i, frontmatter_warning_codes = frontmatter_result
+                if frontmatter_warning_codes:
+                    logger.warning(
+                        "Invalid frontmatter in Markdown file: %s (%s)",
+                        req.path,
+                        ", ".join(frontmatter_warning_codes),
+                    )
                 continue
 
         # Check for ATX heading inside fenced code blocks are already skipped above
@@ -167,20 +184,27 @@ async def parse_markdown(
     if current_section is not None and current_section["content_lines"]:
         _save_section_if_has_content(current_section, sections)
 
-    return sections, frontmatter_tags
+    frontmatter_warning: dict[str, Any] = {
+        "warning_codes": frontmatter_warning_codes,
+        "warning_count": len(frontmatter_warning_codes),
+        "char_count": len(content),
+    }
+    return sections, frontmatter_tags, frontmatter_warning
 
 
 def _try_parse_frontmatter(
     lines: list[str], index: int
-) -> tuple[list[str], int] | None:
+) -> tuple[list[str], int, list[str]] | None:
     """Parse a YAML frontmatter block starting at `lines[index]` (a "---" line).
 
-    Returns `(tags, next_index)` when a closing "---" delimiter is found: `tags`
-    is the normalized `list[str]` extracted from the frontmatter's `tags` field
-    (accepting either a YAML list or a comma-separated string; empty when the
-    field is absent, malformed, or the frontmatter YAML itself fails to parse),
-    and `next_index` is the line index just past the closing delimiter, for the
-    caller to resume scanning from.
+    Returns `(tags, next_index, warning_codes)` when a closing "---" delimiter is
+    found: `tags` is the normalized `list[str]` extracted from the frontmatter's
+    `tags` field (accepting either a YAML list or a comma-separated string; empty
+    when the field is absent, malformed, or the frontmatter YAML itself fails to
+    parse), `next_index` is the line index just past the closing delimiter, for the
+    caller to resume scanning from, and `warning_codes` carries `invalid_frontmatter`
+    when the frontmatter YAML failed to parse and is empty otherwise — the failure is
+    recorded as a structured warning, not raised (REQ-007).
 
     Returns `None` when no closing "---" delimiter exists in the remainder of
     the file — the line at `index` is then not frontmatter and must be treated
@@ -194,10 +218,12 @@ def _try_parse_frontmatter(
 
     # Capture and parse frontmatter (lines index+1 to j-1) for tags
     frontmatter_text = "\n".join(lines[index + 1 : j])
+    warning_codes: list[str] = []
     try:
         fm_data = yaml.safe_load(frontmatter_text)
     except yaml.YAMLError:
         fm_data = None
+        warning_codes.append("invalid_frontmatter")
 
     raw_tags = fm_data.get("tags") if isinstance(fm_data, dict) else None
 
@@ -209,7 +235,7 @@ def _try_parse_frontmatter(
         tags = []
 
     # Skip frontmatter (lines index to j inclusive)
-    return tags, j + 1
+    return tags, j + 1, warning_codes
 
 
 def _finalize_section(section: dict) -> ParsedSection:

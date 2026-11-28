@@ -38,12 +38,15 @@ Configuration content only; no behavior.
 
 ### Details
 - Line 29: `max_file_chars = 100000` becomes `max_file_bytes` (new) `= 100000`; the value is unchanged.
-- Line 28: the comment becomes "Maximum number of bytes to include in a file", so the unit is stated
-  in the file.
+- Line 28: the comment states the byte unit, so the unit is named in the file. Landed 20261128 as
+  "Maximum file size in bytes; a larger file is skipped before it is read" — it names both the unit
+  and the skip behavior; the recorded wording is not applied verbatim because the landed one is more
+  specific.
 - Line 61: the historical-notes comment points to `docs/mdq_config_history.md`, which does not exist
-  under `docs/` (UNK-04). The stale reference is reported to the owner and is not rewritten to an
-  invented target; the rename note is written in `docs/22_mcp/mcp_04_04_mdq.md`, the doc named by
-  `docs/00_index.md` "Document References by Task".
+  under `docs/` (UNK-04). Re-verified 20261128: the comment sits at Line 74 in both HEAD and the
+  working file (the recorded Line 61 was stale). The stale reference stays untouched — reported here
+  for the owner; the rename note is written in `docs/22_mcp/mcp_04_04_mdq.md`, the doc named by
+  `docs/00_index.md` "Document References by Task" (procedure seq 16).
 
 ## Compatibility considerations
 - This is a compatibility change: a deployed config that still uses `max_file_chars` fails startup
@@ -62,10 +65,16 @@ Configuration content only; no behavior.
 ## Validation plan
 - `uv run pytest tests/mcp_servers/mdq/test_mdq_config.py` — the renamed default and the field list.
 - Full sequence per `rules/toolchain.md`.
+- As-run 20261128: `test_mdq_config.py` = 36 passed (exercises the renamed key's validation contract;
+  it builds payloads, it does not read the deployed file); whole `tests/mcp_servers/mdq/` +
+  `tests/mcp_servers/test_mdq_audit.py` = 533 passed; gates clean. The deployed file is validated at
+  process startup by `scripts/mcp_servers/mdq/startup_config.py`; the rename was confirmed there by
+  the startup-path tests (`tests/mcp_servers/mdq/_startup.py` carries the renamed key).
 
 ## Completion criteria
 - The deployed config names the byte unit, the startup validation passes with the renamed key, and the
   compatibility note exists in the doc named by the task mapping.
+- Note 20261128: the doc note part is carried by procedure seq 16 and is not complete until it lands.
 
 ## Out of Scope
 - The model field definition (procedure seq 01) and the validated key list (procedure seq 07).
@@ -76,13 +85,13 @@ Configuration content only; no behavior.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rename the key and state the unit in the comment | Pending | — | — | REQ-004, AC-3, Phase 4 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Rename the key and state the unit in the comment | Completed | 2026-11-28 | 2026-11-28 | Landed with the batch rename cycle at Lines 28-29; value 100000 unchanged. Comment names the unit and the skip behavior (see Details). Historical-notes reference is at Line 74, not 61 (stale record corrected); left untouched per UNK-04. |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-28 | 2026-11-28 | test_mdq_config.py 36 passed; full mdq run 533 passed; toolchain gates clean. Doc note dependency recorded in Completion criteria; owned by procedure seq 16. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 1 | UNK-04: the historical-notes comment at Line 74 points to `docs/mdq_config_history.md`, which does not exist under `docs/`. Reported to the owner 20261128; the comment stays untouched pending an owner decision on the target document. Not part of this rename. | No | — |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

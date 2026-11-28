@@ -45,6 +45,7 @@ from mcp_servers.mdq.mdq_models import (
     SearchDocsRequest,
     StatsRequest,
     is_stale,
+    outcome_text,
 )
 from mcp_servers.mdq.search import search_docs
 from mcp_servers.mdq.startup_config import StartupConfig
@@ -72,7 +73,7 @@ class MdqService:
         self.exclude_globs = cfg.exclude_globs
         self.max_snippet_chars = cfg.max_snippet_chars
         self.max_chunk_chars = cfg.max_chunk_chars
-        self.max_file_chars = cfg.max_file_chars
+        self.max_file_bytes = cfg.max_file_bytes
         self.search_timeout_sec = cfg.search_timeout_sec
         self.enable_grep = cfg.enable_grep
         self.max_grep_matches = cfg.max_grep_matches
@@ -319,13 +320,33 @@ class MdqService:
                 )
 
     def _format_refresh_summary(self, summary: RefreshSummary) -> list[str]:
-        """Format a RefreshSummary into human-readable status lines."""
+        """Format a RefreshSummary into human-readable status lines.
+
+        The header is the outcome text derived from the counters, so a mixed run reads as
+        partial_success rather than as a completed refresh (REQ-003). The counter lines are
+        unchanged, and the file-level lines name the unit the counts actually describe.
+        """
+        header = outcome_text(
+            committed_files=summary["committed_file_count"],
+            discovered_files=summary["discovered_file_count"],
+            skipped_files=summary["skipped_file_count"],
+            failed_files=summary["failed_file_count"],
+            skipped_paths=summary["skipped_count"],
+            failed_paths=summary["failed_count"],
+            unchanged_files=summary["unchanged_file_count"],
+        )
         return [
-            f"Refresh complete in {summary['elapsed_seconds']}s",
+            header,
+            f"  Elapsed: {summary['elapsed_seconds']}s",
             f"  Indexed: {summary['indexed_count']}",
             f"  Skipped (unchanged): {summary['skipped_count']}",
             f"  Deleted from index: {summary['deleted_count']}",
             f"  Failed: {summary['failed_count']}",
+            f"  Files discovered: {summary['discovered_file_count']}",
+            f"  Files committed: {summary['committed_file_count']}",
+            f"  Files skipped: {summary['skipped_file_count']}",
+            f"  Files unchanged: {summary['unchanged_file_count']}",
+            f"  Files failed: {summary['failed_file_count']}",
         ]
 
     async def stats(self, req: StatsRequest) -> str:
@@ -419,8 +440,14 @@ class MdqService:
             else config_cap_matches
         )
         max_chars = req.max_chars_per_match or self.max_chars_per_match
-        ctx_before = req.context_before or self.context_before
-        ctx_after = req.context_after or self.context_after
+        # Only an absent value selects the configured default: an explicit zero means no
+        # context lines and must reach grep_docs() (REQ-006).
+        ctx_before = (
+            self.context_before if req.context_before is None else req.context_before
+        )
+        ctx_after = (
+            self.context_after if req.context_after is None else req.context_after
+        )
 
         conn = self._get_db_connection()
         try:

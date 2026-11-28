@@ -44,6 +44,7 @@ Addition to `TestFindGrepMatch` (Line 55) and `TestGrepDocs` (Line 122); the exi
 helper are reused unchanged.
 
 ### Details
+Line references below verified against HEAD (20261128): all hold.
 - `test_line_number_for_match_on_later_line` Line 108: assert `start_line + 1 + k` and add
   `test_line_number_from_stored_start_line` (new) with an explicit `start_line` and content whose
   first stored line is not the file line.
@@ -55,6 +56,15 @@ helper are reused unchanged.
 - Add `test_limit_applies_to_context_inclusive_text` (new) — `max_chars` bounds the context-inclusive
   text, not the match alone.
 - Add `test_multiline_pattern_semantics` (new) — the documented line-anchored semantics.
+- As landed 20261128 (seq 05 cycle, landed early because the contract change is atomic across
+  producer and tests): the limit case is named `test_context_clipped_to_max_chars` — it asserts the
+  match text is exact, returned lines are whole, and the joined rendered text is within `max_chars`.
+  `test_returns_none_when_no_match` became `test_returns_no_matches_when_no_match` (empty list).
+  Three cases beyond the recorded list pin the contract further:
+  `test_heading_match_reports_the_stored_start_line` (synthetic heading stands at `start_line`),
+  `test_multiple_matches_from_one_chunk_are_capped` (a single chunk can fill the collector cap, with
+  `truncated` set), and `test_returned_context_renders_around_the_match` (the formatter renders the
+  context indented around the `Match:` line).
 
 ## Compatibility considerations
 - The file is a characterization suite; the assertions that change are listed in the Plan's
@@ -70,6 +80,9 @@ helper are reused unchanged.
 - `uv run pytest tests/mcp_servers/mdq/test_db_grep.py` — the new cases pass against the Phase 5
   implementation and the rewritten line-number assertion states the definition.
 - Baseline before any change: 159 passed for the five-file subset (re-run 20261127).
+- As-run 20261128: pre-change file = 13 characterization tests of the old behavior; new-contract
+  rewrite red = 14 failed / 7 passed; after the seq 05 implementation = 21 passed; whole
+  `tests/mcp_servers/mdq/` + `tests/mcp_servers/test_mdq_audit.py` = 533 passed.
 
 ## Completion criteria
 - The reported line matches the source file for a section whose stored content begins at its first
@@ -86,11 +99,11 @@ helper are reused unchanged.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Pin the current chunk-relative line number, missing context, and one-match-per-chunk behavior | Pending | — | — | Phase 1, before the production change |
-| 2 | Rewrite the line-number assertion to `start_line + 1 + k` | Pending | — | — | REQ-006, AC-5 |
-| 3 | Add the returned-context, multiple-match, multiline, and zero-context cases | Pending | — | — | REQ-006, AC-5 |
-| 4 | Assert the limit applies to the context-inclusive text | Pending | — | — | REQ-006, AC-5 |
-| 5 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Pin the current chunk-relative line number, missing context, and one-match-per-chunk behavior | Completed | 2026-11-28 | 2026-11-28 | Old behavior was already pinned by the 13 characterization tests in the file; the rewrite replaced them in the same cycle as the seq 05 production change (contract change is atomic). Red confirmed: 14 failed, 7 passed before the implementation. |
+| 2 | Rewrite the line-number assertion to `start_line + 1 + k` | Completed | 2026-11-28 | 2026-11-28 | test_line_number_for_match_on_later_line rewritten to state start_line+1+k (asserts 4 with start_line 1) plus test_line_number_from_stored_start_line (start_line 10 -> 13) and test_heading_match_reports_the_stored_start_line (start_line 10, heading match -> 10). |
+| 3 | Add the returned-context, multiple-match, multiline, and zero-context cases | Completed | 2026-11-28 | 2026-11-28 | test_context_before_and_after_are_returned, test_explicit_zero_context_is_honored, test_multiple_matches_in_one_chunk_are_returned (replaces test_only_first_match_in_row_is_returned), test_multiline_pattern_semantics, plus test_multiple_matches_from_one_chunk_are_capped and test_returned_context_renders_around_the_match in TestGrepDocs. |
+| 4 | Assert the limit applies to the context-inclusive text | Completed | 2026-11-28 | 2026-11-28 | Landed as test_context_clipped_to_max_chars: match text exact, whole lines only, joined rendered text <= max_chars. |
+| 5 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-28 | 2026-11-28 | Landed early in the seq 05 cycle; recorded there. test_db_grep.py 21 passed; whole mdq run 533 passed; toolchain gates clean. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

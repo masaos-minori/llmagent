@@ -21,14 +21,21 @@ Acceptance criteria: AC-3, AC-6.
 - The warning record is the DTO defined by procedure seq 01; this document fills its
   `warning_codes` (new), `warning_count` (new), and `char_count` (new) fields and does not define a
   new model.
-- The record carries the root-relative POSIX path, never an absolute path, per the audit rule owned
-  by the server-boundary plan.
+- The record carries the root-relative POSIX path when it lands in the DTO, never an absolute
+  path, per the audit rule owned by the server-boundary plan. Re-verified 20261128: the parse-stage
+  record itself carries no path at all; the path appears only in the indexer's `FileOutcome`, where
+  `_outcome_path()` produces the root-relative form.
 
 ## Design decisions
 - The warning is a reason code, not a message, so a count can be reported without a path.
-- `parse_markdown()` gains a third return value for the warning record; the 13 unpacking test call
-  sites (2 in `tests/mcp_servers/mdq/test_parser.py`, 11 in `tests/mcp_servers/mdq/test_mdq_service.py`)
-  are rewritten in Phase 1 before the contract change lands.
+- `parse_markdown()` gains a third return value for the warning record; the 16 unpacking test call
+  sites (2 in `tests/mcp_servers/mdq/test_parser.py`, 14 in `tests/mcp_servers/mdq/test_mdq_service.py`
+  — re-counted 20261128; the recorded 13 was stale) are rewritten in the same cycle as the contract
+  change, together with the production call site in `scripts/mcp_servers/mdq/indexer.py`.
+- The warning record is a plain `dict[str, Any]` whose keys are exactly the three FileOutcome field
+  names (`warning_codes`, `warning_count`, `char_count`), so the indexer spreads it into the outcome
+  with `**frontmatter_warning` and no new model or parser-level type is introduced. The record carries
+  no path at all; the path the DTO eventually holds is the indexer's root-relative `_outcome_path`.
 
 ## Alternatives considered
 - Logging the YAML failure only: rejected, because a log line is not a count and cannot be reported
@@ -49,12 +56,18 @@ The existing `except` branch becomes a warning-producing branch; the return tupl
 No new module-level name is introduced in this file.
 
 ### Details
-- `_try_parse_frontmatter()` Lines 173-212: at Line 199 keep `fm_data = None` and record reason code
-  `invalid_frontmatter` (new) with a count of 1 for the failed parse.
+- `_try_parse_frontmatter()` Lines 173-212: at the `except yaml.YAMLError:` branch (Line 199 in the
+  pre-change file) keep `fm_data = None` and record reason code `invalid_frontmatter` (new) with a
+  count of 1 for the failed parse. The helper's return tuple gains a third element carrying the codes.
 - `parse_markdown()` Lines 50-170: return the warning record as the third value of the tuple, and
   report `len(content)` from Line 67 as `char_count` (new) so the caller can state the decoded
   character count separately from the byte gate measured in `scripts/mcp_servers/mdq/indexer.py`.
+  `parse_markdown()` also logs a `logger.warning` line naming the offending file when a code is
+  recorded; the audit rule applies to persistent output, not to logs.
 - Module docstring: state that the warning record carries no absolute path.
+- Production call site: `scripts/mcp_servers/mdq/indexer.py` Line 195 (the procedure recorded Line 89;
+  the seq 02 implementation moved it) unpacks the three-value tuple and spreads the record into the
+  `indexed` and `skipped_no_content` FileOutcome records.
 
 ### Companion test files
 - `tests/mcp_servers/mdq/test_parser.py`
@@ -64,9 +77,10 @@ No new module-level name is introduced in this file.
     returns empty tags and now produces a warning code and a count with no absolute path.
 
 ## Compatibility considerations
-- The return contract changes from a two-value tuple to a three-value tuple at 17 call sites
-  (13 unpacking test call sites plus the production call site in `scripts/mcp_servers/mdq/indexer.py`
-  Line 89); the call sites are rewritten in Phase 1.
+- The return contract changes from a two-value tuple to a three-value tuple at 16 unpacking test
+  call sites (2 + 14) plus the production call site in `scripts/mcp_servers/mdq/indexer.py` Line 195;
+  one further test call site does not unpack (`test_mdq_service.py` Line 280, inside
+  `pytest.raises`) and is unaffected. All sites are rewritten in the same cycle as the change.
 - No existing assertion is weakened: the fallback test stays as written.
 
 ## Security considerations
@@ -79,7 +93,7 @@ No new module-level name is introduced in this file.
 ## Validation plan
 - `uv run pytest tests/mcp_servers/mdq/test_parser.py`
 - Full sequence per `rules/toolchain.md`, including `PYTHONPATH=scripts uv run lint-imports` and
-  `uv run python tools/check_module_size.py` (9551 B of 24576 B used).
+  `uv run python tools/check_module_size.py` (11189 B of 24576 B used as of 20261128).
 
 ## Completion criteria
 - Invalid frontmatter remains non-blocking and produces a structured warning code and a count.
@@ -97,11 +111,11 @@ No new module-level name is introduced in this file.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the structured warning and count test (companion) | Pending | — | — | REQ-007, AC-6 |
-| 2 | Record `invalid_frontmatter` (new) in the existing fallback branch | Pending | — | — | REQ-007, Phase 6 |
-| 3 | Report the decoded-character count and extend the return tuple | Pending | — | — | REQ-004, AC-3 |
-| 4 | Rewrite the 13 unpacking test call sites | Pending | — | — | Phase 1 |
-| 5 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the structured warning and count test (companion) | Completed | 2026-11-28 | 2026-11-28 | Three new cases in TestFrontmatterInvalidYamlSyntax: structured warning code+count with no path in the record, empty record for a valid file, char_count == decoded characters (< byte count for Japanese+emoji). Written red first: 5 failed before the parser change. |
+| 2 | Record `invalid_frontmatter` (new) in the existing fallback branch | Completed | 2026-11-28 | 2026-11-28 | except yaml.YAMLError branch appends invalid_frontmatter to a new warning_codes list; helper returns (tags, next_index, warning_codes). parse_markdown logs a logger.warning naming the file when a code is recorded. |
+| 3 | Report the decoded-character count and extend the return tuple | Completed | 2026-11-28 | 2026-11-28 | Third tuple element is a dict[str, Any] keyed warning_codes/warning_count/char_count (char_count = len(content)); indexer.py:195 spreads it via **frontmatter_warning into the indexed and skipped_no_content FileOutcome records. Refresh reuses _index_single_file, so there is one parse site only. |
+| 4 | Rewrite the 16 unpacking test call sites (2 + 14, re-counted 20261128) | Completed | 2026-11-28 | 2026-11-28 | test_parser.py 2 sites + test_mdq_service.py 14 sites (recorded 11 was stale; test_mdq_service.py grew since the plan). The pytest.raises site at test_mdq_service.py:280 does not unpack and stays. This completes step 4 of procedure seq 12 early; recorded there. |
+| 5 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-28 | 2026-11-28 | Gates: ruff format/check, mypy (20 files), lint-imports 6 kept 0 broken, bandit clean, check_module_size OK (parser.py 11189 B, indexer.py 24292 B). Targeted: parser+service+incremental_refresh+internal_failures+scan_semantics = 138 passed; whole tests/mcp_servers/mdq/ + test_mdq_audit.py = 525 passed (was 522). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

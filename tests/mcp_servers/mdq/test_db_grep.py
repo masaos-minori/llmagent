@@ -53,57 +53,64 @@ def _insert_chunk(
 
 
 class TestFindGrepMatch:
-    def test_returns_none_when_no_match(self, conn: sqlite3.Connection) -> None:
+    def test_returns_no_matches_when_no_match(self, conn: sqlite3.Connection) -> None:
         _insert_chunk(conn, "c1", "a.md", "", "Title", "nothing relevant here")
         row = conn.execute("SELECT * FROM chunks").fetchone()
         compiled = re.compile("xyz_not_present")
         assert (
             find_grep_match(row, compiled, max_chars=200, ctx_before=0, ctx_after=0)
-            is None
+            == []
         )
 
     def test_returns_match_on_first_line(self, conn: sqlite3.Connection) -> None:
         _insert_chunk(conn, "c1", "a.md", "", "Intro", "hello world")
         row = conn.execute("SELECT * FROM chunks").fetchone()
         compiled = re.compile("world")
-        match = find_grep_match(row, compiled, max_chars=200, ctx_before=0, ctx_after=0)
-        assert match is not None
+        matches = find_grep_match(
+            row, compiled, max_chars=200, ctx_before=0, ctx_after=0
+        )
+        assert len(matches) == 1
+        match = matches[0]
         assert match.chunk_id == "c1"
         assert match.source_path == "a.md"
         assert match.heading_path == ""
         assert match.match_text == "world"
-        # Full text is "Intro\nhello world" -> match is on line index 1 (0-based) -> line_number 2
+        # start_line 1 + 1 + k 0: `world` sits on the first stored content line (UNK-03)
         assert match.line_number == 2
 
     def test_matches_within_heading_line(self, conn: sqlite3.Connection) -> None:
         """A pattern that only matches the synthesized heading line (row['heading'])
-        is found on line 1, since full_text = f"{heading}\\n{content}"."""
+        is found on the section's own start_line, since full_text = f"{heading}\\n{content}"."""
         _insert_chunk(conn, "c1", "a.md", "Parent", "UniqueHeading", "content body")
         row = conn.execute("SELECT * FROM chunks").fetchone()
         compiled = re.compile("UniqueHeading")
-        match = find_grep_match(row, compiled, max_chars=200, ctx_before=0, ctx_after=0)
-        assert match is not None
-        assert match.line_number == 1
-        assert match.heading_path == "Parent"
+        matches = find_grep_match(
+            row, compiled, max_chars=200, ctx_before=0, ctx_after=0
+        )
+        assert len(matches) == 1
+        assert matches[0].line_number == 1
+        assert matches[0].heading_path == "Parent"
 
     def test_match_text_truncated_to_max_chars(self, conn: sqlite3.Connection) -> None:
         _insert_chunk(conn, "c1", "a.md", "", "Intro", "aaaaaaaaaa")
         row = conn.execute("SELECT * FROM chunks").fetchone()
         compiled = re.compile("a+")
-        match = find_grep_match(row, compiled, max_chars=3, ctx_before=0, ctx_after=0)
-        assert match is not None
-        assert match.match_text == "aaa"
+        matches = find_grep_match(row, compiled, max_chars=3, ctx_before=0, ctx_after=0)
+        assert len(matches) == 1
+        assert matches[0].match_text == "aaa"
 
-    def test_only_first_match_in_row_is_returned(
+    def test_multiple_matches_in_one_chunk_are_returned(
         self, conn: sqlite3.Connection
     ) -> None:
-        """`find_grep_match` returns on the first `finditer` hit even if more exist."""
+        """A chunk contributes every pattern hit up to the collector's cap (REQ-006)."""
         _insert_chunk(conn, "c1", "a.md", "", "Intro", "foo foo foo")
         row = conn.execute("SELECT * FROM chunks").fetchone()
         compiled = re.compile("foo")
-        match = find_grep_match(row, compiled, max_chars=200, ctx_before=0, ctx_after=0)
-        assert match is not None
-        assert match.line_number == 2
+        matches = find_grep_match(
+            row, compiled, max_chars=200, ctx_before=0, ctx_after=0
+        )
+        assert [m.match_text for m in matches] == ["foo", "foo", "foo"]
+        assert [m.line_number for m in matches] == [2, 2, 2]
 
     def test_line_number_for_match_on_later_line(
         self, conn: sqlite3.Connection
@@ -113,10 +120,121 @@ class TestFindGrepMatch:
         )
         row = conn.execute("SELECT * FROM chunks").fetchone()
         compiled = re.compile("target")
-        match = find_grep_match(row, compiled, max_chars=200, ctx_before=0, ctx_after=0)
-        assert match is not None
-        # full_text lines: ["Intro", "line one", "line two", "target line"] -> index 3 -> line 4
-        assert match.line_number == 4
+        matches = find_grep_match(
+            row, compiled, max_chars=200, ctx_before=0, ctx_after=0
+        )
+        assert len(matches) == 1
+        # start_line 1 + 1 + k 2: `target line` is the third stored content line (UNK-03)
+        assert matches[0].line_number == 4
+
+    def test_line_number_from_stored_start_line(self, conn: sqlite3.Connection) -> None:
+        """The reported line is `start_line + 1 + k`, so a chunk stored at file line 10
+        reports file lines, not a chunk-relative offset (UNK-03)."""
+        _insert_chunk(
+            conn,
+            "c1",
+            "a.md",
+            "",
+            "Intro",
+            "line one\nline two\ntarget line",
+            start_line=10,
+        )
+        row = conn.execute("SELECT * FROM chunks").fetchone()
+        compiled = re.compile("target")
+        matches = find_grep_match(
+            row, compiled, max_chars=200, ctx_before=0, ctx_after=0
+        )
+        assert len(matches) == 1
+        assert matches[0].line_number == 13
+
+    def test_heading_match_reports_the_stored_start_line(
+        self, conn: sqlite3.Connection
+    ) -> None:
+        """The synthetic heading line stands at the section's own `start_line`."""
+        _insert_chunk(
+            conn, "c1", "a.md", "Parent", "UniqueHeading", "body", start_line=10
+        )
+        row = conn.execute("SELECT * FROM chunks").fetchone()
+        compiled = re.compile("UniqueHeading")
+        matches = find_grep_match(
+            row, compiled, max_chars=200, ctx_before=0, ctx_after=0
+        )
+        assert len(matches) == 1
+        assert matches[0].line_number == 10
+
+    def test_context_before_and_after_are_returned(
+        self, conn: sqlite3.Connection
+    ) -> None:
+        """The requested context is part of the match, not a discarded local (REQ-006)."""
+        _insert_chunk(conn, "c1", "a.md", "", "Intro", "a1\na2\nneedle here\nb1\nb2")
+        row = conn.execute("SELECT * FROM chunks").fetchone()
+        compiled = re.compile("needle")
+        matches = find_grep_match(
+            row, compiled, max_chars=200, ctx_before=2, ctx_after=2
+        )
+        assert len(matches) == 1
+        assert matches[0].context_before_lines == ["a1", "a2"]
+        assert matches[0].context_after_lines == ["b1", "b2"]
+
+    def test_explicit_zero_context_is_honored(self, conn: sqlite3.Connection) -> None:
+        """Zero context means no context lines, returned as empty lists (REQ-006)."""
+        _insert_chunk(conn, "c1", "a.md", "", "Intro", "a1\nneedle here\nb1")
+        row = conn.execute("SELECT * FROM chunks").fetchone()
+        compiled = re.compile("needle")
+        matches = find_grep_match(
+            row, compiled, max_chars=200, ctx_before=0, ctx_after=0
+        )
+        assert len(matches) == 1
+        assert matches[0].context_before_lines == []
+        assert matches[0].context_after_lines == []
+
+    def test_context_clipped_to_max_chars(self, conn: sqlite3.Connection) -> None:
+        """max_chars bounds the match text plus the returned context lines, counted as
+        their joined length; the match text is exact and lines stay whole (REQ-006)."""
+        _insert_chunk(conn, "c1", "a.md", "", "Intro", "x1\nx2\nneedle here\ny1\ny2")
+        row = conn.execute("SELECT * FROM chunks").fetchone()
+        compiled = re.compile("needle here")
+        matches = find_grep_match(
+            row, compiled, max_chars=20, ctx_before=2, ctx_after=2
+        )
+        assert len(matches) == 1
+        match = matches[0]
+        assert match.match_text == "needle here"
+        assert match.context_before_lines == ["x1", "x2"]
+        assert match.context_after_lines == ["y1"]
+        rendered = "\n".join(
+            match.context_before_lines + [match.match_text] + match.context_after_lines
+        )
+        assert len(rendered) <= 20
+
+    def test_multiline_pattern_semantics(self, conn: sqlite3.Connection) -> None:
+        """`re.compile` is called with no flags, so a line-crossing match needs an
+        explicit `\\n`, `^` anchors only at the text start, and every match is reported
+        at the line where it starts (UNK-05)."""
+        _insert_chunk(
+            conn, "c1", "a.md", "", "Intro", "line one\nline two\ntarget line"
+        )
+        row = conn.execute("SELECT * FROM chunks").fetchone()
+        matches = find_grep_match(
+            row,
+            re.compile("two\ntarget"),
+            max_chars=200,
+            ctx_before=0,
+            ctx_after=0,
+        )
+        assert len(matches) == 1
+        # The match starts on "line two", the second stored content line: 1 + 1 + 1
+        assert matches[0].line_number == 3
+        assert (
+            find_grep_match(
+                row,
+                re.compile("^line one"),
+                max_chars=200,
+                ctx_before=0,
+                ctx_after=0,
+            )
+            == []
+        )
 
 
 class TestGrepDocs:
@@ -163,6 +281,43 @@ class TestGrepDocs:
         assert text.rstrip().endswith("---")
         assert metadata["match_count"] == 1
         assert metadata["truncated"] is False
+
+    def test_multiple_matches_from_one_chunk_are_capped(
+        self, conn: sqlite3.Connection
+    ) -> None:
+        """Every hit of a chunk counts toward the cap, so one chunk can fill it (REQ-006)."""
+        _insert_chunk(conn, "c1", "a.md", "", "Intro", "needle a\nneedle b\nneedle c")
+        compiled = re.compile("needle")
+        text, metadata = grep_docs(
+            conn,
+            compiled,
+            req_paths=[],
+            max_matches=2,
+            max_chars=200,
+            ctx_before=0,
+            ctx_after=0,
+        )
+        assert metadata["match_count"] == 2
+        assert metadata["truncated"] is True
+        assert "[Truncated" in text
+        assert text.count("Match: needle") == 2
+
+    def test_returned_context_renders_around_the_match(
+        self, conn: sqlite3.Connection
+    ) -> None:
+        """The rendered block shows the returned context lines around the match line."""
+        _insert_chunk(conn, "c1", "a.md", "", "Intro", "a1\nneedle here\nb1")
+        compiled = re.compile("needle")
+        text, _metadata = grep_docs(
+            conn,
+            compiled,
+            req_paths=[],
+            max_matches=10,
+            max_chars=200,
+            ctx_before=1,
+            ctx_after=1,
+        )
+        assert "  a1\nMatch: needle\n  b1" in text
 
     def test_empty_heading_path_omits_heading_line(
         self, conn: sqlite3.Connection

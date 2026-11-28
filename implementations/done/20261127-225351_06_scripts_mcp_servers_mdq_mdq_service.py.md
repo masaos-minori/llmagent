@@ -95,10 +95,10 @@ Three localized changes in existing methods; no new function and no new import.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace `or` with an explicit `None` test for both context values | Pending | — | — | REQ-006, AC-5, Phase 5 |
-| 2 | Rename the size-limit attribute to the byte unit | Pending | — | — | REQ-004, AC-3, Phase 4 |
-| 3 | Render the outcome text from the DTO counters, including `partial_success` (new) | Pending | — | — | REQ-003, AC-2, Phase 3 |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Replace `or` with an explicit `None` test for both context values | Completed | 2026-11-28 | 2026-11-28 | Lines 422-423 (procedure said 404-405): both context values now read `self.X if req.X is None else req.X`. max_chars_per_match keeps its `or` because REQ-006 names only the context pair. |
+| 2 | Rename the size-limit attribute to the byte unit | Completed | 2026-11-28 | 2026-11-28 | Line 75 (procedure said 73): self.max_file_bytes landed early with the seq 02 cycle, forced by the seq 01 field rename; recorded in seq 02 Step 4 Notes. |
+| 3 | Render the outcome text from the DTO counters, including `partial_success` (new) | Completed | 2026-11-28 | 2026-11-28 | 3b decision (user-approved 20261128): RefreshSummary gains unchanged_file_count so a refresh whose files were all unchanged is not reported as partial. The header is mdq_models.outcome_text(), which now treats unchanged files as completed work: full success means committed == discovered - unchanged, skipped_files == unchanged, skipped_count == unchanged, and no failure at either level. Added the four file counter lines plus "Files unchanged", and "Refresh complete in Xs" became "Indexing complete" + "Elapsed: Xs"; the pinned test tests/mcp_servers/mdq/test_mdq_service.py::test_refresh_index_delegates_to_indexer was rewritten with two new cases (unchanged-only, size-skipped). |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-28 | 2026-11-28 | outcome_text() and the two text constants moved from indexer.py to mdq_models.py: indexer.py reached 25297 B against the 24576 B gate after the counter additions, and the outcome vocabulary belongs with the outcome DTOs. Contracts stay 6 kept 0 broken; indexer.py now 24088 B. Gates: ruff format/check, mypy (20 files), bandit clean, check_module_size OK. Targeted: service + incremental_refresh + internal_failures = 127 passed; whole tests/mcp_servers/mdq/ + test_mdq_audit.py = 522 passed. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

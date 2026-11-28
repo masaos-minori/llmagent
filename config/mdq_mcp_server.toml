@@ -25,8 +25,8 @@ max_snippet_chars = 500
 # Maximum number of characters to include in a chunk
 max_chunk_chars = 10000
 
-# Maximum number of characters to include in a file
-max_file_chars = 100000
+# Maximum file size in bytes; a larger file is skipped before it is read
+max_file_bytes = 100000
 
 # Result size limits (enforced at server level before MCP truncation).
 # Per-request overrides are bounded above by these config values.

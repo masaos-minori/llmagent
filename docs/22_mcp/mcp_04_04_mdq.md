@@ -31,7 +31,7 @@ Tool membership and risk tiers: [mcp_01_tool_ownership_matrix.md](mcp_01_tool_ow
 **Enforced limits:**
 
 - `include_globs` / `exclude_globs` apply to all four indexing scans.
-- `max_file_chars`: a larger file is skipped with a warning and is not indexed.
+- `max_file_bytes`: a larger file is skipped with a warning and is not indexed. The gate measures bytes on disk before the file is read; the decoded-character count of a file is a separate measure reported by the per-file outcome record and never gates indexing, so a multi-byte file can exceed the byte gate while reading shorter in characters. (Compatibility: this key was renamed from `max_file_chars`; a deployed configuration still using the old key fails startup validation, so the configuration file and the code must be updated in the same change.)
 - `max_chunk_chars`: content is truncated before `content_hash` is calculated, so the hash matches the stored content.
 - `max_snippet_chars` truncates search snippets.
 - `search_timeout_sec`: a timed-out `search_docs` call stops its worker through the progress-handler stop event and waits for it inside the bounded drain interval (`DRAIN_INTERVAL_SEC`, module constant); the call is reported with the code `timeout` and the worker's connection is closed by the worker before the caller returns. A worker that does not stop inside the drain interval is left to release its own connection, and the connection an interrupted search holds is never reused by another search. See `mcp_05_05_mdq-enforcement-and-lockdown.md` for the enforcement boundary.
@@ -42,6 +42,21 @@ Tool membership and risk tiers: [mcp_01_tool_ownership_matrix.md](mcp_01_tool_ow
 
 - `/health` returns more fields than the basic response (refer to [mcp_06 Health probes](mcp_06_04_verification-methods.md#health-probes)).
 - Logs: `<log_dir>/mdq-mcp.log`. Audit: Layer1 `tool_exec`, Layer2 `mcp_tool_exec` (JSON-lines records in `<log_dir>/mdq-mcp.log` via `_audit_log()`, `server_key="mdq"`), Layer3 none. There is no dedicated audit log and no `audit_log_path` key.
+
+### Indexing outcomes and counters
+
+Every file an indexing or refresh scan reaches produces one per-file outcome record: the root-relative POSIX path (never an absolute path), a status from the closed set `indexed`, `skipped_unchanged`, `skipped_size_limit`, `skipped_no_content`, `failed`, an optional reason code from the closed set `unchanged`, `size_limit`, `no_content`, `file_disappeared`, `write_failure`, `invalid_frontmatter`, and — when the parser recorded one — warning codes with a warning count and the decoded character count. A value outside either set is a construction error, so no run can report an outcome the audit surface does not recognize.
+
+Counters name two distinct units, and neither counts the other's unit:
+
+- Path-level: the number of requested paths and the paths indexed, skipped, deleted, and failed. A directory is one path entry.
+- File-level: the files discovered, committed, skipped, and failed. `refresh_index` additionally reports the unchanged files as the part of skipped files a refresh found already current — completed work, not a skip to report.
+
+The outcome text is rendered from these counters, not from the absence of an exception. A run reports `Indexing complete` only when no file and no path failed and everything the run discovered was committed or unchanged; any other completed run reports `partial_success`. A run in which every discovered file failed reports no text at all: it raises a service error that the dispatch boundary renders as a tool-domain failure with the code `unexpected_error` (see Error codes), not as a completed run. A file's `index_state` entry advances only after its rows commit, so a failed file is re-read on the next run rather than skipped as already current.
+
+### Index scan semantics
+
+`include_globs` / `exclude_globs` match against normalized root-relative POSIX paths with case-sensitive behavior, at any path depth: a pattern also matches a nested path segment, not only a path that starts at the root. Discovered files are deduplicated by their canonical (resolved) path, so two names for one file contribute one file. Symlinked directories are not traversed: a directory reached only through a symlink contributes no files. A symlinked file is discovered and is judged at read time by `allowed_dirs` path authorization like any other file, so a symlink cannot move a read outside the authorized roots.
 
 ### Path Control
 
@@ -68,6 +83,16 @@ All tools receiving paths enforce fail-closed authorization via `allowed_dirs`. 
 - `matched_count` is the authorized count reported by the predicate before any `LIMIT`; the response reports matched and shown counts separately when limiting hides rows.
 - Each search owns one connection through `db.helper.SQLiteHelper`, cancelled through the progress-handler stop event within the bounded drain; active searches are capped at `MAX_ACTIVE_SEARCHES`, the existing per-server concurrency convention (`DEFAULT_PER_SERVER_CONCURRENCY`).
 - The raw query text never reaches the response, the metadata, or the persistent log line: the hashed identifier from `hash_query_value()` is used instead.
+
+### grep_docs match and context semantics
+
+`grep_docs` searches the stored section chunks and reports each match with its location and its context:
+
+- The reported line number is defined against the stored chunk: the synthesized heading line stands at the section's stored start line, and the first stored content line at the next line, so a match on content line k is reported as `start_line + 1 + k`. This is the source-file line whenever the stored content begins at the section's first content line; leading blank lines removed at index time are not reconstructed, so the definition — not a claim about the original file — is what the number carries.
+- Regex semantics are the plain defaults: no matching flags are added, `.` does not cross a line, and `^` / `$` anchor at the ends of the chunk text rather than at line boundaries.
+- Each chunk contributes every pattern hit up to the match cap, so one chunk can fill the cap and a truncated response is reported as truncated.
+- The requested context is returned with the match. An explicit zero context means no context lines; only an absent value selects the configured default.
+- The per-match character limit is applied to the context-inclusive text, not to the match alone: the match text is exact within the limit, context lines are returned whole, taken nearest the match first and alternating sides, so the lines furthest from the match are the ones dropped when the limit is tight, and the rendered match plus returned lines never exceed the limit.
 
 ### Availability and execution contract
 
@@ -111,7 +136,7 @@ Tool-domain failures return HTTP 200 with `is_error=true` and the code, per `mcp
 |---|---|---|
 | ATX Headings (H1–H6) | Yes | — |
 | Fenced Code Blocks | Yes | `#` inside fences are not treated as headings. Fence content itself is also excluded from section indexing text and is not searched in `search_docs`/`grep_docs` (because `parser.py` uses `continue` to skip fence lines before adding them to the section body) |
-| YAML Frontmatter | Yes | Parsed and removed from the beginning of the file |
+| YAML Frontmatter | Yes | Parsed and removed from the beginning of the file. Invalid YAML stays non-blocking: the file is still indexed and the frontmatter falls back to empty tags, while the run records a structured warning — the reason code `invalid_frontmatter` with a warning count and the decoded character count — and the record carries no absolute path |
 | Content before H1 | Yes | Stored in the `<root>` section |
 | Duplicate Headings | Yes | Individual chunk IDs are assigned via ordinality |
 | Setext Headings (===,---) | No | Treated as plain text |
@@ -129,7 +154,7 @@ Tool-domain failures return HTTP 200 with `is_error=true` and the code, per `mcp
 
 ### Audit `detail` Metadata
 
-The audit `detail` field is built from structured metadata (a `(text, metadata)` tuple) returned by each `MdqService` method, not by parsing output text, so audit values stay consistent when output wording changes. It carries result, shown, indexed, skipped, deleted, and failed counts and a `truncated=true` flag where applicable; for `get_chunk`, `truncated=true` is derived from the `"[Truncated"` marker in the output text. For the indexing tools it also carries the request's own path count and the authorized root as a hash, because the metadata carries counts only and the root path itself must not reach the record.
+The audit `detail` field is built from structured metadata (a `(text, metadata)` tuple) returned by each `MdqService` method, not by parsing output text, so audit values stay consistent when output wording changes. It carries result, shown, indexed, skipped, deleted, and failed counts and a `truncated=true` flag where applicable; for the indexing tools the counts recorded in the audit detail are the path-level unit described under "Indexing outcomes and counters" — the file-level counters stay in the structured metadata the service returns and are not added to the audit record; for `get_chunk`, `truncated=true` is derived from the `"[Truncated"` marker in the output text. For the indexing tools it also carries the request's own path count and the authorized root as a hash, because the metadata carries counts only and the root path itself must not reach the record.
 
 `detail` carries no exception-class names and `error_type` carries a code from the closed error-code vocabulary above, not an exception class name. The record is emitted from the single audit boundary in `call_tool()`, not from an exception handler.
 

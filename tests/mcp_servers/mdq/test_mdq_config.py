@@ -37,7 +37,7 @@ def _explicit(**overrides: object) -> dict[str, object]:
         "exclude_globs": [".git/**", "__pycache__/**"],
         "max_snippet_chars": 500,
         "max_chunk_chars": 10000,
-        "max_file_chars": 100000,
+        "max_file_bytes": 100000,
         "search_timeout_sec": 30,
         "max_results_limit": 100,
         "max_chars_per_chunk": 10000,
@@ -65,7 +65,7 @@ class TestMdqConfigExplicitValues:
         assert cfg.exclude_globs == [".git/**", "__pycache__/**"]
         assert cfg.max_snippet_chars == 500
         assert cfg.max_chunk_chars == 10000
-        assert cfg.max_file_chars == 100000
+        assert cfg.max_file_bytes == 100000
         assert cfg.search_timeout_sec == 30
         assert cfg.enable_grep is True
         assert cfg.max_grep_matches == 200
@@ -100,7 +100,7 @@ class TestMdqConfigNumericValidation:
         [
             "max_snippet_chars",
             "max_chunk_chars",
-            "max_file_chars",
+            "max_file_bytes",
             "search_timeout_sec",
             "max_results_limit",
             "max_chars_per_chunk",

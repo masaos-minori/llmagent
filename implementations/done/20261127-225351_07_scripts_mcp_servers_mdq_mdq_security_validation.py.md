@@ -35,6 +35,12 @@ A single tuple entry change; no behavior change.
 
 ### Details
 - `_MDQ_SCALAR_SETTINGS` Line 42: `max_file_chars` becomes `max_file_bytes` (new).
+  Re-verified 20261128 against `git show HEAD:...`: the tuple starts at Line 45 and the entry is
+  Line 48 (the recorded Line 42 was stale); the rename landed at Line 48 with no other line shift.
+- Note on what this tuple drives (verified 20261128): `_MDQ_SCALAR_SETTINGS` feeds
+  `_mdq_config_view()`, the posture-fingerprint key list; the startup *value* validation of the key
+  lives in `MdqConfig._CONFIG_FIELD_RULES` (`max_file_bytes: RULE_INT`), renamed by procedure seq 01.
+  Both key lists now carry the renamed name, so the key is validated and fingerprinted at startup.
 
 ## Compatibility considerations
 - A deployed config that still uses `max_file_chars` fails startup validation after the change, which
@@ -50,6 +56,9 @@ A single tuple entry change; no behavior change.
 ## Validation plan
 - `uv run pytest tests/mcp_servers/mdq/test_mdq_config.py` — the renamed key is validated at startup.
 - Full sequence per `rules/toolchain.md`.
+- As-run 20261128: `test_mdq_config.py` = 36 passed; gates (ruff, mypy 20 files, lint-imports 6 kept,
+  bandit, check_module_size) clean; whole `tests/mcp_servers/mdq/` + `tests/mcp_servers/test_mdq_audit.py`
+  = 533 passed, including `test_mdq_health_posture.py` which consumes the config view.
 
 ## Completion criteria
 - The renamed key is present in the validated key list and the startup validation test passes.
@@ -63,8 +72,8 @@ A single tuple entry change; no behavior change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rename the entry in `_MDQ_SCALAR_SETTINGS` | Pending | — | — | REQ-004, AC-3, Phase 4 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Rename the entry in `_MDQ_SCALAR_SETTINGS` | Completed | 2026-11-28 | 2026-11-28 | Landed with the batch rename cycle. Entry at Line 48 of the pre-change file (procedure recorded 42; tuple starts at 45). Tuple feeds the posture-fingerprint view; startup value validation is MdqConfig._CONFIG_FIELD_RULES (seq 01), also renamed. |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-28 | 2026-11-28 | test_mdq_config.py 36 passed; full mdq run 533 passed; all toolchain gates clean (run in the seq 05 cycle, module untouched since). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

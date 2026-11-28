@@ -243,13 +243,13 @@ Doc content policy applies: the status vocabulary and the reason codes are a clo
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: characterization tests first | In Progress | — | — | DTO outcomes, grep context and line numbers, counters, and units pinned before production change |
-| 2 | Phase 2: per-file result DTO | In Progress | — | — | Status vocabulary, reason codes, warning counts, grep context fields |
-| 3 | Phase 3: post-commit state and counters | In Progress | — | — | `index_state` advances only after commit; counters name their unit |
-| 4 | Phase 4: units and scan semantics | In Progress | — | — | `max_file_bytes`, `fnmatchcase`, canonical dedup, re-authorization and re-stat |
-| 5 | Phase 5: grep correctness | In Progress | — | — | Context returned, source-file line numbers, multiple matches, zero honored |
-| 6 | Phase 6: parser warnings | In Progress | — | — | Structured `invalid_frontmatter` warning without absolute paths |
-| 7 | Phase 7: documentation | In Progress | — | — | MDQ contract doc and doc content policy gate |
+| 1 | Phase 1: characterization tests first | Completed | — | 20261128-153123 | DTO outcomes, grep context and line numbers, counters, and units pinned before production change |
+| 2 | Phase 2: per-file result DTO | Completed | — | 20261128-153123 | Status vocabulary, reason codes, warning counts, grep context fields |
+| 3 | Phase 3: post-commit state and counters | Completed | — | 20261128-153123 | `index_state` advances only after commit; counters name their unit |
+| 4 | Phase 4: units and scan semantics | Completed | — | 20261128-153123 | `max_file_bytes`, `fnmatchcase`, canonical dedup, re-authorization and re-stat |
+| 5 | Phase 5: grep correctness | Completed | — | 20261128-153123 | Context returned, source-file line numbers, multiple matches, zero honored |
+| 6 | Phase 6: parser warnings | Completed | — | 20261128-153123 | Structured `invalid_frontmatter` warning without absolute paths |
+| 7 | Phase 7: documentation | Completed | — | 20261128-153123 | MDQ contract doc and doc content policy gate |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -259,18 +259,18 @@ Doc content policy applies: the status vocabulary and the reason codes are a clo
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261127-225351_01_scripts_mcp_servers_mdq_mdq_models.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261127-225351_02_scripts_mcp_servers_mdq_indexer.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261127-225351_03_scripts_mcp_servers_mdq_index_scan.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261127-225351_04_scripts_mcp_servers_mdq_parser.py.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261127-225351_05_scripts_mcp_servers_mdq_db_grep.py.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261127-225351_06_scripts_mcp_servers_mdq_mdq_service.py.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261127-225351_07_scripts_mcp_servers_mdq_mdq_security_validation.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261127-225351_08_config_mdq_mcp_server.toml.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261127-225351_09_tests_mcp_servers_mdq_test_db_grep.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261127-225351_12_tests_mcp_servers_mdq_test_mdq_service.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261127-225351_13_tests_mcp_servers_mdq_test_mdq_config.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261127-225351_16_docs_22_mcp_mcp_04_04_mdq.md.md` | 7 | Procedure | Pending | — | — |
+| `implementations/20261127-225351_01_scripts_mcp_servers_mdq_mdq_models.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261127-225351_02_scripts_mcp_servers_mdq_indexer.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261127-225351_03_scripts_mcp_servers_mdq_index_scan.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261127-225351_04_scripts_mcp_servers_mdq_parser.py.md` | 6 | Procedure | Completed | — | — |
+| `implementations/20261127-225351_05_scripts_mcp_servers_mdq_db_grep.py.md` | 5 | Procedure | Completed | — | — |
+| `implementations/20261127-225351_06_scripts_mcp_servers_mdq_mdq_service.py.md` | 5 | Procedure | Completed | — | — |
+| `implementations/20261127-225351_07_scripts_mcp_servers_mdq_mdq_security_validation.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261127-225351_08_config_mdq_mcp_server.toml.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261127-225351_09_tests_mcp_servers_mdq_test_db_grep.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261127-225351_12_tests_mcp_servers_mdq_test_mdq_service.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261127-225351_13_tests_mcp_servers_mdq_test_mdq_config.py.md` | 4 | Procedure | Completed | — | — |
+| `implementations/20261127-225351_16_docs_22_mcp_mcp_04_04_mdq.md.md` | 7 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

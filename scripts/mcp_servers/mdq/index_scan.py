@@ -8,6 +8,11 @@ Split out of mcp_servers.mdq.indexer: the indexer owns connections, tallies and 
 index/refresh flow; this module owns only glob matching and directory scanning, and
 holds no database access.
 
+Symlink behavior: Path.rglob does not traverse symlinked directories, so a directory
+reached only through a symlink contributes no files. A symlinked file is discovered;
+it is judged later by authorize_path() in the indexer, and deduplication here keys it
+by its canonical (resolved) path.
+
 Dependency direction: index_scan → none at runtime (MdqService is TYPE_CHECKING-only)
 Import from here:  from mcp_servers.mdq.index_scan import iter_indexable_files
 """
@@ -38,11 +43,14 @@ def _matches_any_glob(rel_posix: str, patterns: list[str]) -> bool:
     "src/__pycache__/nested/a.pyc" against "__pycache__/**"). To catch both,
     fnmatch is applied against every path suffix (the substring starting at
     each path component), not just the full path.
+
+    fnmatchcase() is used rather than fnmatch() so the case-sensitive behavior
+    is declared by the code instead of inherited from os.path.normcase().
     """
     parts = rel_posix.split("/")
     for i in range(len(parts)):
         suffix = "/".join(parts[i:])
-        if any(fnmatch.fnmatch(suffix, pattern) for pattern in patterns):
+        if any(fnmatch.fnmatchcase(suffix, pattern) for pattern in patterns):
             return True
     return False
 
@@ -52,6 +60,9 @@ def iter_indexable_files(service: MdqService, directory: Path) -> list[Path]:
 
     Replaces hardcoded rglob("*.md") call sites so indexing honors the
     configured include_globs / exclude_globs (config/mdq_mcp_server.toml).
+
+    Deduplication is by canonical (resolved) path, so a symlinked duplicate
+    collapses to one canonical entry — the same form index_write.py stores.
     """
     include_globs = service.include_globs
     exclude_globs = service.exclude_globs
@@ -63,5 +74,6 @@ def iter_indexable_files(service: MdqService, directory: Path) -> list[Path]:
             rel_posix = f.relative_to(directory).as_posix()
             if _matches_any_glob(rel_posix, exclude_globs):
                 continue
-            matched[str(f)] = f
+            canonical = f.resolve().as_posix()
+            matched[canonical] = Path(canonical)
     return sorted(matched.values())

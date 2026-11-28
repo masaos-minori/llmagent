@@ -18,9 +18,12 @@ import pytest
 from mcp_servers.mdq.indexer import RefreshSummary, index_paths
 from mcp_servers.mdq.indexer import refresh_paths as _refresh_paths
 from mcp_servers.mdq.mdq_models import (
+    PARTIAL_SUCCESS_TEXT,
+    FileOutcome,
     IndexPathsMetadata,
     IndexPathsRequest,
     MdqAuthorizationError,
+    MdqServiceError,
     RefreshIndexRequest,
 )
 from mcp_servers.mdq.mdq_service import MdqService
@@ -208,11 +211,11 @@ class TestIncrementalRefresh:
 
 # ── Characterization tests for the refresh_paths() and index_paths() branches ───
 #
-# Both entry points tally one counter per requested path, and the counters are not
-# symmetric: force mode counts a directory as one indexed path while incremental mode
-# counts one per changed file, a mid-directory failure keeps the counts already
-# recorded for the earlier files, and a nonexistent path is counted as skipped by
-# index_paths() but by no counter at all in refresh_paths(). These pin those shapes.
+# Two counter levels are reported, and each names one unit: the original counters keep the
+# meaning the audit surface already depends on (a directory is one entry for index_paths(),
+# one entry per file for both refresh modes), and the file-level counters count discovered,
+# committed, skipped, and failed files in every mode. A run whose every file failed reports
+# the tool error instead of a summary or a text the caller would read as completed.
 
 
 def _fresh_service(tmp_path: Path) -> MdqService:
@@ -223,7 +226,7 @@ def _fresh_service(tmp_path: Path) -> MdqService:
 
 
 def _counters(result: RefreshSummary) -> tuple[int, int, int]:
-    """(indexed, skipped, failed) from a RefreshSummary."""
+    """(indexed, skipped, failed) path-level counters from a RefreshSummary."""
     return (
         int(result["indexed_count"]),
         int(result["skipped_count"]),
@@ -231,9 +234,34 @@ def _counters(result: RefreshSummary) -> tuple[int, int, int]:
     )
 
 
+def _file_counters(result: RefreshSummary) -> tuple[int, int, int, int]:
+    """(discovered, committed, skipped, failed) file counters from a RefreshSummary."""
+    return (
+        int(result["discovered_file_count"]),
+        int(result["committed_file_count"]),
+        int(result["skipped_file_count"]),
+        int(result["failed_file_count"]),
+    )
+
+
+def _unchanged_count(result: RefreshSummary) -> int:
+    """The unchanged sub-count of skipped_file_count in a RefreshSummary."""
+    return int(result["unchanged_file_count"])
+
+
 def _meta_counts(meta: IndexPathsMetadata) -> tuple[int, int, int]:
     """(indexed, skipped, failed) from an IndexPathsMetadata record."""
     return (meta["indexed_count"], meta["skipped_count"], meta["failed_count"])
+
+
+def _meta_file_counts(meta: IndexPathsMetadata) -> tuple[int, int, int, int]:
+    """(discovered, committed, skipped, failed) file counters from an IndexPathsMetadata."""
+    return (
+        int(meta["discovered_file_count"]),
+        int(meta["committed_file_count"]),
+        int(meta["skipped_file_count"]),
+        int(meta["failed_file_count"]),
+    )
 
 
 def _index_state_keys(service: MdqService) -> set[str]:
@@ -245,15 +273,28 @@ def _index_state_keys(service: MdqService) -> set[str]:
         conn.close()
 
 
-def _fail_on_nth(n: int) -> Callable[..., Awaitable[None]]:
+def _index_state_value(service: MdqService, key: str) -> str | None:
+    """The index_state value recorded for one key, or None when absent."""
+    conn = sqlite3.connect(service.db_path)
+    try:
+        row = conn.execute(
+            "SELECT value FROM index_state WHERE key = ?", (key,)
+        ).fetchone()
+        return None if row is None else str(row[0])
+    finally:
+        conn.close()
+
+
+def _fail_on_nth(n: int) -> Callable[..., Awaitable[FileOutcome]]:
     """A stand-in for _index_single_file that fails on its nth call and succeeds before it."""
     calls = 0
 
-    async def _fail(service: MdqService, path: Path) -> None:
+    async def _fail(service: MdqService, path: Path) -> FileOutcome:
         nonlocal calls
         calls += 1
         if calls == n:
             raise RuntimeError(f"indexing failed on call {calls}")
+        return FileOutcome(path=path.name, status="indexed")
 
     return _fail
 
@@ -359,7 +400,11 @@ class TestRefreshIncrementalBranches:
     def test_failed_reindex_does_not_record_the_new_mtime(
         self, service: MdqService, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """index_state is written only after a successful re-index."""
+        """index_state is written only after a successful re-index.
+
+        The failing re-index is the run's only file, so the run reports the all-failed
+        tool error; index_state stays where the earlier successful run left it.
+        """
         target = tmp_path / "a.md"
         target.write_text("# A\n\nOne")
         asyncio.run(_refresh_paths(service, RefreshIndexRequest(paths=[str(target)])))
@@ -374,12 +419,69 @@ class TestRefreshIncrementalBranches:
         later_ns = first_mtime_ns + 1_000_000_000
         os.utime(target, ns=(later_ns, later_ns))
         monkeypatch.setattr(indexer, "_index_single_file", _always_fail)
+        with pytest.raises(MdqServiceError, match="discovered files failed"):
+            asyncio.run(
+                _refresh_paths(service, RefreshIndexRequest(paths=[str(target)]))
+            )
+
+        assert _index_state_keys(service) == recorded_before
+
+
+class TestRefreshUnchangedCounter:
+    """unchanged_file_count separates a completed refresh from a file that was not usable."""
+
+    @pytest.fixture()
+    def service(self, tmp_path: Path) -> MdqService:
+        return _fresh_service(tmp_path)
+
+    def test_unchanged_file_is_counted_as_unchanged(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        target = tmp_path / "a.md"
+        target.write_text("# A\n\nOne")
+        asyncio.run(_refresh_paths(service, RefreshIndexRequest(paths=[str(target)])))
+
         result = asyncio.run(
             _refresh_paths(service, RefreshIndexRequest(paths=[str(target)]))
         )
 
-        assert _counters(result) == (0, 0, 1)
-        assert _index_state_keys(service) == recorded_before
+        assert _file_counters(result) == (1, 0, 1, 0)
+        assert _unchanged_count(result) == 1
+
+    def test_size_skipped_file_is_not_counted_as_unchanged(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        service.max_file_bytes = 10
+        target = tmp_path / "big.md"
+        target.write_text("# B\n\n" + "x" * 100)
+
+        result = asyncio.run(
+            _refresh_paths(service, RefreshIndexRequest(paths=[str(target)]))
+        )
+
+        assert _file_counters(result) == (1, 0, 1, 0)
+        assert _unchanged_count(result) == 0
+
+    def test_committed_and_unchanged_files_are_counted_separately(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        changed = tmp_path / "a.md"
+        same = tmp_path / "b.md"
+        for f in (changed, same):
+            f.write_text(f"# {f.name}\n\nBody")
+        asyncio.run(_refresh_paths(service, RefreshIndexRequest(paths=[str(tmp_path)])))
+
+        first_mtime_ns = changed.stat().st_mtime_ns
+        changed.write_text("# a.md\n\nChanged")
+        later_ns = first_mtime_ns + 1_000_000_000
+        os.utime(changed, ns=(later_ns, later_ns))
+
+        result = asyncio.run(
+            _refresh_paths(service, RefreshIndexRequest(paths=[str(tmp_path)]))
+        )
+
+        assert _file_counters(result) == (2, 1, 1, 0)
+        assert _unchanged_count(result) == 1
 
 
 class TestRefreshFailureCounters:
@@ -400,11 +502,10 @@ class TestRefreshFailureCounters:
         target.write_text("# A\n\nOne")
         monkeypatch.setattr(indexer, "_index_single_file", _always_fail)
 
-        result = asyncio.run(
-            _refresh_paths(service, RefreshIndexRequest(paths=[str(target)]))
-        )
-
-        assert _counters(result) == (0, 0, 1)
+        with pytest.raises(MdqServiceError, match="discovered files failed"):
+            asyncio.run(
+                _refresh_paths(service, RefreshIndexRequest(paths=[str(target)]))
+            )
         assert "Failed to refresh" in caplog.text
 
     def test_directory_failure_keeps_the_counts_already_recorded(
@@ -420,7 +521,48 @@ class TestRefreshFailureCounters:
         )
 
         assert _counters(result) == (1, 0, 1)
+        assert _file_counters(result) == (2, 1, 0, 1)
         assert _index_state_keys(service) == {f"mtime:{tmp_path / 'a.md'}"}
+
+    def test_failed_file_is_reread_on_the_next_refresh(
+        self, service: MdqService, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A file whose refresh failed keeps its recorded mtime, so the next run re-indexes it."""
+        (tmp_path / "a.md").write_text("# A\n\nOne")
+        target = tmp_path / "b.md"
+        target.write_text("# B\n\nTwo")
+        asyncio.run(_refresh_paths(service, RefreshIndexRequest(paths=[str(tmp_path)])))
+        state_key = f"mtime:{target}"
+        recorded = _index_state_value(service, state_key)
+        assert recorded is not None
+
+        for name in ("a.md", "b.md"):
+            path = tmp_path / name
+            ns = path.stat().st_mtime_ns + 1_000_000_000
+            os.utime(path, ns=(ns, ns))
+
+        async def _fail_b(_service: MdqService, path: Path) -> FileOutcome:
+            if path.name == "b.md":
+                raise RuntimeError("transient indexing failure")
+            return FileOutcome(path=path.name, status="indexed")
+
+        monkeypatch.setattr(indexer, "_index_single_file", _fail_b)
+        result = asyncio.run(
+            _refresh_paths(service, RefreshIndexRequest(paths=[str(tmp_path)]))
+        )
+
+        assert _counters(result) == (1, 0, 1)
+        assert _file_counters(result) == (2, 1, 0, 1)
+        assert _index_state_value(service, state_key) == recorded
+
+        monkeypatch.undo()
+        result = asyncio.run(
+            _refresh_paths(service, RefreshIndexRequest(paths=[str(tmp_path)]))
+        )
+
+        assert _counters(result) == (1, 1, 0)
+        assert _file_counters(result) == (2, 1, 1, 0)
+        assert _index_state_value(service, state_key) != recorded
 
     def test_force_mode_failure(
         self,
@@ -433,13 +575,12 @@ class TestRefreshFailureCounters:
         target.write_text("# A\n\nOne")
         monkeypatch.setattr(indexer, "_index_single_file", _always_fail)
 
-        result = asyncio.run(
-            _refresh_paths(
-                service, RefreshIndexRequest(paths=[str(target)], force=True)
+        with pytest.raises(MdqServiceError, match="discovered files failed"):
+            asyncio.run(
+                _refresh_paths(
+                    service, RefreshIndexRequest(paths=[str(target)], force=True)
+                )
             )
-        )
-
-        assert _counters(result) == (0, 0, 1)
         assert "Failed to index" in caplog.text
 
     def test_deletion_scan_failure_records_a_failed_count(
@@ -519,10 +660,11 @@ class TestIndexPathsCounters:
         assert meta["duration_ms"] >= 0
 
     def test_nonexistent_path_is_skipped(self, service: MdqService) -> None:
-        _, meta = asyncio.run(
+        message, meta = asyncio.run(
             index_paths(service, IndexPathsRequest(paths=["/nonexistent/path.md"]))
         )
 
+        assert message == PARTIAL_SUCCESS_TEXT
         assert _meta_counts(meta) == (0, 1, 0)
 
     def test_non_markdown_file_is_skipped_with_a_warning(
@@ -531,10 +673,11 @@ class TestIndexPathsCounters:
         target = tmp_path / "notes.txt"
         target.write_text("plain text")
 
-        _, meta = asyncio.run(
+        message, meta = asyncio.run(
             index_paths(service, IndexPathsRequest(paths=[str(target)]))
         )
 
+        assert message == PARTIAL_SUCCESS_TEXT
         assert _meta_counts(meta) == (0, 1, 0)
         assert "Skipping non-Markdown path" in caplog.text
 
@@ -549,11 +692,8 @@ class TestIndexPathsCounters:
         target.write_text("# A\n\nOne")
         monkeypatch.setattr(indexer, "_index_single_file", _always_fail)
 
-        _, meta = asyncio.run(
-            index_paths(service, IndexPathsRequest(paths=[str(target)]))
-        )
-
-        assert _meta_counts(meta) == (0, 0, 1)
+        with pytest.raises(MdqServiceError, match="discovered files failed"):
+            asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(target)])))
         assert "Failed to index" in caplog.text
 
     def test_directory_failure(
@@ -562,11 +702,23 @@ class TestIndexPathsCounters:
         (tmp_path / "a.md").write_text("# A\n\nOne")
         monkeypatch.setattr(indexer, "_index_single_file", _always_fail)
 
-        _, meta = asyncio.run(
+        with pytest.raises(MdqServiceError, match="discovered files failed"):
+            asyncio.run(index_paths(service, IndexPathsRequest(paths=[str(tmp_path)])))
+
+    def test_mixed_directory_reports_partial_success(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        """A committed file and a no-content file: the text is not a success."""
+        (tmp_path / "a.md").write_text("# A\n\nOne")
+        (tmp_path / "b.md").write_text("")
+
+        message, meta = asyncio.run(
             index_paths(service, IndexPathsRequest(paths=[str(tmp_path)]))
         )
 
-        assert _meta_counts(meta) == (0, 0, 1)
+        assert message == PARTIAL_SUCCESS_TEXT
+        assert _meta_counts(meta) == (1, 0, 0)
+        assert _meta_file_counts(meta) == (2, 1, 1, 0)
 
     def test_path_outside_allowed_directories_raises(self, service: MdqService) -> None:
         with pytest.raises(MdqAuthorizationError, match="outside allowed directories"):

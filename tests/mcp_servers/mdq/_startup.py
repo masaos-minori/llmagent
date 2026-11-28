@@ -26,7 +26,7 @@ EXPLICIT_VALUES: dict[str, object] = {
     "exclude_globs": [".git/**", "__pycache__/**"],
     "max_snippet_chars": 500,
     "max_chunk_chars": 10000,
-    "max_file_chars": 100000,
+    "max_file_bytes": 100000,
     "search_timeout_sec": 30,
     "max_results_limit": 100,
     "max_chars_per_chunk": 10000,

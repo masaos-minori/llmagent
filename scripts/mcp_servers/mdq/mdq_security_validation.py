@@ -45,7 +45,7 @@ MDQ_OWN_CONFIG_FILE = "mdq_mcp_server.toml"
 _MDQ_SCALAR_SETTINGS: tuple[str, ...] = (
     "max_snippet_chars",
     "max_chunk_chars",
-    "max_file_chars",
+    "max_file_bytes",
     "max_results_limit",
     "max_chars_per_chunk",
     "max_total_result_chars",

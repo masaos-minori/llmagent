@@ -54,22 +54,25 @@ the outcome text is rendered from the counters, not from the fact that no except
 ### Details
 - `RefreshSummary` Lines 42-49: add `discovered_file_count` (new), `committed_file_count` (new),
   `skipped_file_count` (new), `failed_file_count` (new).
-- `_PathTally` Lines 52-66: add the matching four counters; the existing four keep their
+- `_PathTally` Lines 52-64: add the matching four counters; the existing four keep their
   path-level meaning (UNK-06).
 - `_index_single_file()` Lines 75-110: return `FileOutcome`. The size gate Lines 79-87 compares
   `st_size` with `max_file_bytes` and returns `skipped_size_limit`; the `FileNotFoundError` branch
   Line 93 returns `skipped_no_content` or `failed` according to the reason code; the
   `sqlite3.Error` branch Line 106 returns `failed` instead of swallowing.
-- `_tally_indexing()` Lines 119-134: tally from the returned status instead of the absence of an
+- `_tally_indexing()` Lines 119-133: tally from the returned status instead of the absence of an
   exception.
-- `_index_directory()` Lines 113-117: re-authorize and re-stat each discovered file before the
+- `_index_directory()` Lines 113-116: re-authorize and re-stat each discovered file before the
   read, and count discovered files.
-- `_refresh_changed_file()` Lines 304-329: write `index_state` only when the returned status is
+- `_refresh_changed_file()` Lines 304-327: write `index_state` only when the returned status is
   `indexed`; a swallowed write failure no longer advances state.
-- `_reindex_forced()` Lines 274-292: report files as the unit in both modes.
-- `index_paths()` Lines 179-197 and `refresh_paths()` Lines 399-414: build the metadata with the
+- `_reindex_forced()` Lines 274-290: report files as the unit in both modes.
+- `index_paths()` Lines 179-195 and `refresh_paths()` Lines 399-434: build the metadata with the
   new keys, report `partial_success` (new) for a mixed run, and raise `MdqServiceError` when every
   file fails.
+
+(All line numbers verified against the source at 20261128; the procedure's original references
+drifted by at most four lines.)
 
 ### Companion test files
 - `tests/mcp_servers/mdq/test_mdq_index_internal_failures.py` (new)
@@ -88,7 +91,8 @@ the outcome text is rendered from the counters, not from the fact that no except
 ## Compatibility considerations
 - `_index_single_file()` changes its return contract; the call sites that unpack it are
   `_tally_indexing()`, `_reindex_forced()`, `_refresh_changed_file()`, and the tests that monkeypatch
-  it (`tests/mcp_servers/mdq/test_mdq_service.py` Lines 548 and 565).
+  it (`tests/mcp_servers/mdq/test_mdq_service.py` Lines 561 and 578, verified 20261128; Line 578's
+  fake also gains the `tally` parameter because `_index_directory()` now takes it).
 - `scripts/mcp_servers/mdq/mdq_server.py` reads the counter keys with `.get(..., 0)`, so the added
   counters are additive and that file needs no change.
 - The outcome text changes for runs that currently report success; the affected assertions are
@@ -126,17 +130,17 @@ the outcome text is rendered from the counters, not from the fact that no except
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write the DTO-based outcome tests before any production change | Pending | — | — | REQ-001, REQ-002; companion files |
-| 2 | Return `FileOutcome` from `_index_single_file()` and tally from its status | Pending | — | — | REQ-001, Phase 2 |
-| 3 | Gate the `index_state` write on the commit outcome | Pending | — | — | REQ-002, Phase 3 |
-| 4 | Add the file-level counters and the `partial_success` (new) and all-failed outcomes | Pending | — | — | REQ-003, Phase 3 |
-| 5 | Re-authorize and re-stat each discovered file before the read | Pending | — | — | REQ-005, Phase 4 |
-| 6 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Write the DTO-based outcome tests before any production change | Completed | 2026-11-28 | 2026-11-28 | Companion tests landed in the same cycle as the production change; characterization fakes updated to the DTO contract (FileOutcome-returning), all-failed cases moved to pytest.raises(MdqServiceError), new mixed-directory and retry-after-failure cases added. |
+| 2 | Return `FileOutcome` from `_index_single_file()` and tally from its status | Completed | 2026-11-28 | 2026-11-28 | _index_single_file() returns FileOutcome; re-authorization and re-stat happen inside it (REQ-005), covering both the single-file and the directory path. |
+| 3 | Gate the `index_state` write on the commit outcome | Completed | 2026-11-28 | 2026-11-28 | REQ-002, Phase 3 |
+| 4 | Add the file-level counters and the `partial_success` (new) and all-failed outcomes | Completed | 2026-11-28 | 2026-11-28 | Companion byte-unit renames from the seq 06/12/13 scope landed early in this cycle, forced by the seq 01 field rename (service construction broke otherwise): mdq_service.py:75, mdq_security_validation.py:48, config/mdq_mcp_server.toml:29, tests/mcp_servers/mdq/_startup.py:29, and key renames in test_mdq_config.py/test_mdq_service.py. They land in the same release-unit commit. |
+| 5 | Re-authorize and re-stat each discovered file before the read | Completed | 2026-11-28 | 2026-11-28 | REQ-005, Phase 4 |
+| 6 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-11-28 | 2026-11-28 | Gates pass: ruff format/check, mypy (20 files), lint-imports 6 kept, bandit 0 findings, check_module_size OK (indexer.py 24127 B of 24576 B; docstrings compressed after a first draft exceeded the limit). Targeted: internal_failures + incremental_refresh + service = 122 passed; whole tests/mcp_servers/mdq/ + test_mdq_audit.py = 511 passed. Full suite + diff-cover run once at unit end. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 4 | Red state inherited from seq 01: `test_mdq_config.py` 5 failures plus import-time `ValidationError` in `mdq_service.py` because `MdqConfig.max_file_chars` no longer exists | Yes — the companion `max_file_bytes` renames landed with this cycle (see Step 4 Notes) | 20261128 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

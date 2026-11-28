@@ -24,6 +24,7 @@ from mcp_servers.mdq.mdq_models import (
     GrepDocsRequest,
     IndexPathsRequest,
     MdqNotFoundError,
+    MdqServiceError,
     OutlineRequest,
     ParseMarkdownRequest,
     RefreshIndexRequest,
@@ -117,24 +118,24 @@ class TestIterIndexableFiles:
         assert "ignored.md" not in names
 
 
-class TestMaxFileCharsEnforcement:
+class TestMaxFileBytesEnforcement:
     def test_oversized_file_is_skipped_with_warning(
         self,
         service: MdqService,
         tmp_path: Path,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
-        """A file exceeding max_file_chars is skipped entirely, with a warning log."""
+        """A file exceeding max_file_bytes is skipped entirely, with a warning log."""
         import logging
 
-        service.max_file_chars = 10
+        service.max_file_bytes = 10
         big = tmp_path / "big.md"
         big.write_text("# Title\n\n" + ("X" * 100), encoding="utf-8")
 
         with caplog.at_level(logging.WARNING, logger="mcp_servers.mdq.indexer"):
             asyncio.run(_index_single_file(service, big))
 
-        assert "exceeds max_file_chars" in caplog.text
+        assert "exceeds max_file_bytes" in caplog.text
         conn = service._get_db_connection()
         try:
             row = conn.execute(
@@ -148,7 +149,7 @@ class TestMaxFileCharsEnforcement:
     def test_file_within_limit_is_indexed(
         self, service: MdqService, tmp_path: Path
     ) -> None:
-        service.max_file_chars = 100000
+        service.max_file_bytes = 100000
         f = tmp_path / "small.md"
         f.write_text("# Title\n\nSmall content.", encoding="utf-8")
         asyncio.run(_index_single_file(service, f))
@@ -161,6 +162,47 @@ class TestMaxFileCharsEnforcement:
             assert row["cnt"] == 1
         finally:
             conn.close()
+
+    @pytest.mark.parametrize(
+        ("label", "body"),
+        [
+            ("ascii", "abcdefghij" * 6),  # 1 byte per character
+            ("japanese", "日本語のテキスト" * 5),  # 3 bytes per character
+            ("emoji", "🙂🎉" * 5),  # 4 bytes per code point
+            ("bom", "\ufeffabc"),  # the BOM is one character, three bytes
+        ],
+    )
+    def test_byte_gate_and_character_limit_differ(
+        self, service: MdqService, tmp_path: Path, label: str, body: str
+    ) -> None:
+        """The gate counts bytes on disk, not decoded characters (REQ-004, AC-3).
+
+        `max_file_bytes` is set to the file's character count, so a reader who took the
+        number for characters would accept every variant. Only the single-byte variant
+        actually fits the byte gate; the multi-byte variants are skipped before the read.
+        """
+        f = tmp_path / f"{label}.md"
+        text = f"# Title\n\n{body}"
+        f.write_text(text, encoding="utf-8")
+        char_count = len(text)
+        byte_count = f.stat().st_size
+        service.max_file_bytes = char_count
+
+        asyncio.run(_index_single_file(service, f))
+
+        conn = service._get_db_connection()
+        try:
+            row = conn.execute(
+                "SELECT COUNT(*) as cnt FROM documents WHERE source_path = ?",
+                (str(f),),
+            ).fetchone()
+        finally:
+            conn.close()
+        if byte_count > char_count:
+            assert row["cnt"] == 0
+        else:
+            # bytes == characters == the limit: `>` is the skip condition, so it indexes
+            assert row["cnt"] == 1
 
 
 class TestMaxChunkCharsEnforcement:
@@ -254,7 +296,7 @@ class TestParseMarkdown:
     def test_returns_sections_with_headings(
         self, service: MdqService, md_file: Path
     ) -> None:
-        sections, _tags = asyncio.run(
+        sections, _tags, _warning = asyncio.run(
             parse_markdown(service, ParseMarkdownRequest(path=str(md_file)))
         )
         assert len(sections) == 1
@@ -266,7 +308,7 @@ class TestParseMarkdown:
     ) -> None:
         f = tmp_path / "root.md"
         f.write_text("Intro text.\n\n## Section\n\nBody.", encoding="utf-8")
-        sections, _tags = asyncio.run(
+        sections, _tags, _warning = asyncio.run(
             parse_markdown(service, ParseMarkdownRequest(path=str(f)))
         )
         headings = [s["heading"] for s in sections]
@@ -289,7 +331,7 @@ class TestParseMarkdown:
         f.write_text(
             "# Title\n\n```text\n# Not a heading\n```\n\nBody.", encoding="utf-8"
         )
-        sections, _tags = asyncio.run(
+        sections, _tags, _warning = asyncio.run(
             parse_markdown(service, ParseMarkdownRequest(path=str(f)))
         )
         headings = [s["heading"] for s in sections]
@@ -301,7 +343,7 @@ class TestParseMarkdown:
         """YAML frontmatter is skipped; first ATX heading becomes first section."""
         f = tmp_path / "frontmatter.md"
         f.write_text("---\ntitle: Test\n---\n\n# Title\n\nBody.", encoding="utf-8")
-        sections, tags = asyncio.run(
+        sections, tags, _warning = asyncio.run(
             parse_markdown(service, ParseMarkdownRequest(path=str(f)))
         )
         headings = [s["heading"] for s in sections]
@@ -319,7 +361,7 @@ class TestParseMarkdown:
             "# Title\n\n## API\n\nFirst body.\n\n## API\n\nSecond body.",
             encoding="utf-8",
         )
-        sections, _tags = asyncio.run(
+        sections, _tags, _warning = asyncio.run(
             parse_markdown(service, ParseMarkdownRequest(path=str(f)))
         )
         api_sections = [s for s in sections if s["heading"] == "API"]
@@ -331,7 +373,7 @@ class TestParseMarkdown:
         """### C under # A / ## B produces heading_path='A > B'."""
         f = tmp_path / "nested.md"
         f.write_text("# A\n\n## B\n\n### C\n\nBody.", encoding="utf-8")
-        sections, _tags = asyncio.run(
+        sections, _tags, _warning = asyncio.run(
             parse_markdown(service, ParseMarkdownRequest(path=str(f)))
         )
         c_section = next(s for s in sections if s["heading"] == "C")
@@ -344,7 +386,7 @@ class TestParseMarkdown:
         """#NoSpace (no space after #) is treated as plain content."""
         f = tmp_path / "malformed.md"
         f.write_text("# Title\n\n#NoSpace\n\nBody.", encoding="utf-8")
-        sections, _tags = asyncio.run(
+        sections, _tags, _warning = asyncio.run(
             parse_markdown(service, ParseMarkdownRequest(path=str(f)))
         )
         headings = [s["heading"] for s in sections]
@@ -357,7 +399,7 @@ class TestParseMarkdown:
         """Verify heading_level field equals the ATX # count."""
         f = tmp_path / "levels.md"
         f.write_text("# A\n\n## B\n\n### C\n\nBody.", encoding="utf-8")
-        sections, _tags = asyncio.run(
+        sections, _tags, _warning = asyncio.run(
             parse_markdown(service, ParseMarkdownRequest(path=str(f)))
         )
         levels = {s["heading"]: s["heading_level"] for s in sections}
@@ -372,7 +414,7 @@ class TestParseMarkdown:
         f = tmp_path / "empty.md"
         # No blank line between ## Empty and ## Has Content — no content lines
         f.write_text("# Title\n\n## Empty\n## Has Content\n\nBody.", encoding="utf-8")
-        sections, _tags = asyncio.run(
+        sections, _tags, _warning = asyncio.run(
             parse_markdown(service, ParseMarkdownRequest(path=str(f)))
         )
         headings = [s["heading"] for s in sections]
@@ -387,7 +429,7 @@ class TestParseMarkdown:
         f.write_text(
             "---\ntags: [alpha, beta]\n---\n\n# Title\n\nBody.", encoding="utf-8"
         )
-        _sections, tags = asyncio.run(
+        _sections, tags, _warning = asyncio.run(
             parse_markdown(service, ParseMarkdownRequest(path=str(f)))
         )
         assert tags == ["alpha", "beta"]
@@ -400,7 +442,7 @@ class TestParseMarkdown:
         f.write_text(
             '---\ntags: "alpha, beta"\n---\n\n# Title\n\nBody.', encoding="utf-8"
         )
-        _sections, tags = asyncio.run(
+        _sections, tags, _warning = asyncio.run(
             parse_markdown(service, ParseMarkdownRequest(path=str(f)))
         )
         assert tags == ["alpha", "beta"]
@@ -411,7 +453,7 @@ class TestParseMarkdown:
         """Frontmatter present but with no tags key yields an empty tags list."""
         f = tmp_path / "no_tags.md"
         f.write_text("---\ntitle: Test\n---\n\n# Title\n\nBody.", encoding="utf-8")
-        _sections, tags = asyncio.run(
+        _sections, tags, _warning = asyncio.run(
             parse_markdown(service, ParseMarkdownRequest(path=str(f)))
         )
         assert tags == []
@@ -428,7 +470,7 @@ class TestParseMarkdown:
             "---\ntags: {not: a, list: or, string: value}\n---\n\n# Title\n\nBody.",
             encoding="utf-8",
         )
-        sections, tags = asyncio.run(
+        sections, tags, _warning = asyncio.run(
             parse_markdown(service, ParseMarkdownRequest(path=str(f)))
         )
         assert tags == []
@@ -447,7 +489,7 @@ class TestParseMarkdown:
         """
         f = tmp_path / "frontmatter_blank.md"
         f.write_text("---\ntags: [x]\n---\n\n# Title\n\nBody.", encoding="utf-8")
-        sections, _tags = asyncio.run(
+        sections, _tags, _warning = asyncio.run(
             parse_markdown(service, ParseMarkdownRequest(path=str(f)))
         )
         assert len(sections) == 1
@@ -497,7 +539,12 @@ class TestIndexer:
     def test_index_directory_processes_md_files(
         self, service: MdqService, md_dir: Path
     ) -> None:
-        asyncio.run(_index_directory(service, md_dir))
+        import mcp_servers.mdq.indexer as indexer_module
+
+        outcomes = asyncio.run(
+            _index_directory(service, md_dir, indexer_module._PathTally())
+        )
+        assert [outcome.status for outcome in outcomes] == ["indexed", "indexed"]
         conn = service._get_db_connection()
         try:
             count = conn.execute("SELECT COUNT(*) as cnt FROM chunks").fetchone()["cnt"]
@@ -513,7 +560,7 @@ class TestIndexer:
         req = IndexPathsRequest(paths=[str(tmp_path / "ghost.md")])
         with caplog.at_level(logging.WARNING, logger="mcp_servers.mdq.indexer"):
             text, metadata = asyncio.run(index_paths(service, req))
-        assert text == "Indexing complete"
+        assert text == "partial_success"
         assert "does not exist" in caplog.text
         assert metadata["skipped_count"] == 1
 
@@ -527,7 +574,7 @@ class TestIndexer:
         req = IndexPathsRequest(paths=[str(txt)])
         with caplog.at_level(logging.WARNING, logger="mcp_servers.mdq.indexer"):
             text, metadata = asyncio.run(index_paths(service, req))
-        assert text == "Indexing complete"
+        assert text == "partial_success"
         assert "Skipping" in caplog.text
         assert metadata["skipped_count"] == 1
 
@@ -551,8 +598,8 @@ class TestIndexer:
     def test_index_paths_records_failed_count_on_file_error(
         self, service: MdqService, md_file: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """A file that raises while being indexed increments failed_count
-        instead of silently being counted as indexed."""
+        """A file that raises while being indexed is counted as failed, and the run
+        whose only file failed reports the tool error instead of a completed text."""
         import mcp_servers.mdq.indexer as indexer_module
 
         async def _raise(_service: MdqService, _path: Path) -> None:
@@ -560,25 +607,26 @@ class TestIndexer:
 
         monkeypatch.setattr(indexer_module, "_index_single_file", _raise)
         req = IndexPathsRequest(paths=[str(md_file)])
-        text, metadata = asyncio.run(index_paths(service, req))
-        assert text == "Indexing complete"
-        assert metadata["failed_count"] == 1
-        assert metadata["indexed_count"] == 0
+        with pytest.raises(MdqServiceError, match="1 of 1 discovered files failed"):
+            asyncio.run(index_paths(service, req))
 
     def test_index_paths_records_failed_count_on_directory_error(
-        self, service: MdqService, md_dir: Path, monkeypatch: pytest.MonkeyPatch
+        self,
+        service: MdqService,
+        md_dir: Path,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """A directory that raises while being indexed increments failed_count
+        """A directory whose indexing call raises increments failed_count
         instead of silently being counted as indexed."""
         import mcp_servers.mdq.indexer as indexer_module
 
-        async def _raise(_service: MdqService, _path: Path) -> None:
+        async def _raise(_service: MdqService, _path: Path, _tally: object) -> None:
             raise RuntimeError("boom")
 
         monkeypatch.setattr(indexer_module, "_index_directory", _raise)
         req = IndexPathsRequest(paths=[str(md_dir)])
         text, metadata = asyncio.run(index_paths(service, req))
-        assert text == "Indexing complete"
+        assert text == "partial_success"
         assert metadata["failed_count"] == 1
         assert metadata["indexed_count"] == 0
 
@@ -759,13 +807,53 @@ class TestMdqService:
     ) -> None:
         req = RefreshIndexRequest(paths=[str(md_file)])
         text, metadata = asyncio.run(service.refresh_index(req))
-        assert "Refresh complete" in text
+        assert text.splitlines()[0] == "Indexing complete"
         assert "Indexed:" in text
         assert "Skipped (unchanged):" in text
         assert "Deleted from index:" in text
         assert "Failed:" in text
+        assert "Files discovered: 1" in text
+        assert "Files committed: 1" in text
+        assert "Files skipped: 0" in text
+        assert "Files unchanged: 0" in text
+        assert "Files failed: 0" in text
         assert metadata["indexed_count"] == 1
         assert metadata["failed_count"] == 0
+
+    def test_refresh_index_of_an_unchanged_file_reports_complete(
+        self, service: MdqService, md_file: Path
+    ) -> None:
+        """A refresh that found nothing changed completed its work, so it is not partial."""
+        req = RefreshIndexRequest(paths=[str(md_file)])
+        asyncio.run(service.refresh_index(req))
+
+        text, metadata = asyncio.run(service.refresh_index(req))
+
+        assert text.splitlines()[0] == "Indexing complete"
+        assert "Files unchanged: 1" in text
+        assert (
+            metadata["committed_file_count"],
+            metadata["skipped_file_count"],
+            metadata["unchanged_file_count"],
+        ) == (0, 1, 1)
+
+    def test_refresh_index_of_a_size_skipped_file_reports_partial_success(
+        self, service: MdqService, md_file: Path
+    ) -> None:
+        """A file skipped for its size is unfinished work, unlike an unchanged file."""
+        service.max_file_bytes = 10
+
+        text, metadata = asyncio.run(
+            service.refresh_index(RefreshIndexRequest(paths=[str(md_file)]))
+        )
+
+        assert text.splitlines()[0] == "partial_success"
+        assert (
+            metadata["committed_file_count"],
+            metadata["skipped_file_count"],
+            metadata["unchanged_file_count"],
+            metadata["failed_file_count"],
+        ) == (0, 1, 0, 0)
 
     def test_stats_returns_counts_after_indexing(
         self, service: MdqService, md_dir: Path
